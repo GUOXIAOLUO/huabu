@@ -340,6 +340,23 @@ one injected host mount per adapter, no remaining direct
 (unified-render-host -> render-runtime -> adapter). Focused regression: PASS
 (2 new tests; three mount-wiring assertions updated to the runtime contract);
 full regression: PASS (332 tests).
+
+2026-09-06 Group rendering cutover (R4-10): Group is the first family whose
+complete mount contract is owned by the Unified RenderRuntime.
+`WorkbenchRenderRuntime.mountGroupCard` assembles the group record (legacyNodeView
++ own/member media merged into output_refs), decides media vs legacy content
+(`mediaEnabled:false` preserves the rollback path), executes the mount through
+the keyed lifecycle, exposes the resolved shell view (`viewState`, `onIntent`)
+plus `hasRenderableMedia`/`useLegacyContent` on the frozen result, and supports
+an `mountEmptyState` hook for no-media groups. Classic's group branch
+(`mountCanvasGroupShell`) and Smart's group batch delegate with only gates,
+member-media extraction, intents, and control selectors; Smart's inline
+record-selection ternary is gone and the old `smartGroupMediaRecord` remains
+only inside the eligibility gate. Create/render/update/move/resize/reload/
+delete behavior is unchanged (resize/member-sync/delete paths untouched; the
+runtime destroys handles on delete and canvas loads). Focused regression: PASS
+(behavioral `mountGroupCard` test + both-adapters cutover contract test); full
+regression: PASS (334 tests).
 ```
 
 ## Rendering ownership map (R4-08 characterization, 2026-09-06)
@@ -368,8 +385,8 @@ keeping DOM alive.
 
 | Family | Create | Update | Destroy | Listeners | Media state | Current owner | Target owner |
 |---|---|---|---|---|---|---|---|
-| Group (Classic `group`/`promptGroup`) | `addGroupNode` C2679 / promptGroup C15344; versioned C2631 | full render; shell via `mountCanvasNodeShellForMedia` C6420 | omission + `deleteNode` C13558 (versioned empty C13826) | body drag/dblclick C6637; shell intents once mounted | member images → MediaRenderer record C6409 | adapter HTML + NodeShell chrome | Unified RenderRuntime (card builder + lifecycle); adapter product controls compat |
-| Group (Smart `smart-group`) | `createSmartGroupNode` S6844; versioned S1643/S1682 | full render; batch mount S1549 | `deleteNode` S10595 (versioned S10784) | dblclick/toolbar S10269/S10327; shell owns ports/resize | group media record S1437 → MediaRenderer | adapter HTML + shell batch mount | Unified RenderRuntime; Smart group actions compat |
+| Group (Classic `group`/`promptGroup`) | `addGroupNode` C2679 / promptGroup C15344; versioned C2631 | full render; group branch delegates to `mountCanvasGroupShell` C6438 | omission + `deleteNode` C13558 (versioned empty C13826) | body drag/dblclick C6637; shell intents once mounted | member images → runtime-built record | adapter HTML + RenderRuntime group mount (R4-10) | Unified RenderRuntime (card builder + lifecycle); adapter product controls compat |
+| Group (Smart `smart-group`) | `createSmartGroupNode` S6844; versioned S1643/S1682 | full render; batch delegates to `mountGroupCard` S1559 | `deleteNode` S10595 (versioned S10784) | dblclick/toolbar S10269/S10327; shell owns ports/resize | member media → runtime-built record | adapter HTML + RenderRuntime group mount (R4-10) | Unified RenderRuntime; Smart group actions compat |
 | Image (Classic) | `addImageNode` C2604; versioned C2527 | full render / `refreshNodes` | content-clear C13568 → versioned C13736 / `deleteNode` | body C6522; img guards C6553 | shared media-kind/preview-url/fallback/high-res; adapter video activation C84 | shared media primitives + adapter HTML | Unified RenderRuntime; adapter video activation compat |
 | Image (Smart `smart-image`) | `createNode` S6749; versioned S1764/S1802 | full render + `measureSmartNodeImages` S9136 | media-clear S10618 → versioned S10761 / `deleteNode` | thumbs/play/drag S10354–10533 | shared primitives; inline-video memory S8988 | adapter HTML + MediaRenderer | Unified RenderRuntime; Smart media tools compat |
 | Prompt (Classic) | `addPromptNode` C2608; versioned C2554 | render + counter C6600 | versioned C13760 / `deleteNode` | textarea/template C6605 | n/a | adapter | Unified RenderRuntime lifecycle |
@@ -424,6 +441,14 @@ unmount/remount/batch, `unmountAll` on canvas load. All five adoption mounts
 resets route through it; each adapter keeps exactly one injected
 `UnifiedRenderHost.mountAdapterCard` (pinned by test), so page-side card
 mount/destruction ownership is removed.
+
+Extended by R4-10 (2026-09-06, Group cutover): `mountGroupCard` on the same
+runtime now owns the Group family mount contract — record assembly from own +
+member media, the media-vs-legacy-content decision (with `mediaEnabled:false`
+rollback semantics), mount execution and lifecycle entry, the resolved shell
+view on the result, and an `mountEmptyState` hook. Classic's group branch
+(`mountCanvasGroupShell`) and Smart's group batch both delegate; pages retain
+only flag gates, member-media extraction, intents, and control selectors.
 
 # Save/merge machinery characterization (U7 blocker analysis, 2026-09-06)
 

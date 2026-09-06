@@ -2,8 +2,9 @@
 
 - Round: R4
 - Priority: P1
-- Status: ACTIVE
+- Status: DONE
 - Activated: 2026-09-06T19:38+08:00
+- Completed: 2026-09-06T20:25+08:00
 - Depends on: R4-09
 
 ## Goal
@@ -54,8 +55,8 @@ Run:
 
 ## Definition of Done
 
-- [ ] Create/render/update/move/resize/reload/delete pass.
-- [ ] Only one product rendering owner remains.
+- [x] Create/render/update/move/resize/reload/delete pass. (Versioned group create/delete and shell-mount tests pass; resize and member-sync paths untouched; the runtime destroys mounted handles on delete and canvas loads; full regression 334 tests PASS including the behavioral `mountGroupCard` test and both-adapters cutover contract test.)
+- [x] Only one product rendering owner remains. (Group mount policy — record assembly from own/member media, media-vs-legacy decision with `mediaEnabled:false` rollback, mount execution and lifecycle, resolved shell view on the result — lives only in `WorkbenchRenderRuntime.mountGroupCard`; Classic's group branch (`mountCanvasGroupShell`) and Smart's group batch delegate with only gates, member-media extraction, intents, and control selectors. Smart's inline record-selection ternary was removed.)
 
 ## Documentation
 
@@ -67,11 +68,19 @@ Update `AGENT_NEXT_TASK.md` after the card is actually verified.
 
 ## Final Ownership Evidence
 
-Before:
+Before: Classic/Smart group rendering — both pages implemented the group mount
+policy separately (media-record assembly, renderer choice, legacy-content
+preserve, control stripping) and discarded mounted handles.
 
-After:
+After: Unified RenderRuntime — `mountGroupCard` on the render runtime owns the
+complete group mount contract and its lifecycle entry; pages supply only flag
+gates, member-media extraction, intents, and control selectors; the
+ownership-matrix Group rows and map section record the cutover.
 
-Duplicate owner removed:
+Duplicate owner removed: the per-page group mount policy — Smart's inline
+record-selection (`smartGroupMediaRecord : legacyNodeView` ternary) and the
+duplicated decision logic in Classic's media mount are gone; the old record
+builder survives only inside the eligibility gate.
 
 ## Next Recommended Card
 

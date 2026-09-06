@@ -541,6 +541,25 @@ slice; family card builders remain adapter-owned pending later units.
 Focused regression: PASS (2 new tests; three mount-wiring assertions updated
 to the runtime contract); full regression: PASS at 332 tests.
 
+R4 Group rendering cutover (card R4-10, 2026-09-06T20:25+08:00): Group is the
+first node family with a complete mount contract owned by the Unified
+RenderRuntime. `WorkbenchRenderRuntime.mountGroupCard` assembles the group
+record from own + member media, decides media versus legacy content
+(`mediaEnabled:false` preserves the rollback path), executes the mount through
+the keyed lifecycle, exposes the resolved shell view and
+`hasRenderableMedia`/`useLegacyContent` on the frozen result, and supports a
+`mountEmptyState` hook for no-media groups. Classic's group branch
+(`mountCanvasGroupShell`) and Smart's group batch delegate to it with only
+flag gates, member-media extraction, intents, and control selectors; Smart's
+inline record-selection ternary was removed and the old record builder
+survives only inside the eligibility gate. Create, render, update, move,
+resize, reload, and delete behavior is unchanged — resize and member-sync
+paths were not touched, and the runtime destroys mounted handles on delete
+and canvas loads. Position/size/reload/delete pass through the existing
+versioned group and deletion tests. Focused regression: PASS (behavioral
+`mountGroupCard` test + both-adapters cutover contract test); full
+regression: PASS at 334 tests.
+
 ## Unified Canvas verified ledger
 
 | Stage | Status | Evidence summary |
@@ -698,13 +717,17 @@ seconds, Python 3.14.7 (2026-09-06). The +2 tests are the runtime lifecycle
 sandbox and the wiring contract; three mount-wiring assertions moved to the
 runtime contract.
 
-Agent regression gate (cards R4-01…R4-09):
+Result: PASS after R4-10 Group rendering cutover — 334 tests in 3.5 seconds,
+Python 3.14.7 (2026-09-06). The +2 tests are the `mountGroupCard` behavioral
+test and the both-adapters cutover contract test.
+
+Agent regression gate (cards R4-01…R4-10):
 
 ```text
 ./scripts/agent-verify.sh
 ```
 
-Result: PASS — AGENT VERIFY: PASS (332 unit tests, Python AST parse of 73 files,
+Result: PASS — AGENT VERIFY: PASS (334 unit tests, Python AST parse of 73 files,
 `node --check` of 64 JavaScript files, 4 architecture-guard tests,
 `git diff --check`; Node v24.20.0). The gate script was fixed during R4-01 to
 prefer `.venv/bin/python` over PATH `python3`, which lacks project dependencies
