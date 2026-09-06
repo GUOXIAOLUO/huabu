@@ -8,8 +8,8 @@
 - Task ID: `R4-22`
 - Round: `R4`
 - Priority: `P1`
-- Status: `READY` (in backlog — activation is an Owner decision pending R4-21 review closure)
-- Task Card: `docs/tasks/backlog/R4-22-file-drop.md`
+- Status: `READY`
+- Task Card: `docs/tasks/active/R4-22-file-drop.md`
 
 ## Completed Tasks
 

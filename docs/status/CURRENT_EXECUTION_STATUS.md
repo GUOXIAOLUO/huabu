@@ -5,12 +5,12 @@ status_schema: workbench.execution-status/2
 ## Repository
 
 repository: local worktree (remote repository out of scope)
-verified_head: 7ed13d829c578f00468083d3679e8cc7b621d191
-verified_commit: "docs: record R4-21 creation controller acceptance"
+verified_head: 0495cee0c36ff5694d5ba10d5988f7ec4e2ca8bf
+verified_commit: "docs: record the actual R4-21 independent review and defer R4-22 activation"
 branch: main
 remote_state: not checked; GitHub/remote synchronization is out of scope for this local task
-verified_at: 2026-09-07T06:17:00+08:00
-verification_source: current local worktree (R4-21 reviewed; R4-22 activation deferred to backlog)
+verified_at: 2026-09-07T06:53:00+08:00
+verification_source: current local worktree (R4-21 review closed — rectified, post-fix re-check PASS; R4-22 activated as the unique dependency-satisfied next card in the R4 chain)
 worktree_before_R0: clean
 worktree_at_R4_03: HEAD a1195c9 plus the R4-03 card's own pending additions only —
 the authority policy seam, the main.py guard wiring, focused policy/wiring tests,

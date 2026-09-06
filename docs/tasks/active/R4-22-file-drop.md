@@ -2,8 +2,9 @@
 
 - Round: R4
 - Priority: P1
-- Status: BACKLOG
-- Depends on: R4-21
+- Status: READY
+- Activated: 2026-09-07T06:53+08:00
+- Depends on: R4-21 (DONE, review closed)
 
 ## Goal
 
