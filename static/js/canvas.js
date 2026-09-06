@@ -6414,6 +6414,7 @@ function canvasMediaRecord(node){
     }
     return record;
 }
+const CANVAS_PROVIDER_SHELL_TYPES = Object.freeze(['llm', 'generator', 'midjourney', 'msgen', 'video', 'comfy', 'rh', 'ltxDirector', 'minimax']);
 const CANVAS_NODE_SHELL_LEGACY_CONTROLS = Object.freeze({
     firstSelectors:Object.freeze(['.node-head']),
     selectors:Object.freeze([':scope > .port, :scope > .resize-handle']),
@@ -6487,7 +6488,10 @@ function mountCanvasNodeShellForLegacy(node, body, el){
             scheduleGeneratorInputSync();
         },
         onOpenTemplate: openPromptTemplateModal,
-    } : null;
+    } : (CANVAS_PROVIDER_SHELL_TYPES.includes(node.type) ? {
+        // Provider-card cleanup flows through the mounted-handle lifecycle.
+        onCardDestroy: payloadNode => destroyLTXEditor(payloadNode),
+    } : null);
     const mounted = ensureRenderRuntime().mount({
         document, node:record, card:el, contentHost:body,
         preserveLegacyContent: node.type !== 'prompt',
@@ -13604,7 +13608,7 @@ async function runLLMChat(nodeId){
 function deleteNode(id, event){
     event?.stopPropagation();
     pushUndo();
-    destroyLTXEditor(nodes.find(n => n.id === id));
+    // Provider-card cleanup (LTX editor) runs inside the runtime unmount.
     renderRuntime?.unmount(id);
     nodes = nodes.filter(n => n.id !== id);
     connections = connections.filter(c => c.from !== id && c.to !== id);
@@ -16733,7 +16737,7 @@ function deleteSelectedNodes(){
         initialIds:[...selected],
         childIds:node => (node.type === 'group' || node.type === 'promptGroup') ? node.items || [] : [],
     });
-    toDelete.forEach(id => destroyLTXEditor(nodes.find(n => n.id === id)));
+    toDelete.forEach(id => renderRuntime?.unmount(id));
     const remaining = window.WorkbenchCanvasGraphFragment.removeGraphRecords({nodes, connections, removeIds:toDelete});
     nodes = remaining.nodes;
     connections = remaining.connections;

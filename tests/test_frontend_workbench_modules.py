@@ -1296,6 +1296,116 @@ console.log(JSON.stringify({
         self.assertIn("onPromptInput: text =>", classic)
         # Flags-off fallback markup is preserved verbatim.
         self.assertIn('data-prompt-template-open data-prompt-template-node-id=', classic)
+    def test_provider_compat_renderer_adopts_body_and_carries_cleanup_through_destroy(self):
+        canvas_dir = ROOT / "static" / "js" / "workbench" / "canvas"
+        module_paths = [
+            json.dumps(str(canvas_dir / "renderer-registry.js")),
+            json.dumps(str(canvas_dir / "node-shell.js")),
+            json.dumps(str(canvas_dir / "node-card-host.js")),
+            json.dumps(str(canvas_dir / "provider-compat-renderer.js")),
+        ]
+        module_loads = "\n".join(
+            f"vm.runInNewContext(fs.readFileSync({path}, 'utf8'), sandbox);" for path in module_paths
+        )
+        script = """
+const fs = require('fs'); const vm = require('vm');
+const makeElement = tag => {
+  const state = {children: [], dataset: {}, listeners: {}, removed: false};
+  const el = {
+    tagName: tag.toUpperCase(),
+    get children() { return state.children; },
+    get dataset() { return state.dataset; },
+    className: '', textContent: '', value: '',
+    append(...kids) { state.children.push(...kids); },
+    replaceChildren(...kids) { state.children = kids; },
+    addEventListener(type, cb) { (state.listeners[type] = state.listeners[type] || []).push(cb); },
+    setAttribute(name, value) { state.dataset['attr-' + name] = String(value); },
+    remove() { state.removed = true; },
+    get removed() { return state.removed; },
+    classList: {add() {}, remove() {}, toggle() {}},
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    getAttribute: () => '',
+  };
+  return el;
+};
+const fakeDocument = {createElement: makeElement};
+const sandbox = {window: {
+  document: fakeDocument,
+  // Minimal LegacyRenderer stand-in so registerBuiltIns has a fallback to register.
+  WorkbenchLegacyRenderer: {
+    canRender: node => Boolean(node?.renderer && node.renderer.id === 'legacy' && node.extensions?.legacy?.payload),
+    mount: (shell, node, options) => ({element: options?.legacyContent || null, destroy() {}}),
+  },
+}};
+__MODULES__
+const host = sandbox.window.WorkbenchNodeCardHost;
+const legacyBody = makeElement('DIV');
+legacyBody.className = 'llm-body';
+const payloadNode = {id: 'llm-1', type: 'llm'};
+const destroyCalls = [];
+const providerShell = host.mount({
+  node: {
+    id: 'llm-1', kind: 'legacy', renderer: {id: 'legacy', version: '1'},
+    definition_ref: {type: 'legacy', id: 'llm', version: '0'},
+    extensions: {legacy: {payload: payloadNode}},
+  },
+  document: fakeDocument,
+  viewState: {},
+  rendererOptions: {
+    legacyContent: legacyBody,
+    onCardDestroy: node => destroyCalls.push(node),
+  },
+});
+providerShell.destroy();
+const genericShell = host.mount({
+  node: {
+    id: 'loop-1', kind: 'legacy', renderer: {id: 'legacy', version: '1'},
+    definition_ref: {type: 'legacy', id: 'loop', version: '0'},
+    extensions: {legacy: {payload: {id: 'loop-1', type: 'loop'}}},
+  },
+  document: fakeDocument,
+  viewState: {},
+  rendererOptions: {legacyContent: makeElement('DIV')},
+});
+const compatRoot = providerShell.shell.contentHost.children[0];
+console.log(JSON.stringify({
+  rendererId: providerShell.element.dataset.rendererId,
+  rootClass: compatRoot.className,
+  adopted: compatRoot.children[0] === legacyBody,
+  cleanupFired: destroyCalls[0] === payloadNode,
+  rootRemoved: compatRoot.removed,
+  genericRendererId: genericShell.element.dataset.rendererId,
+}));
+""".replace("__MODULES__", module_loads)
+        result = subprocess.run(["node", "-e", script], text=True, capture_output=True)
+        if result.returncode != 0:
+            self.fail(f"provider-compat sandbox failed: {result.stderr[-500:]}")
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["rendererId"], "provider-compat")
+        self.assertEqual(payload["rootClass"], "workbench-provider-compat-renderer")
+        self.assertTrue(payload["adopted"])
+        self.assertTrue(payload["cleanupFired"])
+        self.assertTrue(payload["rootRemoved"])
+        # Non-provider generic families still resolve to source-payload.
+        self.assertEqual(payload["genericRendererId"], "source-payload")
+
+    def test_provider_rendering_lifecycle_is_owned_by_the_runtime_on_classic(self):
+        classic_page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
+        self.assertLess(classic_page.index("workbench/canvas/prompt-card-renderer.js"), classic_page.index("workbench/canvas/provider-compat-renderer.js"))
+        self.assertLess(classic_page.index("workbench/canvas/provider-compat-renderer.js"), classic_page.index("js/canvas.js"))
+        # Smart provider-shaped cards keep their composer-owned bodies for now.
+        self.assertNotIn("provider-compat-renderer.js", (ROOT / "static" / "smart-canvas.html").read_text(encoding="utf-8"))
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        self.assertIn("const CANVAS_PROVIDER_SHELL_TYPES = Object.freeze(['llm', 'generator', 'midjourney', 'msgen', 'video', 'comfy', 'rh', 'ltxDirector', 'minimax'])", classic)
+        self.assertIn("onCardDestroy: payloadNode => destroyLTXEditor(payloadNode)", classic)
+        delete_flow = classic[classic.index("function deleteNode(id, event){") : classic.index("function deleteSelectedNodes(){")]
+        self.assertIn("renderRuntime?.unmount(id)", delete_flow)
+        self.assertNotIn("destroyLTXEditor(", delete_flow)
+        bulk_start = classic.index("function deleteSelectedNodes(){")
+        bulk_flow = classic[bulk_start : bulk_start + 900]
+        self.assertIn("toDelete.forEach(id => renderRuntime?.unmount(id));", bulk_flow)
+        self.assertNotIn("destroyLTXEditor(", bulk_flow[:bulk_flow.index("renderRuntime?.unmount") + 40])
 
     def test_render_runtime_group_mount_owns_record_decision_and_lifecycle(self):
         runtime_module = ROOT / "static" / "js" / "workbench" / "canvas" / "render-runtime.js"
