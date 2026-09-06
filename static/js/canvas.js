@@ -343,7 +343,7 @@ let isRKeyDown = false;
 let menuPoint = null;
 let linkCreateState = null;
 let internalDrag = false;
-let selected = new Set();
+const selected = window.WorkbenchInteractionController.createSelectionStore();
 // Default-on shared state while the two page adapters are being converged. It
 // owns only generic viewport, selection and geometry state; an explicit zero
 // remains the bounded U7 rollback control while rendering stays compatible.
@@ -391,14 +391,14 @@ function applyCanvasRuntimeSelection(ids, toggleId=''){
     runtime.dispatch(toggleId
         ? {type:window.WorkbenchCanvasRuntime.COMMANDS.SELECTION_TOGGLE, id:toggleId}
         : {type:window.WorkbenchCanvasRuntime.COMMANDS.SELECTION_REPLACE, ids});
-    selected = new Set(runtime.snapshot().selectedIds);
+    selected.replace(runtime.snapshot().selectedIds);
     return true;
 }
 function clearCanvasRuntimeSelection(){
     const runtime = ensureCanvasUnifiedRuntime();
     if(!runtime) return false;
     runtime.dispatch({type:window.WorkbenchCanvasRuntime.COMMANDS.SELECTION_CLEAR});
-    selected = new Set();
+    selected.clear();
     return true;
 }
 function applyCanvasRuntimeNodeMove(node){
@@ -2146,7 +2146,7 @@ function applyRemoteCanvasData(remote){
         sanitizeConnections();
         pruneMissingComfyWorkflows();
         refreshMissingCanvasAssets().then(() => render());
-        selected = new Set([...localSelectedIds].filter(id => nodes.some(node => node.id === id)));
+        selected.replace([...localSelectedIds].filter(id => nodes.some(node => node.id === id)));
         renderCanvasList();
         render();
         resumeCanvasImageTasks();
@@ -15358,7 +15358,7 @@ function finishSelection(){
     });
     // The overlap calculation is adapter-specific DOM work; the completed
     // selection transition belongs to the default Unified runtime.
-    if(!applyCanvasRuntimeSelection(selectedIds)) selected = new Set(selectedIds);
+    if(!applyCanvasRuntimeSelection(selectedIds)) selected.replace(selectedIds);
     selectDrag = null;
     document.body.classList.remove('canvas-selecting');
     window.onmousemove = null;

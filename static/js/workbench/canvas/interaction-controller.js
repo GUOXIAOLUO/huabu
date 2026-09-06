@@ -51,5 +51,54 @@
         return Object.freeze({begin, end, activeKind});
     }
 
-    global.WorkbenchInteractionController = Object.freeze({create});
+    // Selection authority: a Set-compatible store that owns selection state for
+    // a page. All mutations flow through it (single click, multi-select, box
+    // selection results), so the page keeps no second selection source of
+    // truth. Ids are coerced to strings; normalization against live nodes
+    // stays the caller's concern, exactly like the previous page-local Sets.
+    function createSelectionStore(options) {
+        const settings = options || {};
+        const onChange = typeof settings.onChange === 'function' ? settings.onChange : null;
+        const ids = new Set();
+        const store = {};
+
+        function changed() {
+            if (onChange) onChange([...ids]);
+        }
+
+        store.has = id => ids.has(String(id));
+        store.add = id => {
+            const key = String(id);
+            if (!ids.has(key)) {
+                ids.add(key);
+                changed();
+            }
+            return store;
+        };
+        store.delete = id => {
+            const had = ids.delete(String(id));
+            if (had) changed();
+            return had;
+        };
+        store.clear = () => {
+            if (!ids.size) return;
+            ids.clear();
+            changed();
+        };
+        store.replace = next => {
+            ids.clear();
+            for (const id of next || []) ids.add(String(id));
+            changed();
+        };
+        Object.defineProperty(store, 'size', {get: () => ids.size});
+        store.forEach = (callback, thisArg) => {
+            ids.forEach(value => callback.call(thisArg, value, value, store));
+        };
+        store[Symbol.iterator] = function* () { yield* ids; };
+        store.ids = () => Object.freeze([...ids]);
+
+        return Object.freeze(store);
+    }
+
+    global.WorkbenchInteractionController = Object.freeze({create, createSelectionStore});
 }(window));

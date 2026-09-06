@@ -1470,8 +1470,54 @@ console.log(JSON.stringify({invalid}));
         self.assertNotIn("window.onmouseup = endDrag", drag_flow)
         self.assertNotIn("window.onmousemove = onNodeResize", resize_flow)
         # The controller singleton is the single wiring owner for these sessions.
-        self.assertEqual(classic.count("WorkbenchInteractionController.create"), 1)
+        self.assertEqual(classic.count("WorkbenchInteractionController.create({windowRef: window})"), 1)
         self.assertEqual(classic.count("ensureInteractionController().begin("), 2)
+
+    def test_selection_authority_store_is_set_compatible_with_change_tracking(self):
+        controller_module = ROOT / "static" / "js" / "workbench" / "canvas" / "interaction-controller.js"
+        script = """
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {window: {}};
+vm.runInNewContext(fs.readFileSync(__MODULE__, 'utf8'), sandbox);
+const changes = [];
+const selected = sandbox.window.WorkbenchInteractionController.createSelectionStore({
+  onChange: ids => changes.push(ids.slice()),
+});
+selected.add('n1');
+selected.add('n1');           // duplicate: no change event
+selected.add(42);             // ids coerce to strings
+selected.add('n2');
+const has = {n1: selected.has('n1'), n42: selected.has('42'), ghost: selected.has('ghost')};
+const size = selected.size;
+const spread = [...selected];
+const deleted = selected.delete('n2');
+const deletedAgain = selected.delete('n2');
+selected.replace(['a', 'b', 'a']);
+const replaced = [...selected];
+selected.clear();
+console.log(JSON.stringify({has, size, spread, deleted, deletedAgain, replaced, clearedSize: selected.size, changes}));
+""".replace("__MODULE__", json.dumps(str(controller_module)))
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["has"], {"n1": True, "n42": True, "ghost": False})
+        self.assertEqual(payload["size"], 3)
+        self.assertEqual(payload["spread"], ["n1", "42", "n2"])
+        self.assertTrue(payload["deleted"])
+        self.assertFalse(payload["deletedAgain"])
+        self.assertEqual(payload["replaced"], ["a", "b"])
+        self.assertEqual(payload["clearedSize"], 0)
+        # Change events: add, deduped add (skipped), delete, replace, clear
+        self.assertEqual(payload["changes"], [["n1"], ["n1", "42"], ["n1", "42", "n2"], ["n1", "42"], ["a", "b"], []])
+
+    def test_classic_selection_is_cut_over_to_the_single_authority(self):
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        self.assertIn("const selected = window.WorkbenchInteractionController.createSelectionStore();", classic)
+        self.assertNotIn("selected = new Set(", classic)
+        self.assertIn("selected.replace(runtime.snapshot().selectedIds);", classic)
+        self.assertIn("if(!applyCanvasRuntimeSelection(selectedIds)) selected.replace(selectedIds);", classic)
+        # The authority module loads on the Classic page before the adapter.
+        page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
+        self.assertLess(page.index("workbench/canvas/interaction-controller.js"), page.index("js/canvas.js"))
 
     def test_render_runtime_group_mount_owns_record_decision_and_lifecycle(self):
         runtime_module = ROOT / "static" / "js" / "workbench" / "canvas" / "render-runtime.js"
@@ -2848,7 +2894,7 @@ console.log(JSON.stringify({{
         classic_finish = classic[classic.index("function finishSelection(){"):classic.index("function renderSelectionHub(){")]
         smart_finish = smart[smart.index("function finishSelection(event){"):smart.index("function groupSelectedNodes(){")]
         self.assertIn("const selectedIds = []", classic_finish)
-        self.assertIn("if(!applyCanvasRuntimeSelection(selectedIds)) selected = new Set(selectedIds);", classic_finish)
+        self.assertIn("if(!applyCanvasRuntimeSelection(selectedIds)) selected.replace(selectedIds);", classic_finish)
         self.assertIn("const nextSelectedIds = nodes.filter", smart_finish)
         self.assertIn("if(!applySmartRuntimeSelection(nextSelectedIds))", smart_finish)
 
