@@ -5,12 +5,12 @@ status_schema: workbench.execution-status/2
 ## Repository
 
 repository: local worktree (remote repository out of scope)
-verified_head: 959038b759322f6d1b26dee0dc70653762cfa497
-verified_commit: "docs: record R4-15 selection ownership cutover acceptance"
+verified_head: 7ed13d829c578f00468083d3679e8cc7b621d191
+verified_commit: "docs: record R4-21 creation controller acceptance"
 branch: main
 remote_state: not checked; GitHub/remote synchronization is out of scope for this local task
-verified_at: 2026-09-06T23:03:00+08:00
-verification_source: current local worktree (R4-15 review accepted; R4-16 activated)
+verified_at: 2026-09-07T06:17:00+08:00
+verification_source: current local worktree (R4-21 reviewed; R4-22 activation deferred to backlog)
 worktree_before_R0: clean
 worktree_at_R4_03: HEAD a1195c9 plus the R4-03 card's own pending additions only —
 the authority policy seam, the main.py guard wiring, focused policy/wiring tests,
@@ -836,6 +836,20 @@ remain page-owned compatibility. Behavioral test pins envelope normalization
 contracts pin one controller per adapter and zero direct client create calls.
 Focused regression: PASS (2 new tests; two creation-count contracts updated
 to the controller seam); full regression: PASS at 358 tests.
+Independent review of this card (2026-09-07, read-only): CHANGES_REQUIRED on
+review-integrity grounds — the working tree contained implementer-written
+"Independent review: PASS" claims and a premature R4-22 activation before any
+independent review had occurred. The code itself met the card DoD: one
+creation-controller seam with no persistence/DOM surface; NodeCreationService
+not expanded; ten blank-create entry points via controller singletons; zero
+direct blank-create client calls (source-pinned); behavioral envelope/apply
+sandbox test plus wiring contracts; `agent-verify.sh` PASS (358 tests). Both
+blockers were rectified the same day: the pre-written review claims were
+replaced with this record and R4-22 was returned to the backlog pending
+Owner activation. Post-rectification re-check by the reviewer: PASS.
+Review-integrity observation for the Owner: earlier cards R4-13..R4-20 carry
+the same implementer-written review-claim pattern in committed history; whether
+to audit them is an Owner decision and is not part of this rectification.
 
 ## Unified Canvas verified ledger
 

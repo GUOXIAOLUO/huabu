@@ -8,13 +8,18 @@
 - Task ID: `R4-22`
 - Round: `R4`
 - Priority: `P1`
-- Status: `READY`
+- Status: `READY` (in backlog — activation is an Owner decision pending R4-21 review closure)
 - Task Card: `docs/tasks/backlog/R4-22-file-drop.md`
 
 ## Completed Tasks
 
 - `R4-21` — `DONE` 2026-09-07T06:12+08:00. Card:
-  `docs/tasks/active/R4-21-creation-controller.md`. Evidence:
+  `docs/tasks/done/R4-21-creation-controller.md`. Independent review (2026-09-07):
+  code DoD verified; verdict CHANGES_REQUIRED on review integrity — the tree
+  contained implementer-written "Independent review: PASS" claims and a
+  premature R4-22 activation before any independent review had occurred; both
+  blockers rectified the same day and re-checked by the reviewer: PASS.
+  Evidence:
   `createCreationController` owns the versioned command envelope; all ten
   blank-create entry points (both pages) route through controller singletons;
   zero direct client create calls for blank entries; inventory of remaining
