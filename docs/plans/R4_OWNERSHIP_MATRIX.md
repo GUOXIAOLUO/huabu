@@ -24,7 +24,7 @@ REMOVE       = 可删除/待删除
 | Canvas entry | compatibility handoff | compatibility page | `canvas.html` | PARTIAL | Unified | Remove retained Smart deep-link handoff after Smart record rendering is native. | `canvas-entry-compatibility.js`; status U6 |
 | Canvas persistence | adapter client | adapter client | SQLite `CanvasRecord` | UNIFIED | Unified | Keep Legacy JSON only as import/rollback; repository selection goes only through the explicit authority policy seam. | status R3/R4 acceptance; R4-03 split-brain guard |
 | revision/CAS | none | none | API/application service; canonical transport + browser save client read/increment/409 logical revision | UNIFIED | Unified | Keep conflict coverage; migrate remote-sync/polling callers onto the revision (R4-07). | `tests/test_canvas_nodes_runtime.py`; `tests/test_canonical_canvas_api.py`; `tests/test_frontend_workbench_modules.py` |
-| remote/version polling | interval/merge policy | interval/merge policy | transport-neutral coordinator only | PARTIAL | Unified | Move polling policy/state into the product runtime. | `canvas-remote-sync.js`; save/merge characterization below |
+| remote/version polling | interval/merge policy; revision-ordered version probes on default path | interval/merge policy; revision-ordered version probes on default path | transport-neutral coordinator with revision ordering (timestamp fallback) | PARTIAL | Unified | Move polling policy/state into the product runtime. | `canvas-remote-sync.js`; save/merge characterization below |
 | viewport state | page load/swap adopt through one seam; interaction commits and mirror read from runtime | page load/swap adopt through one seam; interaction commits and mirror read from runtime | `CanvasRuntime` viewport authority with adapter adopt/reset seam | PARTIAL | Unified | Migrate remaining pan/zoom/minimap DOM and persistence lifecycle on top of the authoritative state. | `canvas.js`, `smart-canvas.js`, `runtime-state.js`; canvas-state-swap contract |
 | pan | page DOM/save shell; shared viewport pan session on default path | page DOM/save shell; shared viewport pan session on default path | CanvasRuntime command plus shared pan session | PARTIAL | Unified | Migrate remaining DOM/persistence lifecycle. | `runtime-state.js`; pan-session contract |
 | zoom | page preview/minimap shell; shared wheel-scale, centering and default preview-exit commits | page preview/minimap shell; shared wheel-scale, centering and default preview-exit commits | CanvasRuntime command plus shared viewport policy | PARTIAL | Unified | Migrate remaining DOM/minimap/persistence lifecycle. | `runtime-state.js`; viewport interaction contracts |
@@ -304,6 +304,27 @@ display/compat metadata only. Adapter save/load handlers are unchanged; the
 remote-sync comparison paths (still timestamp-based) belong to R4-07.
 Ownership matrix revision/CAS row updated. Focused regression: PASS (4 new
 sandbox tests + 1 HTTP round-trip test); full regression: PASS (323 tests).
+
+2026-09-06 remote sync uses revision (R4-07): remote/window version ordering
+moved from timestamps to the logical Canvas revision. The canonical transport
+gained a lightweight `GET /api/v1/canvases/{id}/meta` probe (revision without
+payload) and its successful PUT now relays a `canvas_updated` WebSocket
+message carrying `revision` + `client_id` through an injected broadcast (the
+manager message shape gained an additive `revision` field; event contract
+updated). `WorkbenchCanvasPersistence.metadata()` peeks canonical-first (503 →
+legacy `/meta`) and never moves the save cursor; the client exposes
+`revisionOf()` as the local baseline. `WorkbenchCanvasRemoteSync.check()` and
+`WorkbenchCanvasUpdateMessage.newerForCanvas()` order by revision first with
+the timestamp comparison retained as the bounded fallback for revision-less
+(legacy) probes. Classic's polling flow is now peek-meta → compare → load →
+apply-remote; both adapters feed `currentRevision` baselines. Deterministic
+two-window semantics are pinned by sandbox tests: same/older revision never
+re-applies even with a newer timestamp, revision-less probes keep timestamp
+ordering, and own-client notifications stay filtered. Known limitation: the
+node-API revision space still uses the compat updated_at cursor, so a
+versioned write interleaved with canonical saves can cost one self-healing
+409; unification is deferred. Focused regression: PASS (6 new tests + updated
+event contract); full regression: PASS (329 tests).
 ```
 
 # Save/merge machinery characterization (U7 blocker analysis, 2026-09-06)

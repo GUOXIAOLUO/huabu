@@ -5,16 +5,23 @@
 
 ## Active Task
 
-- Task ID: `R4-07`
+- Task ID: `R4-08`
 - Round: `R4`
 - Priority: `P0`
 - Status: `READY`
-- Task Card: `docs/tasks/backlog/R4-07-remote-sync-revision.md`
+- Task Card: `docs/tasks/backlog/R4-08-render-ownership-map.md`
 
 ## Completed Tasks
 
+- `R4-07` — `DONE` 2026-09-06T19:00+08:00. Card:
+  `docs/tasks/active/R4-07-remote-sync-revision.md`. Evidence: canonical meta
+  probe + revision-bearing canvas_updated broadcast; remote-sync coordinator
+  and update-message filter order by revision (timestamp fallback); adapters
+  feed revisionOf() baselines; regression 329 tests PASS. Ownership matrix
+  remote/version-polling row updated.
+
 - `R4-06` — `DONE` 2026-09-06T18:40+08:00. Card:
-  `docs/tasks/active/R4-06-browser-logical-revision.md`. Evidence: shared
+  `docs/tasks/done/R4-06-browser-logical-revision.md`. Evidence: shared
   persistence client owns the logical-revision cursor and sends canonical CAS
   saves (`expected_revision`); sandbox tests prove load→save→conflict→recovery
   cursor chain and 503/legacy fallbacks; HTTP round-trip test proves CAS
@@ -62,7 +69,7 @@
 1. `AGENTS.md`
 2. `.agent/AGENT_CONTRACT.md`
 3. `docs/status/CURRENT_EXECUTION_STATUS.md`
-4. `docs/tasks/backlog/R4-07-remote-sync-revision.md`
+4. `docs/tasks/active/R4-07-remote-sync-revision.md`
 
 Read architecture documents only as required by the card.
 
@@ -84,8 +91,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor if R4-07 passes:
+Expected successor if R4-08 passes:
 
-`R4-08 — Render Ownership Map` (`docs/tasks/backlog/R4-08-render-ownership-map.md`)
+`R4-09 — Render Runtime` (`docs/tasks/backlog/R4-09-render-runtime.md`)
 
 Actual successor must still be checked against the repository's current verified state.

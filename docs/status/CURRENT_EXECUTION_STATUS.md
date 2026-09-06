@@ -472,6 +472,31 @@ and an in-process HTTP round-trip test proves CAS recovery end to end.
 Focused regression: PASS (4 new sandbox tests + 1 HTTP round-trip test); full
 regression: PASS at 323 tests.
 
+R4 remote sync uses revision (card R4-07, 2026-09-06T19:00+08:00): remote and
+cross-window synchronization now order versions by the logical Canvas
+revision. The canonical transport gained `GET /api/v1/canvases/{id}/meta` (a
+lightweight revision probe without payload, 503/404-guarded) and its
+successful PUT relays a `canvas_updated` WebSocket message carrying
+`revision` and `client_id` through an injected broadcast callback — the
+manager message shape gained an additive `revision` field and the event
+contract test was updated accordingly. `WorkbenchCanvasPersistence.metadata()`
+peeks canonical-first (503 → legacy `/meta`), never moves the save cursor, and
+the client now exposes `revisionOf()` as the local baseline.
+`WorkbenchCanvasRemoteSync.check()` and
+`WorkbenchCanvasUpdateMessage.newerForCanvas()` compare by revision first and
+retain the timestamp comparison as the bounded fallback for revision-less
+legacy probes. Classic's polling flow became peek-meta → compare → load →
+apply-remote, and both adapters supply `currentRevision` baselines. Sandbox
+tests pin the deterministic two-window semantics: a same or older revision
+never re-applies even when its timestamp looks newer, revision-less probes
+keep timestamp ordering, and own-client notifications stay filtered; the
+in-process HTTP round-trip plus meta probe pins the stale second-window save
+and refresh/adopt flow. Known limitation: the node-API revision space still
+uses the compat updated_at cursor, so a versioned write interleaved with
+canonical saves can cost one self-healing 409; unification is deferred.
+Focused regression: PASS (6 new tests + updated event contract); full
+regression: PASS at 329 tests.
+
 ## Unified Canvas verified ledger
 
 | Stage | Status | Evidence summary |
@@ -614,13 +639,19 @@ client sandbox scenarios (canonical CAS wire format, cursor chain through
 conflict recovery, versioned-write adoption, 503/legacy fallbacks) plus an
 in-process HTTP round-trip test.
 
-Agent regression gate (cards R4-01…R4-06):
+Result: PASS after R4-07 remote sync uses revision — 329 tests in 3.4 seconds,
+Python 3.14.7 (2026-09-06). The +6 tests cover the canonical meta probe, the
+revision-bearing broadcast, metadata peek semantics, revision-ordered polling,
+and revision-ordered update messages with timestamp fallback; the event
+contract gained the additive revision field.
+
+Agent regression gate (cards R4-01…R4-07):
 
 ```text
 ./scripts/agent-verify.sh
 ```
 
-Result: PASS — AGENT VERIFY: PASS (323 unit tests, Python AST parse of 73 files,
+Result: PASS — AGENT VERIFY: PASS (329 unit tests, Python AST parse of 73 files,
 `node --check` of 63 JavaScript files, 4 architecture-guard tests,
 `git diff --check`; Node v24.20.0). The gate script was fixed during R4-01 to
 prefer `.venv/bin/python` over PATH `python3`, which lacks project dependencies
