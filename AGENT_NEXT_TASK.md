@@ -9,12 +9,12 @@
 - Round: `R4`
 - Priority: `P0`
 - Status: `READY`
-- Task Card: `docs/tasks/backlog/R4-03-split-brain-guard.md`
+- Task Card: `docs/tasks/active/R4-03-split-brain-guard.md`
 
 ## Completed Tasks
 
 - `R4-02` — `DONE` 2026-09-06T17:37+08:00. Card:
-  `docs/tasks/active/R4-02-sqlite-legacy-reconcile.md`. Evidence: read-only
+  `docs/tasks/done/R4-02-sqlite-legacy-reconcile.md`. Evidence: read-only
   reconciliation of `data/canvases` (23 files) vs `data/workbench.sqlite3`
   (23 rows, 17 active) — 0 legacy-only, 0 sqlite-only, 23/23 payload
   comparisons matched, 0 unexpected rows, authority `sqlite`, database
@@ -32,7 +32,7 @@
 1. `AGENTS.md`
 2. `.agent/AGENT_CONTRACT.md`
 3. `docs/status/CURRENT_EXECUTION_STATUS.md`
-4. `docs/tasks/backlog/R4-03-split-brain-guard.md`
+4. `docs/tasks/active/R4-03-split-brain-guard.md`
 
 Read architecture documents only as required by the card.## Execution Rule
 
