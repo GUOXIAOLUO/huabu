@@ -16677,8 +16677,15 @@ window.addEventListener('paste', e => {
     else if(files.length > 1) uploadImageGroup(files);
     else uploadImages(files);
 });
-window.addEventListener('keydown', e => {
-    if(!canvas) return;
+const canvasKeyboardRuntime = window.WorkbenchInteractionController.createKeyboardRuntime({windowRef: window});
+canvasKeyboardRuntime.register(e => {
+    // keyup: knife/rectangle-mode release
+    if(e.type === 'keyup'){
+        if(String(e.key || '').toLowerCase() === 'r') isRKeyDown = false;
+        if(e.key === 'Shift') setKnifeMode(false);
+        return false;
+    }
+    if(!canvas) return false;
     const key = String(e.key || '').toLowerCase();
     if(key === 'r' && !isEditableTarget(e.target)) isRKeyDown = true;
     if(e.key === 'Shift' && !e.altKey && !isEditableTarget(document.activeElement)) setKnifeMode(true);
@@ -16739,10 +16746,7 @@ window.addEventListener('keydown', e => {
         e.preventDefault();
         deleteSelectedNodes();
     }
-});
-window.addEventListener('keyup', e => {
-    if(String(e.key || '').toLowerCase() === 'r') isRKeyDown = false;
-    if(e.key === 'Shift') setKnifeMode(false);
+    return false;
 });
 window.addEventListener('blur', () => { isRKeyDown = false; setKnifeMode(false); });
 window.addEventListener('blur', () => {

@@ -1695,6 +1695,71 @@ console.log(JSON.stringify({dragCalls, resizeCalls, dragMembers: drag.members.le
             self.assertNotIn("WorkbenchCanvasRuntime?.createNodeDragSession", adapter)
             self.assertNotIn("WorkbenchCanvasRuntime?.createNodeResizeSession", adapter)
 
+    def test_keyboard_runtime_dispatches_to_registered_handlers_until_handled(self):
+        controller_module = ROOT / "static" / "js" / "workbench" / "canvas" / "interaction-controller.js"
+        script = """
+const fs = require('fs'); const vm = require('vm');
+const listeners = [];
+const fakeWindow = {
+  addEventListener: (type, cb) => listeners.push({type, cb}),
+  removeEventListener: (type, cb) => {
+    const i = listeners.findIndex(l => l.type === type && l.cb === cb);
+    if (i >= 0) listeners.splice(i, 1);
+  },
+};
+const sandbox = {window: {}};
+vm.runInNewContext(fs.readFileSync(__MODULE__, 'utf8'), sandbox);
+const runtime = sandbox.window.WorkbenchInteractionController.createKeyboardRuntime({windowRef: fakeWindow});
+const seen = [];
+const stop = runtime.register(event => { seen.push('first:' + event.key); return event.key === 'Escape'; });
+runtime.register(event => { seen.push('second:' + event.key); return false; });
+const keydown = listeners.find(l => l.type === 'keydown').cb;
+const keyup = listeners.find(l => l.type === 'keyup').cb;
+keydown({key: 'a'});
+keydown({key: 'Escape'});
+keydown({key: 'z'});
+keyup({key: 'q'});
+stop();
+keydown({key: 'q'});
+console.log(JSON.stringify({seen, listenerCount: listeners.length, handlerCount: runtime.handlerCount()}));
+""".replace("__MODULE__", json.dumps(str(controller_module)))
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        # Dispatch walks handlers in order; a handler returning true stops the chain.
+        # 'a' walks both handlers; 'Escape' stops after first (returns true);
+        # 'z' walks both on keydown; keyup('q') walks both; after stop(),
+        # keydown('q') reaches only the remaining handler.
+        self.assertEqual(
+            payload["seen"],
+            ["first:a", "second:a", "first:Escape", "first:z", "second:z", "first:q", "second:q", "second:q"],
+        )
+        # The window keydown/keyup listeners stay installed for the page's
+        # lifetime; stop() only unregisters the handler.
+        self.assertEqual(payload["listenerCount"], 2)
+        self.assertEqual(payload["handlerCount"], 1)
+
+    def test_keyboard_listeners_are_cut_over_to_the_runtime_on_both_adapters(self):
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
+        for adapter, singleton in (
+            (classic, "const canvasKeyboardRuntime = window.WorkbenchInteractionController.createKeyboardRuntime({windowRef: window});"),
+            (smart, "const smartKeyboardRuntime = window.WorkbenchInteractionController.createKeyboardRuntime({windowRef: window});"),
+        ):
+            self.assertIn(singleton, adapter)
+            self.assertEqual(adapter.count("WorkbenchInteractionController.createKeyboardRuntime"), 1)
+            self.assertIn("KeyboardRuntime.register(e => {", adapter)
+        # The migrated main keydown blocks no longer add their own window listeners.
+        self.assertNotIn("window.addEventListener('keydown', e => {\n    if(!canvas) return;", classic)
+        self.assertNotIn("window.addEventListener('keyup', e => {\n    if(String(e.key || '').toLowerCase() === 'r') isRKeyDown = false;", classic)
+        # Undo/redo, delete, copy/paste, group and select-all shortcuts still route
+        # through their characterized page functions.
+        self.assertIn("performUndo()", classic)
+        self.assertIn("deleteSelectedNodes()", classic)
+        self.assertIn("copySelectedNodes()", classic)
+        self.assertIn("groupSelectedImages()", classic)
+        self.assertIn("deleteNode(id);", smart)
+        self.assertIn("copySelectedNodes();", smart)
+
     def test_minimap_projection_scaling_stays_linear_at_100_and_300_nodes(self):
         # DoD: minimap performance remains acceptable at 100/300 nodes — the
         # projection/rect math the minimap rebuild performs per frame must stay

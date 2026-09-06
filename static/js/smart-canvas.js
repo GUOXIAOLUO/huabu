@@ -19082,7 +19082,8 @@ window.addEventListener('paste', e => {
         pasteNodes();
     }
 });
-window.addEventListener('keydown', e => {
+const smartKeyboardRuntime = window.WorkbenchInteractionController.createKeyboardRuntime({windowRef: window});
+smartKeyboardRuntime.register(e => {
     const key = String(e.key || '').toLowerCase();
     if((e.code === 'Space' || e.key === ' ') && !e.ctrlKey && !e.metaKey && !e.altKey && !isEditableTarget(e.target)){
         const active = selectedNode();

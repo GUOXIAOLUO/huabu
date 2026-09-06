@@ -208,5 +208,48 @@
         return sessionOptions => kernel.createNodeResizeSession(sessionOptions);
     }
 
-    global.WorkbenchInteractionController = Object.freeze({create, createSelectionStore, createViewportController, createMinimapController, createNodeDragSessionFactory, createNodeResizeSessionFactory});
+    // Keyboard runtime: one owner for the page keyboard listener. The page
+    // registers handlers; every keydown/keyup is dispatched to them in
+    // registration order until one returns true (handled). This replaces
+    // per-page window.addEventListener('keydown') duplicates while keeping
+    // the exact dispatch semantics of a single page listener.
+    function createKeyboardRuntime(options) {
+        const settings = options || {};
+        const windowRef = settings.windowRef || global;
+        if (!windowRef || typeof windowRef.addEventListener !== 'function') throw new TypeError('KeyboardRuntime requires windowRef');
+        const handlers = [];
+
+        function dispatch(event) {
+            for (const handler of handlers) {
+                if (handler(event) === true) return true;
+            }
+            return false;
+        }
+
+        function register(handler) {
+            if (typeof handler !== 'function') throw new TypeError('KeyboardRuntime handler must be a function');
+            handlers.push(handler);
+            return () => {
+                const index = handlers.indexOf(handler);
+                if (index >= 0) handlers.splice(index, 1);
+            };
+        }
+
+        const keydown = event => { dispatch(event); };
+        const keyup = event => { dispatch(event); };
+        windowRef.addEventListener('keydown', keydown);
+        windowRef.addEventListener('keyup', keyup);
+
+        return Object.freeze({
+            register,
+            dispatch,
+            handlerCount: () => handlers.length,
+            destroy() {
+                windowRef.removeEventListener('keydown', keydown);
+                windowRef.removeEventListener('keyup', keyup);
+            },
+        });
+    }
+
+    global.WorkbenchInteractionController = Object.freeze({create, createSelectionStore, createViewportController, createMinimapController, createNodeDragSessionFactory, createNodeResizeSessionFactory, createKeyboardRuntime});
 }(window));
