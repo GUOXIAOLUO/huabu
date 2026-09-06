@@ -472,6 +472,24 @@ no-kernel no-op path; wiring contracts pin the singleton, all five flows, and
 the removed helper. Focused regression: PASS (2 new tests; two shared-runtime
 contract assertions updated to the per-page zoom identifiers); full
 regression: PASS (347 tests).
+
+2026-09-06 minimap cutover (R4-17): the minimap drag interaction moved under
+unified ownership. `WorkbenchInteractionController.createMinimapController`
+owns pointer capture (gated begin: canvas presence, primary button,
+arrange-button exclusion via an onPointerDown veto), projection and application
+through page callbacks (`project: minimapEventToWorld`, `apply:
+centerViewportOnWorldPoint`), and detach-on-mouseup of the capture-phase
+move/up pair; the Classic minimap no longer assigns `window.onmousemove`/
+`window.onmouseup` directly. The rAF-coalesced render/viewport-update
+schedulers are unchanged and remain the single debounce owners (no duplicate
+timers existed; verified). Projection math stays in runtime-state
+(`worldPointFromMinimapPointer`). Performance characterization: the minimap
+rebuild performs bounded per-node template work with no layout reads
+(pinned by source contract), the projection sweep stays linear at 100/300
+nodes (<50 ms budget), and `updateMinimapViewport` remains the viewport-only
+fast path — consistent with the recorded 300-node minimap samples (visible
+15 ms, offscreen 149 ms P2 follow-up unchanged). Focused regression: PASS
+(3 new tests); full regression: PASS (350 tests).
 ```
 
 ## Rendering ownership map (R4-08 characterization, 2026-09-06)

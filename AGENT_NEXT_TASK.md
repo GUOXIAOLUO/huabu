@@ -5,16 +5,23 @@
 
 ## Active Task
 
-- Task ID: `R4-17`
+- Task ID: `R4-18`
 - Round: `R4`
 - Priority: `P1`
 - Status: `READY`
-- Task Card: `docs/tasks/backlog/R4-17-minimap-cutover.md`
+- Task Card: `docs/tasks/backlog/R4-18-drag-resize.md`
 
 ## Completed Tasks
 
+- `R4-17` — `DONE` 2026-09-06T23:29+08:00. Card:
+  `docs/tasks/active/R4-17-minimap-cutover.md`. Evidence:
+  `createMinimapController` owns the minimap drag interaction (gated capture,
+  project/apply callbacks, detach-on-mouseup); direct window-slot assignment
+  removed; 100/300-node projection characterization test; regression 350
+  tests PASS.
+
 - `R4-16` — `DONE` 2026-09-06T23:18+08:00. Card:
-  `docs/tasks/active/R4-16-viewport-cutover.md`. Evidence:
+  `docs/tasks/done/R4-16-viewport-cutover.md`. Independent review: PASS. Evidence:
   `createViewportController` owns viewport mutation dispatch over the
   runtime-state kernel; Classic board-pan session via InteractionController,
   wheel zoom + fit/restore/handoff/centering via the controller; duplicate

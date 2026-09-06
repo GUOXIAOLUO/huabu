@@ -715,6 +715,48 @@ the removed helper. Focused regression: PASS (2 new tests; two shared-runtime
 contract assertions updated to per-page zoom identifiers); full regression:
 PASS at 347 tests.
 
+R4 viewport / pan / zoom cutover (card R4-16, 2026-09-06T23:18+08:00):
+viewport mutation dispatch moved into the InteractionController module.
+`WorkbenchInteractionController.createViewportController({getKernel,
+applyViewport})` owns set/panBy/zoomAt/centerOn over the runtime-state kernel
+and returns the resolved viewport; the page's DOM/persistence shell stays a
+callback. The Classic board-pan pointer session now wires through the
+InteractionController session lifecycle (`begin({kind:'board-pan', ...})`
+combining the former move/up handlers), wheel zoom goes through
+`canvasViewportController.zoomAt`, and the fit, restore, handoff-set, and
+world-point-centering flows dispatch through `set`/`centerOn`. The duplicate
+`applyCanvasRuntimeViewport` helper is deleted — the kernel is the single
+dispatch owner. Viewport persistence/restore is unchanged: the controller
+changed only who dispatches, not what persists. Smart's pan/zoom wiring is
+deferred; its `applySmartRuntimeViewport` and `VIEWPORT_ZOOM_AT` literals
+remain. Behavioral test pins dispatch-through-kernel, resolved-viewport
+returns, shell-callback invocation, centerOn argument order, and the
+no-kernel no-op path; wiring contracts pin the singleton, all five flows, and
+the removed helper. Focused regression: PASS (2 new tests; two shared-runtime
+contract assertions updated to per-page zoom identifiers); full regression:
+PASS at 347 tests.
+
+R4 minimap cutover (card R4-17, 2026-09-06T23:29+08:00): the minimap drag
+interaction moved under unified ownership.
+`WorkbenchInteractionController.createMinimapController` owns pointer capture
+(gated begin: canvas presence, primary button, arrange-button exclusion via an
+onPointerDown veto), projection and application through page callbacks
+(`project: minimapEventToWorld`, `apply: centerViewportOnWorldPoint`), and
+detach-on-mouseup of the capture-phase move/up pair; the Classic minimap no
+longer assigns `window.onmousemove`/`window.onmouseup` directly. The
+rAF-coalesced render/viewport-update schedulers are unchanged and remain the
+single debounce owners (no duplicate timers existed; verified). Projection
+math stays in runtime-state (`worldPointFromMinimapPointer`). Performance
+characterization: the minimap rebuild performs bounded per-node template work
+with no layout reads (pinned by source contract), the projection sweep stays
+linear at 100/300 nodes (<50 ms budget), and `updateMinimapViewport` remains
+the viewport-only fast path — consistent with the recorded 300-node minimap
+samples (visible 15 ms, offscreen 149 ms P2 follow-up unchanged). Behavioral
+test pins gated begin, projection-apply flow, detach-on-mouseup (later moves
+are no-ops), and the veto path; wiring contract pins the singleton, the
+callback wiring, and the removed direct window-slot assignment. Focused
+regression: PASS (3 new tests); full regression: PASS at 350 tests.
+
 ## Unified Canvas verified ledger
 
 | Stage | Status | Evidence summary |
@@ -897,13 +939,23 @@ seconds, Python 3.14.7 (2026-09-06). The +2 tests are the selection store
 behavioral test and the Classic authority wiring contract; one box-selection
 contract assertion moved to the authority call.
 
-Agent regression gate (cards R4-01…R4-15):
+Result: PASS after R4-16 viewport / pan / zoom cutover — 347 tests in 3.8
+seconds, Python 3.14.7 (2026-09-06). The +2 tests are the viewport controller
+behavioral test and the Classic five-flow wiring contract; two shared-runtime
+contract assertions moved to per-page zoom identifiers.
+
+Result: PASS after R4-17 minimap cutover — 350 tests in 3.3 seconds, Python
+3.14.7 (2026-09-06). The +3 tests are the minimap controller behavioral test,
+the Classic wiring contract, and the 100/300-node projection scaling
+characterization.
+
+Agent regression gate (cards R4-01…R4-17):
 
 ```text
 ./scripts/agent-verify.sh
 ```
 
-Result: PASS — AGENT VERIFY: PASS (345 unit tests, Python AST parse of 73 files,
+Result: PASS — AGENT VERIFY: PASS (350 unit tests, Python AST parse of 73 files,
 `node --check` of 67 JavaScript files, 4 architecture-guard tests,
 `git diff --check`; Node v24.20.0). The gate script was fixed during R4-01 to
 prefer `.venv/bin/python` over PATH `python3`, which lacks project dependencies
