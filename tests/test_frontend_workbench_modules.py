@@ -1016,10 +1016,80 @@ const options = {{canvasId:'c1', clientId:'self', currentUpdatedAt:4000, current
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
         smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
         self.assertIn("WorkbenchUnifiedRenderHost.mountAdapterCard", classic)
-        self.assertIn("WorkbenchUnifiedRenderHost.mountAdapterCards", smart)
+        self.assertIn("ensureSmartRenderRuntime().mountAll(entries)", smart)
         for adapter_source in (classic, smart):
             self.assertIn("WorkbenchCanvasMediaPlaybackState.capture", adapter_source)
             self.assertNotIn(".destroy()", adapter_source)
+
+    def test_render_runtime_owns_the_mounted_card_lifecycle(self):
+        runtime_module = ROOT / "static" / "js" / "workbench" / "canvas" / "render-runtime.js"
+        script = f"""
+const fs = require('fs');
+const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(runtime_module))}, 'utf8'), sandbox);
+const runtime = sandbox.window.WorkbenchRenderRuntime.create({{
+  mount: request => {{
+    const handle = {{nodeId: request.node.id, destroyed: false, element: request.element}};
+    handle.destroy = () => {{ handle.destroyed = true; }};
+    return handle;
+  }},
+}});
+const events = [];
+const plain = runtime.mount({{node: {{id: 'n1'}}, element: 'e1'}});
+events.push(['mounted', plain.nodeId, runtime.isMounted('n1')]);
+const replaced = runtime.mount({{node: {{id: 'n1'}}, element: 'e2'}});
+events.push(['remounted', plain.destroyed, replaced.nodeId, runtime.mountedNodeIds().join(',')]);
+const batch = runtime.mountAll([
+  {{node: {{id: 'n2'}}, element: 'e3'}},
+  {{node: {{id: 'n3'}}, element: 'e4'}},
+]);
+events.push(['batch', batch.length, runtime.mountedNodeIds().join(',')]);
+const torn = runtime.unmount('n2');
+events.push(['unmounted', torn, batch[0].destroyed, runtime.isMounted('n2')]);
+events.push(['unmountMissing', runtime.unmount('ghost')]);
+runtime.unmountAll();
+events.push(['unmountAll', batch[1].destroyed, runtime.mountedNodeIds().length]);
+const tolerant = runtime.mount({{node: {{id: 'n4'}}, element: 'e5'}});
+sandbox.window.WorkbenchRenderRuntime; // exposure check
+console.log(JSON.stringify({{events, tolerantPresent: Boolean(tolerant), exposed: typeof sandbox.window.WorkbenchRenderRuntime.create}}));
+let invalid = 'no-throw';
+try {{ runtime.mount({{element: 'e6'}}); }} catch (error) {{ invalid = 'throws'; }}
+console.log(JSON.stringify({{invalid}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        lines = [json.loads(line) for line in result.stdout.strip().splitlines()]
+        events, checks = lines[0]["events"], lines[1]
+        self.assertEqual(events[0], ["mounted", "n1", True])
+        # Remounting the same node destroys the previous handle in order.
+        self.assertEqual(events[1], ["remounted", True, "n1", "n1"])
+        self.assertEqual(events[2], ["batch", 2, "n1,n2,n3"])
+        self.assertEqual(events[3], ["unmounted", True, True, False])
+        self.assertEqual(events[4], ["unmountMissing", False])
+        self.assertEqual(events[5], ["unmountAll", True, 0])
+        self.assertTrue(lines[0]["tolerantPresent"])
+        self.assertEqual(lines[0]["exposed"], "function")
+        self.assertEqual(checks["invalid"], "throws")
+
+    def test_render_runtime_is_wired_as_the_single_card_lifecycle_owner(self):
+        runtime_source = (ROOT / "static" / "js" / "workbench" / "canvas" / "render-runtime.js").read_text(encoding="utf-8")
+        self.assertIn("global.WorkbenchRenderRuntime", runtime_source)
+        for page, adapter in (("canvas.html", "js/canvas.js"), ("smart-canvas.html", "js/smart-canvas.js")):
+            text = (ROOT / "static" / page).read_text(encoding="utf-8")
+            self.assertLess(text.index("workbench/canvas/unified-render-host.js"), text.index("workbench/canvas/render-runtime.js"), page)
+            self.assertLess(text.index("workbench/canvas/render-runtime.js"), text.index(adapter), page)
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
+        # The UnifiedRenderHost mount is injected once per page; every card mount
+        # goes through the runtime, and delete/refresh flows unmount through it.
+        self.assertEqual(classic.count("WorkbenchUnifiedRenderHost.mountAdapterCard("), 1)
+        self.assertEqual(smart.count("WorkbenchUnifiedRenderHost.mountAdapterCard("), 1)
+        self.assertNotIn("mountAdapterCards(entries)", smart)
+        for adapter, expected_reset in ((classic, "renderRuntime?.unmountAll()"), (smart, "smartRenderRuntime?.unmountAll()")):
+            self.assertIn("WorkbenchRenderRuntime.create", adapter)
+            self.assertIn(expected_reset, adapter)
+        self.assertIn("renderRuntime?.unmount(id)", classic)
+        self.assertIn("smartRenderRuntime?.unmount(deleteId)", smart)
 
     def test_versioned_writes_adopt_revisions_through_one_shared_owner(self):
         client = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-persistence-client.js"
@@ -2806,7 +2876,7 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         self.assertIn('.image-node.prompt-smart-node.node-shell-mounted .workbench-node-shell__port--input', styles)
         self.assertIn('.image-node.prompt-smart-node.node-shell-mounted .workbench-node-shell__port--output', styles)
         self.assertIn('visibility\n   still follows the shared selected/hover/connection interaction contract', styles)
-        self.assertIn('WorkbenchUnifiedRenderHost.mountAdapterCards(entries);', smart)
+        self.assertIn('ensureSmartRenderRuntime().mountAll(entries);', smart)
         self.assertIn('card:el, contentHost,', smart)
         self.assertIn('function nodeShellPortElements(shellEl)', smart)
         self.assertIn('w:340, h:286', smart)
@@ -2910,7 +2980,7 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         self.assertIn("workbench-node-shell__group-empty", classic)
         self.assertIn("WorkbenchUnifiedRenderHost.mount", classic)
         self.assertIn("canvas-node-shell-legacy-content", classic)
-        self.assertIn("WorkbenchUnifiedRenderHost.mountAdapterCard({", classic)
+        self.assertIn("ensureRenderRuntime().mount({", classic)
         self.assertIn("card:el, contentHost:body", classic)
         self.assertIn("controlSettings:CANVAS_NODE_SHELL_LEGACY_CONTROLS", classic)
         self.assertIn("cardClasses:['node-shell-mounted'", classic)

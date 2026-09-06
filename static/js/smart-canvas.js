@@ -1546,6 +1546,15 @@ const smartNodeShellIntentAdapter = window.WorkbenchUnifiedRenderHost.createInte
 });
 function handleSmartNodeShellIntent(intent){ smartNodeShellIntentAdapter(intent); }
 const SMART_NODE_SHELL_LEGACY_CONTROLS = Object.freeze(['.node-port', '.node-resize-handle']);
+let smartRenderRuntime = null;
+function ensureSmartRenderRuntime(){
+    if(!smartRenderRuntime){
+        smartRenderRuntime = window.WorkbenchRenderRuntime.create({
+            mount: request => window.WorkbenchUnifiedRenderHost.mountAdapterCard(request),
+        });
+    }
+    return smartRenderRuntime;
+}
 function mountNodeShellForSmartGroups(){
     const entries = Array.from(world.querySelectorAll('.image-node.smart-group-node')).flatMap(el => {
         const node = nodes.find(item => item.id === el.dataset.id);
@@ -1565,7 +1574,7 @@ function mountNodeShellForSmartGroups(){
             ...window.WorkbenchUnifiedRenderHost.cardShellView({selected:isNodeSelected(node.id), onIntent:handleSmartNodeShellIntent}),
         }];
     });
-    window.WorkbenchUnifiedRenderHost.mountAdapterCards(entries);
+    ensureSmartRenderRuntime().mountAll(entries);
 }
 function mountNodeShellForSmartImages(){
     const entries = Array.from(world.querySelectorAll('.image-node')).flatMap(el => {
@@ -1584,7 +1593,7 @@ function mountNodeShellForSmartImages(){
             ...window.WorkbenchUnifiedRenderHost.cardShellView({selected:isNodeSelected(node.id), onIntent:handleSmartNodeShellIntent}),
         }];
     });
-    window.WorkbenchUnifiedRenderHost.mountAdapterCards(entries);
+    ensureSmartRenderRuntime().mountAll(entries);
 }
 function mountNodeShellForSmartLegacyNodes(){
     const entries = Array.from(world.querySelectorAll('.image-node')).flatMap(el => {
@@ -1608,7 +1617,7 @@ function mountNodeShellForSmartLegacyNodes(){
         // Prompt cards own their complete visual surface, so keeping ports in
         // the shell would shift both endpoints inward by the shell border.
     });
-    window.WorkbenchUnifiedRenderHost.mountAdapterCards(entries);
+    ensureSmartRenderRuntime().mountAll(entries);
 }
 async function createVersionedBlankSmartPrompt(x, y){
     if(!canUseVersionedSmartImageCreation()) return null;
@@ -6630,6 +6639,7 @@ function migrateSmartGroupImageMembers(){
 }
 async function loadCanvas(){
     if(!canvasId) return;
+    smartRenderRuntime?.unmountAll();
     try {
         const data = await window.WorkbenchCanvasPersistence.load(canvasId);
         if(!data.ok) return;
@@ -10595,6 +10605,7 @@ function setDropHighlight(targetId){
 function deleteNode(id){
     pushUndo();
     const deleteIds = new Set([id]);
+    deleteIds.forEach(deleteId => smartRenderRuntime?.unmount(deleteId));
     nodes.forEach(node => {
         if(isHistoryGroupNode(node) && node.historyFor === id) deleteIds.add(node.id);
     });

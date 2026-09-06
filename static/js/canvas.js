@@ -2087,6 +2087,7 @@ async function setCanvasTitle(id, title){
 }
 async function openCanvas(id){
     setStatus('Opening...');
+    renderRuntime?.unmountAll();
     try {
         const data = await window.WorkbenchCanvasPersistence.load(id);
         if(!data.ok) throw new Error(tr('canvas.openFailed'));
@@ -6417,13 +6418,22 @@ const CANVAS_NODE_SHELL_LEGACY_CONTROLS = Object.freeze({
     firstSelectors:Object.freeze(['.node-head']),
     selectors:Object.freeze([':scope > .port, :scope > .resize-handle']),
 });
+let renderRuntime = null;
+function ensureRenderRuntime(){
+    if(!renderRuntime){
+        renderRuntime = window.WorkbenchRenderRuntime.create({
+            mount: request => window.WorkbenchUnifiedRenderHost.mountAdapterCard(request),
+        });
+    }
+    return renderRuntime;
+}
 function mountCanvasNodeShellForMedia(node, body, el){
     if(!canUseCanvasNodeShellForMedia(node)) return false;
     const record = canvasMediaRecord(node);
     const hasRenderableMedia = window.WorkbenchMediaRenderer.canRender(record);
     if(!hasRenderableMedia && node.type !== 'group') return false;
     const useLegacyContent = !hasRenderableMedia && window.WorkbenchLegacyRenderer?.canRender(record);
-    const mounted = window.WorkbenchUnifiedRenderHost.mountAdapterCard({
+    const mounted = ensureRenderRuntime().mount({
         document, node:record, card:el, contentHost:body,
         preserveLegacyContent:useLegacyContent,
         legacyContentClassName:'canvas-node-shell-legacy-content',
@@ -6446,7 +6456,7 @@ function mountCanvasNodeShellForMedia(node, body, el){
 function mountCanvasNodeShellForLegacy(node, body, el){
     if(!canUseCanvasNodeShellForLegacy(node)) return false;
     const record = canvasMediaRecord(node);
-    const mounted = window.WorkbenchUnifiedRenderHost.mountAdapterCard({
+    const mounted = ensureRenderRuntime().mount({
         document, node:record, card:el, contentHost:body, preserveLegacyContent:true,
         legacyContentClassName:'canvas-node-shell-legacy-content',
         controlSettings:CANVAS_NODE_SHELL_LEGACY_CONTROLS,
@@ -13559,6 +13569,7 @@ function deleteNode(id, event){
     event?.stopPropagation();
     pushUndo();
     destroyLTXEditor(nodes.find(n => n.id === id));
+    renderRuntime?.unmount(id);
     nodes = nodes.filter(n => n.id !== id);
     connections = connections.filter(c => c.from !== id && c.to !== id);
     selected.delete(id);
