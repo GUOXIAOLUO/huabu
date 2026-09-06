@@ -100,5 +100,48 @@
         return Object.freeze(store);
     }
 
-    global.WorkbenchInteractionController = Object.freeze({create, createSelectionStore});
+    // Viewport controller: one owner for viewport mutations over the
+    // runtime-state kernel. Commands dispatch through the kernel and the
+    // resolved viewport is returned; applyViewport-style DOM persistence stays
+    // with the page via callbacks, so the kernel remains the single state
+    // owner while the page keeps only its render shell.
+    function createViewportController(options) {
+        const settings = options || {};
+        if (typeof settings.getKernel !== 'function') throw new TypeError('ViewportController requires getKernel');
+        if (typeof settings.applyViewport !== 'function') throw new TypeError('ViewportController requires applyViewport');
+        const kernel = () => settings.getKernel();
+
+        function apply() {
+            const runtime = kernel();
+            if (!runtime) return null;
+            settings.applyViewport(runtime.snapshot().viewport);
+            return runtime.snapshot().viewport;
+        }
+
+        function dispatch(command) {
+            const runtime = kernel();
+            if (!runtime) return null;
+            runtime.dispatch(command);
+            return apply();
+        }
+
+        return Object.freeze({
+            set: viewport => dispatch({type:'canvas.viewport.set', viewport}),
+            panBy: (dx, dy) => dispatch({type:'canvas.viewport.pan', dx, dy}),
+            zoomAt: (anchor, scale) => dispatch({type:'canvas.viewport.zoom-at', anchor, scale}),
+            centerOn: (worldPoint, size) => {
+                const runtime = kernel();
+                if (!runtime || typeof runtime.viewportCenteredOnWorldPoint !== 'function') return null;
+                const viewport = runtime.viewportCenteredOnWorldPoint(runtime.snapshot().viewport, worldPoint, size);
+                return dispatch({type:'canvas.viewport.set', viewport});
+            },
+            current: () => {
+                const runtime = kernel();
+                return runtime ? runtime.snapshot().viewport : null;
+            },
+            apply,
+        });
+    }
+
+    global.WorkbenchInteractionController = Object.freeze({create, createSelectionStore, createViewportController});
 }(window));

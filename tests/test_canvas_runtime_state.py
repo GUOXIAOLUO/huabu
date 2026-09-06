@@ -131,15 +131,15 @@ console.log(JSON.stringify({{left:G.portAnchor(r,'left'),right:G.portAnchor(r,'r
     def test_both_page_adapters_use_the_shared_runtime_only_when_opted_in(self):
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
         smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        for source, enabled, zoom, selection in (
-            (classic, "canvasUnifiedRuntimeEnabled", "applyCanvasRuntimeViewport", "applyCanvasRuntimeSelection"),
-            (smart, "smartUnifiedRuntimeEnabled", "applySmartRuntimeViewport", "applySmartRuntimeSelection"),
+        for source, enabled, zoom, selection, zoomCommand in (
+            (classic, "canvasUnifiedRuntimeEnabled", "ensureCanvasViewportController", "applyCanvasRuntimeSelection", "canvasViewportController.zoomAt("),
+            (smart, "smartUnifiedRuntimeEnabled", "applySmartRuntimeViewport", "applySmartRuntimeSelection", "VIEWPORT_ZOOM_AT"),
         ):
             self.assertIn("unified_canvas') !== '0'", source)
             self.assertIn(enabled, source)
             self.assertIn(zoom, source)
             self.assertIn(selection, source)
-            self.assertIn("VIEWPORT_ZOOM_AT", source)
+            self.assertIn(zoomCommand, source)
 
     def test_both_page_adapters_write_drag_and_resize_through_runtime_commands(self):
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")

@@ -370,13 +370,6 @@ function syncCanvasRuntimeGeometry(runtime=ensureCanvasUnifiedRuntime()){
     runtime.dispatch({type:window.WorkbenchCanvasRuntime.COMMANDS.GEOMETRY_REPLACE, geometry:canvasRuntimeGeometry()});
     return runtime;
 }
-function applyCanvasRuntimeViewport(command){
-    const runtime = ensureCanvasUnifiedRuntime();
-    if(!runtime) return false;
-    runtime.dispatch(command);
-    viewport = {...runtime.snapshot().viewport};
-    return true;
-}
 function adoptCanvasRuntimeState(nextViewport){
     if(nextViewport) viewport = nextViewport;
     // Canvas state swaps (open/create/remote-replace/return/delete) must reset the
@@ -1324,10 +1317,9 @@ function minimapEventToWorld(e){
 }
 function centerViewportOnWorldPoint(point){
     const rect = board.getBoundingClientRect();
-    const sharedViewport = canvasUnifiedRuntimeEnabled
-        ? window.WorkbenchCanvasRuntime?.viewportCenteredOnWorldPoint?.(viewport, point, {width:rect.width, height:rect.height})
-        : null;
-    if(!sharedViewport || !applyCanvasRuntimeViewport({type:window.WorkbenchCanvasRuntime.COMMANDS.VIEWPORT_SET, viewport:sharedViewport})){
+    const size = {width:rect.width, height:rect.height};
+    const shared = canvasUnifiedRuntimeEnabled ? ensureCanvasViewportController().centerOn(point, size) : null;
+    if(!shared){
         viewport.x = rect.width / 2 - point.x * viewport.scale;
         viewport.y = rect.height / 2 - point.y * viewport.scale;
     }
@@ -1343,7 +1335,7 @@ function fitAllNodesViewport(){
     const rect = board.getBoundingClientRect();
     if(window.WorkbenchCanvasViewportRecovery){
         const fitted = window.WorkbenchCanvasViewportRecovery.fit(nodes.map(estimatedNodeRect), {width:rect.width, height:rect.height}, {padding:180, inset:80, minScale:.06, maxScale:.82, emptyScale:.45});
-        if(!applyCanvasRuntimeViewport({type:window.WorkbenchCanvasRuntime.COMMANDS.VIEWPORT_SET, viewport:fitted})) viewport = {...fitted};
+        if(!ensureCanvasViewportController().set(fitted)) viewport = {...fitted};
         applyViewport();
         renderLinks();
         renderSelectionHub();
@@ -1402,7 +1394,7 @@ function exitZoomPreview(point=null){
             ? window.WorkbenchCanvasRuntime?.viewportCenteredOnWorldPoint?.(restoredViewport, point, {width:rect.width, height:rect.height})
             : null) || {x:rect.width / 2 - point.x * restoredScale, y:rect.height / 2 - point.y * restoredScale, scale:restoredScale};
     }
-    if(!applyCanvasRuntimeViewport({type:window.WorkbenchCanvasRuntime.COMMANDS.VIEWPORT_SET, viewport:restoredViewport})) viewport = restoredViewport;
+    if(!ensureCanvasViewportController().set(restoredViewport)) viewport = restoredViewport;
     applyViewport();
     renderLinks();
     renderSelectionHub();
@@ -1433,7 +1425,7 @@ function exitZoomPreviewToNode(nodeId){
     const targetViewport = (canvasUnifiedRuntimeEnabled
         ? window.WorkbenchCanvasRuntime?.viewportCenteredOnWorldPoint?.({...prev, scale:targetScale}, {x:cx, y:cy}, {width:boardRect.width, height:boardRect.height})
         : null) || {x:boardRect.width / 2 - cx * targetScale, y:boardRect.height / 2 - cy * targetScale, scale:targetScale};
-    if(!applyCanvasRuntimeViewport({type:window.WorkbenchCanvasRuntime.COMMANDS.VIEWPORT_SET, viewport:targetViewport})) viewport = targetViewport;
+    if(!ensureCanvasViewportController().set(targetViewport)) viewport = targetViewport;
     applyViewport();
     renderLinks();
     renderSelectionHub();
@@ -6421,11 +6413,21 @@ const CANVAS_NODE_SHELL_LEGACY_CONTROLS = Object.freeze({
 });
 let renderRuntime = null;
 let interactionController = null;
+let canvasViewportController = null;
 function ensureInteractionController(){
     if(!interactionController){
         interactionController = window.WorkbenchInteractionController.create({windowRef: window});
     }
     return interactionController;
+}
+function ensureCanvasViewportController(){
+    if(!canvasViewportController){
+        canvasViewportController = window.WorkbenchInteractionController.createViewportController({
+            getKernel: ensureCanvasUnifiedRuntime,
+            applyViewport: nextViewport => { viewport = {...nextViewport}; },
+        });
+    }
+    return canvasViewportController;
 }
 function ensureRenderRuntime(){
     if(!renderRuntime){
@@ -16501,22 +16503,21 @@ function startBoardPan(e, opts={}){
         : null;
     dragBoard = {sx:e.clientX, sy:e.clientY, ox:viewport.x, oy:viewport.y, moved:false, panSession, clearSelectionOnClick:Boolean(opts.clearSelectionOnClick)};
     document.body.classList.add('canvas-board-pan');
-    window.onmousemove = e2 => {
+    ensureInteractionController().begin({kind:'board-pan', onMove:e2 => {
         const pan = dragBoard.panSession?.move({x:e2.clientX, y:e2.clientY});
         if(pan) dragBoard.moved = pan.moved;
         else if(Math.hypot(e2.clientX - dragBoard.sx, e2.clientY - dragBoard.sy) > 4) dragBoard.moved = true;
         const nextViewport = pan?.viewport || {x:dragBoard.ox + e2.clientX - dragBoard.sx, y:dragBoard.oy + e2.clientY - dragBoard.sy, scale:viewport.scale};
-        if(!applyCanvasRuntimeViewport({type:window.WorkbenchCanvasRuntime?.COMMANDS.VIEWPORT_SET, viewport:nextViewport})) viewport = nextViewport;
+        if(!canvasViewportController.set(nextViewport)) viewport = nextViewport;
         applyViewport();
-    };
-    window.onmouseup = e2 => {
+    }, onEnd:e2 => {
         const shouldClearSelection = dragBoard?.clearSelectionOnClick && !dragBoard.moved && selected.size;
         if(shouldClearSelection){
             if(!clearCanvasRuntimeSelection()) selected.clear();
             refreshSelectionVisuals();
         }
         endDrag(e2);
-    };
+    }});
     return true;
 }
 
@@ -16580,10 +16581,7 @@ board.onwheel = e => {
         ? window.WorkbenchCanvasRuntime?.viewportScaleForWheel?.(viewport, e.deltaY, {strategy:'step', outFactor:.92, inFactor:1.08})
         : null;
     const nextScale = sharedNextScale || safeViewportScale(viewport.scale * (e.deltaY > 0 ? .92 : 1.08));
-    if(!applyCanvasRuntimeViewport({
-        type:window.WorkbenchCanvasRuntime?.COMMANDS.VIEWPORT_ZOOM_AT,
-        anchor:{x:e.clientX - rect.left, y:e.clientY - rect.top}, scale:nextScale,
-    })) {
+    if(!canvasViewportController.zoomAt({x:e.clientX - rect.left, y:e.clientY - rect.top}, nextScale)) {
         const before = screenToWorld(e.clientX, e.clientY);
         viewport.scale = nextScale;
         viewport.x = e.clientX - rect.left - before.x * viewport.scale;

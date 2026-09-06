@@ -1471,7 +1471,7 @@ console.log(JSON.stringify({invalid}));
         self.assertNotIn("window.onmousemove = onNodeResize", resize_flow)
         # The controller singleton is the single wiring owner for these sessions.
         self.assertEqual(classic.count("WorkbenchInteractionController.create({windowRef: window})"), 1)
-        self.assertEqual(classic.count("ensureInteractionController().begin("), 2)
+        self.assertEqual(classic.count("ensureInteractionController().begin("), 3)
 
     def test_selection_authority_store_is_set_compatible_with_change_tracking(self):
         controller_module = ROOT / "static" / "js" / "workbench" / "canvas" / "interaction-controller.js"
@@ -1518,6 +1518,69 @@ console.log(JSON.stringify({has, size, spread, deleted, deletedAgain, replaced, 
         # The authority module loads on the Classic page before the adapter.
         page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
         self.assertLess(page.index("workbench/canvas/interaction-controller.js"), page.index("js/canvas.js"))
+
+    def test_viewport_controller_dispatches_through_the_kernel_with_page_shell_callbacks(self):
+        controller_module = ROOT / "static" / "js" / "workbench" / "canvas" / "interaction-controller.js"
+        script = """
+const fs = require('fs'); const vm = require('vm');
+const applied = [];
+const sandbox = {window: {
+  WorkbenchCanvasRuntime: null, // kernel comes from the settings below
+}};
+vm.runInNewContext(fs.readFileSync(__MODULE__, 'utf8'), sandbox);
+const kernelCalls = [];
+const fakeKernel = {
+  dispatch: command => kernelCalls.push(command),
+  snapshot: () => ({viewport: {x: 11, y: 22, scale: 2}, selectedIds: [], geometry: []}),
+  viewportCenteredOnWorldPoint: (viewport, point, size) => ({
+    x: size.width / 2 - point.x * viewport.scale,
+    y: size.height / 2 - point.y * viewport.scale,
+    scale: viewport.scale,
+  }),
+};
+const controller = sandbox.window.WorkbenchInteractionController.createViewportController({
+  getKernel: () => fakeKernel,
+  applyViewport: viewport => applied.push({...viewport}),
+});
+const setView = controller.set({x: 1, y: 2, scale: 1});
+const panned = controller.panBy(30, 40);
+const zoomed = controller.zoomAt({x: 100, y: 50}, 2);
+const centered = controller.centerOn({x: 20, y: 10}, {width: 200, height: 100});
+const current = controller.current();
+const noKernel = sandbox.window.WorkbenchInteractionController.createViewportController({
+  getKernel: () => null,
+  applyViewport: () => {},
+});
+console.log(JSON.stringify({
+  setView, panned, zoomed, centered, current, appliedCount: applied.length, kernelCalls, noKernelSet: noKernel.set({x:0,y:0,scale:1}),
+}));
+""".replace("__MODULE__", json.dumps(str(controller_module)))
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        # Every mutation dispatches through the kernel; the resolved viewport is
+        # returned and the page shell callback re-renders.
+        self.assertEqual(payload["setView"], {"x": 11, "y": 22, "scale": 2})
+        self.assertEqual(payload["kernelCalls"][0]["type"], "canvas.viewport.set")
+        self.assertEqual(payload["kernelCalls"][1]["type"], "canvas.viewport.pan")
+        self.assertEqual(payload["kernelCalls"][2]["type"], "canvas.viewport.zoom-at")
+        self.assertEqual(payload["appliedCount"], 4)
+        self.assertIsNone(payload["noKernelSet"])
+
+    def test_classic_viewport_flows_are_cut_over_to_the_viewport_controller(self):
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        self.assertIn("function ensureCanvasViewportController(){", classic)
+        self.assertEqual(classic.count("WorkbenchInteractionController.createViewportController"), 1)
+        # Board pan: the pointer session is wired through the controller, not the window slot.
+        self.assertIn("ensureInteractionController().begin({kind:'board-pan'", classic)
+        self.assertIn("ensureInteractionController().begin({kind:'board-pan'", classic)
+        # Zoom and the set flows go through the controller.
+        self.assertIn("canvasViewportController.zoomAt(", classic)
+        self.assertIn("ensureCanvasViewportController().set(fitted)", classic)
+        self.assertIn("ensureCanvasViewportController().set(restoredViewport)", classic)
+        self.assertIn("ensureCanvasViewportController().set(targetViewport)", classic)
+        self.assertIn("ensureCanvasViewportController().centerOn(point, size)", classic)
+        # The duplicate viewport mutation helper is gone.
+        self.assertNotIn("function applyCanvasRuntimeViewport(", classic)
 
     def test_render_runtime_group_mount_owns_record_decision_and_lifecycle(self):
         runtime_module = ROOT / "static" / "js" / "workbench" / "canvas" / "render-runtime.js"
@@ -2593,7 +2656,7 @@ console.log(JSON.stringify({{
         self.assertIn("const CANVAS_WHEEL_DELTA_LIMIT = 240;", smart)
         self.assertIn("const nextScale = sharedNextScale || safeScale(viewport.scale * factor);", smart)
         self.assertIn("viewportScaleForWheel?.(viewport, e.deltaY", smart)
-        self.assertIn("applyCanvasRuntimeViewport({type:window.WorkbenchCanvasRuntime.COMMANDS.VIEWPORT_SET, viewport:fitted})", classic)
+        self.assertIn("ensureCanvasViewportController().set(fitted)", classic)
         self.assertIn("applySmartRuntimeViewport({type:window.WorkbenchCanvasRuntime.COMMANDS.VIEWPORT_SET, viewport:fitted})", smart)
         self.assertIn("function recoverSmartViewportIfCorrupt()", smart)
         self.assertIn("function restoreSmartViewportToVisibleNodes()", smart)
