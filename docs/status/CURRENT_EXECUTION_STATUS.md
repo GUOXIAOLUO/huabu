@@ -651,6 +651,23 @@ load order, both session kinds, the singleton, and the removed direct
 assignments. Focused regression: PASS (2 new tests); full regression: PASS
 at 343 tests.
 
+Browser drag/resize smoke for the controller cutover (read-isolated
+`127.0.0.1:3030`, 2026-09-06T22:40+08:00, process-lifetime temporary SQLite
+database seeded from the 17 active canvases with `sqlite` authority): PASS —
+the Classic editor booted on the six-node record; a scripted mousedown on a
+comfy card showed the controller wiring the window move/up slot (both
+handlers functions, `canvas-node-drag` body class set), a +60/+40 move moved
+the card exactly (470.624/713.56 → 530.624/753.56) through the runtime drag
+session, mouseup committed and cleared the body class, and a full reload
+restored the dragged position from canonical SQLite. The same flow through
+the NodeShell resize affordance (`resize_start` intent → `startNodeResize`)
+resized 420×460 → 500×510 and the size plus position survived reload. Real
+workbench.sqlite3 was byte-identical (sha256 `d2dd8442…`) before and after,
+and `data/` showed no modifications — all writes stayed in the temporary
+database. Note: coordinate-level cua dragging over a MediaRenderer card is
+correctly absorbed by the renderer's native-media interaction isolation; the
+scripted-event chain exercises the migrated controller wiring directly.
+
 ## Unified Canvas verified ledger
 
 | Stage | Status | Evidence summary |
