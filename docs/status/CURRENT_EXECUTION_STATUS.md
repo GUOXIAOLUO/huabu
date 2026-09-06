@@ -815,6 +815,28 @@ untouched page persistence seams. Focused regression: PASS (2 new tests; the
 Smart port-hover contract moved to the controller callbacks); full
 regression: PASS at 356 tests.
 
+R4 creation controller (card R4-21, 2026-09-07T06:12+08:00): normal blank
+node creation moved under one creation boundary.
+`WorkbenchInteractionController.createCreationController({create, applyResult,
+requestId})` owns the versioned command envelope (request id from the
+injected factory, project/source defaults, definition ref, position, expected
+revision, conditional title/initial config) and delegates the
+NodeCreationService client call plus result application (undo snapshot,
+revision adoption, selection projection) to the page-injected client and
+apply options; the controller has no persistence or DOM surface. All ten
+blank-create entry points — Classic blank Image/Prompt/Loop/Group/Output and
+Smart blank Prompt/Loop/Group/MiniMax/Image — now call controller singletons
+(`ensureCreationController` / `ensureSmartCreationController`) and no page
+calls `WorkbenchNodeClient.create(canvas.id, ...)` directly for blank entries
+(pinned). Inventory for later units: provider-shaped `addNode` product
+bodies, file-drop materialization, paste/workflow graph fragments, and
+connected creation (already service-backed via `applyGraphCreationResult`)
+remain page-owned compatibility. Behavioral test pins envelope normalization
+(request id, defaults, conditional fields) and apply delegation; wiring
+contracts pin one controller per adapter and zero direct client create calls.
+Focused regression: PASS (2 new tests; two creation-count contracts updated
+to the controller seam); full regression: PASS at 358 tests.
+
 ## Unified Canvas verified ledger
 
 | Stage | Status | Evidence summary |
@@ -1021,13 +1043,18 @@ seconds, Python 3.14.7 (2026-09-07). The +2 tests are the connection gesture
 behavioral test and the both-adapters wiring contract; the Smart port-hover
 contract moved to the controller callbacks.
 
-Agent regression gate (cards R4-01…R4-20):
+Result: PASS after R4-21 creation controller — 358 tests in 3.5 seconds,
+Python 3.14.7 (2026-09-07). The +2 tests are the creation envelope behavioral
+test and the both-adapters wiring contract; two creation-count contracts
+moved to the controller seam.
+
+Agent regression gate (cards R4-01…R4-21):
 
 ```text
 ./scripts/agent-verify.sh
 ```
 
-Result: PASS — AGENT VERIFY: PASS (356 unit tests, Python AST parse of 73 files,
+Result: PASS — AGENT VERIFY: PASS (358 unit tests, Python AST parse of 73 files,
 `node --check` of 67 JavaScript files, 4 architecture-guard tests,
 `git diff --check`; Node v24.20.0). The gate script was fixed during R4-01 to
 prefer `.venv/bin/python` over PATH `python3`, which lacks project dependencies

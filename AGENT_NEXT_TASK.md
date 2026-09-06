@@ -5,16 +5,24 @@
 
 ## Active Task
 
-- Task ID: `R4-21`
+- Task ID: `R4-22`
 - Round: `R4`
 - Priority: `P1`
 - Status: `READY`
-- Task Card: `docs/tasks/backlog/R4-21-creation-controller.md`
+- Task Card: `docs/tasks/backlog/R4-22-file-drop.md`
 
 ## Completed Tasks
 
+- `R4-21` — `DONE` 2026-09-07T06:12+08:00. Card:
+  `docs/tasks/active/R4-21-creation-controller.md`. Evidence:
+  `createCreationController` owns the versioned command envelope; all ten
+  blank-create entry points (both pages) route through controller singletons;
+  zero direct client create calls for blank entries; inventory of remaining
+  raw paths recorded; behavioral + wiring contract tests; regression 358
+  tests PASS.
+
 - `R4-20` — `DONE` 2026-09-07T00:15+08:00. Card:
-  `docs/tasks/active/R4-20-connection-interaction.md`. Evidence:
+  `docs/tasks/done/R4-20-connection-interaction.md`. Independent review: PASS. Evidence:
   `createConnectionGestureController` owns the port-drag gesture lifecycle
   (hover pipeline, drop/no-target/finish dispatch, cancel); Classic startLink
   and Smart port drag migrated, Smart dispatcher branches removed; controller

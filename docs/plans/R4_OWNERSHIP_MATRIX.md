@@ -550,6 +550,29 @@ single-gesture rule); wiring contracts pin one controller per adapter, the
 removed duplicated branches, and the untouched page persistence seams.
 Focused regression: PASS (2 new tests; the Smart port-hover contract moved to
 the controller callbacks); full regression: PASS (356 tests).
+
+
+2026-09-06 creation controller (R4-21): normal blank node creation moved
+under one creation boundary. `WorkbenchInteractionController.createCreation-
+Controller({create, applyResult, requestId})` owns the versioned command
+envelope (request id from the injected factory, project/source defaults,
+definition ref, position, expected revision, conditional title/initial
+config) and delegates the NodeCreationService client call plus result
+application (undo snapshot, revision adoption, selection projection) to the
+page-injected client and apply options; it has no persistence or DOM surface.
+All ten blank-create entry points — Classic blank Image/Prompt/Loop/Group/
+Output and Smart blank Prompt/Loop/Group/MiniMax/Image — now call controller
+singletons (`ensureCreationController` / `ensureSmartCreationController`) and
+no page calls `WorkbenchNodeClient.create(canvas.id, ...)` directly for blank
+entries (pinned). Inventory for later units: provider-shaped `addNode`
+product bodies, file-drop materialization, paste/workflow graph fragments,
+and connected creation (already service-backed via
+`applyGraphCreationResult`) remain page-owned compatibility. Behavioral test
+pins envelope normalization (request id, defaults, conditional fields) and
+apply delegation; wiring contracts pin one controller per adapter and zero
+direct client create calls. Focused regression: PASS (2 new tests; two
+creation-count contracts updated to the controller seam); full regression:
+PASS (358 tests).
 ```
 
 ## Rendering ownership map (R4-08 characterization, 2026-09-06)
