@@ -5,16 +5,23 @@
 
 ## Active Task
 
-- Task ID: `R4-12`
+- Task ID: `R4-13`
 - Round: `R4`
-- Priority: `P0`
+- Priority: `P1`
 - Status: `READY`
-- Task Card: `docs/tasks/backlog/R4-12-generic-rendering.md`
+- Task Card: `docs/tasks/backlog/R4-13-provider-compat-renderers.md`
 
 ## Completed Tasks
 
+- `R4-12` — `DONE` 2026-09-06T21:28+08:00. Card:
+  `docs/tasks/active/R4-12-generic-rendering.md`. Evidence: Classic prompt
+  family cut over to registry-owned rendering (`prompt-card` renderer builds
+  the card DOM inside NodeShell; page state behind rendererOptions callbacks;
+  flags-off fallback preserved); behavioral pipeline + wiring contract tests;
+  regression 339 tests PASS.
+
 - `R4-11` — `DONE` 2026-09-06T21:05+08:00. Card:
-  `docs/tasks/active/R4-11-media-rendering.md`. Evidence: runtime-owned
+  `docs/tasks/done/R4-11-media-rendering.md`. Evidence: runtime-owned
   media-state projection (`mediaState` capture on unmount / restore on mount),
   MediaRenderer elements carry the signature URL, page sweeps exclude
   shell-mounted cards; behavioral tests for all three; regression 337 tests
@@ -121,8 +128,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor if R4-12 passes:
+Expected successor if R4-13 passes:
 
-`R4-13 — Provider-Shaped Compatibility Renderers` (`docs/tasks/backlog/R4-13-provider-compat-renderers.md`)
+`R4-14 — Interaction Controller` (`docs/tasks/backlog/R4-14-interaction-controller.md`)
 
 Actual successor must still be checked against the repository's current verified state.

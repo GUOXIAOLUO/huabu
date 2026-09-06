@@ -580,6 +580,28 @@ pass as-is). Focused regression: PASS (3 new tests: exclude selector, runtime
 remount projection, renderer signature URL); full regression: PASS at 337
 tests.
 
+R4 generic legacy card rendering cutover (card R4-12, 2026-09-06T21:28+08:00):
+the Classic prompt family is the first generic family whose cards no longer
+depend on pre-rendered page DOM. A new
+`static/js/workbench/canvas/prompt-card-renderer.js` self-registers a
+`prompt-card` renderer (priority 10) with the exposed `NodeCardHost.registry`;
+resolution prefers it over source-payload for legacy prompt records, so
+`mountCanvasNodeShellForLegacy` mounts renderer-owned DOM inside NodeShell
+with `preserveLegacyContent:false` for prompts. The page keeps state and
+services behind rendererOptions callbacks (`onPromptInput` writes the payload
+text and schedules save/generator sync, `onOpenTemplate` opens the template
+modal, `templateActive` mirrors modal state, and counter limits plus scroll
+binding are injected), while the renderer builds and owns the editor DOM
+(textarea, template button, live counter with over-limit class). The
+pre-rendered prompt markup survives verbatim as the `legacy_renderer=0`
+fallback, and the prompt branch now skips it on the default path. Smart's
+composer-owned smart-prompt card is intentionally not migrated. A behavioral
+test drives the real NodeCardHost + NodeShell + registry pipeline with a fake
+document (renderer-id stamping, initial text, counter update, over-limit
+class, callbacks, scroll binding); a wiring contract pins load order, the
+conditional fallback branch, and the Smart page exclusion. Focused
+regression: PASS (2 new tests); full regression: PASS at 339 tests.
+
 ## Unified Canvas verified ledger
 
 | Stage | Status | Evidence summary |
@@ -745,14 +767,18 @@ Result: PASS after R4-11 media rendering cutover — 337 tests in 3.8 seconds,
 Python 3.14.7 (2026-09-06). The +3 tests cover the projection exclude selector,
 the runtime remount projection, and the renderer signature URL.
 
-Agent regression gate (cards R4-01…R4-11):
+Result: PASS after R4-12 generic prompt cutover — 339 tests in 3.7 seconds,
+Python 3.14.7 (2026-09-06). The +2 tests are the prompt-card renderer
+behavioral pipeline test and the Classic wiring contract.
+
+Agent regression gate (cards R4-01…R4-12):
 
 ```text
 ./scripts/agent-verify.sh
 ```
 
-Result: PASS — AGENT VERIFY: PASS (337 unit tests, Python AST parse of 73 files,
-`node --check` of 64 JavaScript files, 4 architecture-guard tests,
+Result: PASS — AGENT VERIFY: PASS (339 unit tests, Python AST parse of 73 files,
+`node --check` of 65 JavaScript files, 4 architecture-guard tests,
 `git diff --check`; Node v24.20.0). The gate script was fixed during R4-01 to
 prefer `.venv/bin/python` over PATH `python3`, which lacks project dependencies
 (`pydantic`); verification tooling only, no product behavior change.

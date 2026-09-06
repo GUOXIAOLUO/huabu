@@ -374,6 +374,26 @@ are unchanged (preview fallback, high-res, and versioned media tests pass
 as-is). Focused regression: PASS (3 new tests: exclude selector, runtime
 remount projection, renderer signature URL); full regression: PASS (337
 tests).
+
+2026-09-06 generic legacy card rendering cutover (R4-12): the Classic prompt
+family is the first generic family whose cards no longer depend on
+pre-rendered page DOM. `static/js/workbench/canvas/prompt-card-renderer.js`
+self-registers a `prompt-card` renderer (priority 10) with the exposed
+`NodeCardHost.registry`; resolution prefers it over source-payload (0) for
+legacy prompt records, so `mountCanvasNodeShellForLegacy` mounts
+renderer-owned DOM inside NodeShell with `preserveLegacyContent:false` for
+prompts. The page keeps state and services behind rendererOptions callbacks
+(`onPromptInput` writes the payload text and schedules save/generator sync,
+`onOpenTemplate` opens the template modal, `templateActive` mirrors modal
+state, counter limits and scroll binding are injected), and the pre-rendered
+prompt markup survives verbatim as the `legacy_renderer=0` fallback
+(`legacy_renderer` gate now skips it on the default path). Smart's
+composer-owned smart-prompt card is intentionally not migrated. Behavioral
+test drives the real NodeCardHost + NodeShell + registry pipeline with a fake
+document (renderer id stamping, initial text, counter update, over-limit
+class, callbacks, scroll binding); a wiring contract pins load order, the
+conditional fallback branch, and the Smart page exclusion. Focused
+regression: PASS (2 new tests); full regression: PASS (339 tests).
 ```
 
 ## Rendering ownership map (R4-08 characterization, 2026-09-06)
@@ -406,7 +426,7 @@ keeping DOM alive.
 | Group (Smart `smart-group`) | `createSmartGroupNode` S6844; versioned S1643/S1682 | full render; batch delegates to `mountGroupCard` S1559 | `deleteNode` S10595 (versioned S10784) | dblclick/toolbar S10269/S10327; shell owns ports/resize | member media → runtime-built record | adapter HTML + RenderRuntime group mount (R4-10) | Unified RenderRuntime; Smart group actions compat |
 | Image (Classic) | `addImageNode` C2604; versioned C2527 | full render / `refreshNodes` | content-clear C13568 → versioned C13736 / `deleteNode` | body C6522; img guards C6553 | shared primitives; media state projected by the runtime (R4-11) | MediaRenderer DOM + runtime state projection; adapter HTML is flags-off fallback | Unified RenderRuntime; adapter video activation compat |
 | Image (Smart `smart-image`) | `createNode` S6749; versioned S1764/S1802 | full render + `measureSmartNodeImages` S9136 | media-clear S10618 → versioned S10761 / `deleteNode` | thumbs/play/drag S10354–10533 | shared primitives; media state projected by the runtime (R4-11) | MediaRenderer DOM + runtime state projection; adapter HTML is flags-off fallback | Unified RenderRuntime; Smart media tools compat |
-| Prompt (Classic) | `addPromptNode` C2608; versioned C2554 | render + counter C6600 | versioned C13760 / `deleteNode` | textarea/template C6605 | n/a | adapter | Unified RenderRuntime lifecycle |
+| Prompt (Classic) | `addPromptNode` C2608; versioned C2554 | renderer-owned DOM via `prompt-card` registry entry (R4-12) | versioned C13760 / `deleteNode` | renderer-bound textarea/template; page callbacks | n/a | `prompt-card` renderer + NodeShell; adapter markup is flags-off fallback | Unified RenderRuntime lifecycle |
 | Prompt (Smart) | `createPromptNode` S6761; versioned S1613/S1723 | full render + `bindPromptNodeControls` S9241 | versioned S10820 / `deleteNode` | controls S9242 | n/a | adapter | Unified RenderRuntime lifecycle |
 | Loop (Classic) | `addLoopNode` C2612; versioned C2579 | `renderLoopBody` C8127 | versioned C13782 / `deleteNode` | controls C8185 | none owned | adapter | Unified RenderRuntime lifecycle |
 | Loop (Smart) | `createLoopNode` S6796; versioned S1629/S1741 | `smartLoopBodyHtml` + bind S9374 | versioned S10806 / `deleteNode` | S9374+ | none owned | adapter | Unified RenderRuntime lifecycle |
@@ -475,6 +495,14 @@ card. `MediaRenderer` stamps `dataset.url` on its created elements so the
 shared signature recognizes renderer-created media, and the page-level
 world sweeps exclude `.node-shell-mounted` cards, removing duplicate
 projection ownership for mounted media.
+
+Extended by R4-12 (2026-09-06, generic Prompt cutover): the Classic prompt
+family moved from adopted pre-rendered DOM to registry-owned rendering —
+`prompt-card-renderer.js` registers `prompt-card` (priority 10) with
+`NodeCardHost.registry` and builds the editor DOM inside NodeShell; the page
+keeps state and services behind `rendererOptions` callbacks (onPromptInput,
+onOpenTemplate, templateActive, counter limits, scroll binding) and retains
+the pre-rendered markup only as the flags-off fallback.
 
 # Save/merge machinery characterization (U7 blocker analysis, 2026-09-06)
 
