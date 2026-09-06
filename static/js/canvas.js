@@ -15853,73 +15853,91 @@ function onNodeResize(e){
     renderSelectionHub();
     scheduleMinimapRender();
 }
+let classicConnectionGesture = null;
+function ensureClassicConnectionGesture(){
+    if(!classicConnectionGesture){
+        classicConnectionGesture = window.WorkbenchInteractionController.createConnectionGestureController({
+            windowRef: window,
+            resolveTarget: (gesture, e2) => {
+                const targetKind = gesture.originKind === 'out' ? 'in' : 'out';
+                const targetPort = nearestPort(e2.clientX, e2.clientY, targetKind);
+                const target = targetPort?.closest('.node');
+                return target ? {nodeId: target.dataset.id, port: targetKind} : null;
+            },
+            validate: (gesture, target) => {
+                const intent = window.WorkbenchCanvasGraphInteraction?.edgeIntentFromPortDrop(
+                    {nodeId:gesture.fromId, port:gesture.originKind}, {nodeId:target.nodeId, port:target.port}
+                );
+                const fromNode = nodes.find(node => node.id === intent?.from);
+                const toNode = nodes.find(node => node.id === intent?.to);
+                const portsCompatible = window.WorkbenchCanvasPortCompatibility?.isCompatible(
+                    {direction:'out', dataType:fromNode?.output_port_type || fromNode?.port_type || 'legacy.any'},
+                    {direction:'in', dataType:toNode?.input_port_type || toNode?.port_type || 'legacy.any'},
+                );
+                if(!intent || portsCompatible === false || !canConnect(intent.from, intent.to)) return null;
+                if(connections.some(c => c.from === intent.from && c.to === intent.to)) return null;
+                return {intent};
+            },
+            move: (gesture, e2) => {
+                const p = screenToWorld(e2.clientX, e2.clientY);
+                tempLink.x2 = p.x;
+                tempLink.y2 = p.y;
+                renderLinks();
+            },
+            drop: (gesture, result, e2) => {
+                const {from:fromId, to:toId} = result.intent;
+                // Persistence stays behind the page save/application seam.
+                pushUndo();
+                connections.push({id:uid('c'), from:fromId, to:toId});
+                const group = nodes.find(node => node.id === toId && node.type === 'group');
+                const groupedNode = nodes.find(node => node.id === fromId);
+                if(group && ['image','prompt'].includes(groupedNode?.type) && window.WorkbenchCanvasCommands?.graphCommand('canvas.group.add-member', 'classic')){
+                    group.items = Array.isArray(group.items) ? group.items : [];
+                    if(!group.items.includes(fromId)) group.items.push(fromId);
+                }
+                syncLatestGeneratedOutputToConnection(fromId, toId);
+                syncGeneratorInputs();
+                scheduleSave();
+                render();
+            },
+            noTarget: (gesture, e2) => {
+                const source = gesture.source;
+                if(gesture.originKind === 'out'){
+                    if(source && CANVAS_GENERATOR_TYPES.includes(source.type)){
+                        const p = screenToWorld(e2.clientX, e2.clientY);
+                        pushUndo();
+                        const out = {id:uid('out'), type:'output', x:p.x, y:p.y - 63, images:[]};
+                        nodes.push(out);
+                        connections.push({id:uid('c'), from:source.id, to:out.id});
+                        syncLatestGeneratedOutputToConnection(source.id, out.id);
+                        syncGeneratorInputs();
+                        scheduleSave();
+                        render();
+                    } else {
+                        openLinkCreateMenu(gesture.fromId, gesture.originKind, e2.clientX, e2.clientY);
+                    }
+                } else {
+                    openLinkCreateMenu(gesture.fromId, gesture.originKind, e2.clientX, e2.clientY);
+                }
+            },
+            finish: () => {
+                tempLink = null;
+                renderLinks();
+            },
+        });
+    }
+    return classicConnectionGesture;
+}
 function startLink(e, originId, originKind){
     if(!window.WorkbenchCanvasCommands?.graphCommand('canvas.graph.connect', 'classic')) return;
-    e.stopPropagation();
     originKind = originKind || 'out';
     const src = portPoint(originId, originKind);
     const source = nodes.find(n => n.id === originId);
+    if(!ensureClassicConnectionGesture().beginGesture(e, {fromId:originId, originKind, source, x1:src.x, y1:src.y})){
+        return;
+    }
+    e.stopPropagation();
     tempLink = {from:originId, originKind, x1:src.x, y1:src.y, x2:src.x, y2:src.y};
-    window.onmousemove = e2 => {
-        const p = screenToWorld(e2.clientX, e2.clientY);
-        tempLink.x2 = p.x;
-        tempLink.y2 = p.y;
-        renderLinks();
-    };
-    window.onmouseup = e2 => {
-        const targetKind = originKind === 'out' ? 'in' : 'out';
-        const targetPort = nearestPort(e2.clientX, e2.clientY, targetKind);
-        const target = targetPort?.closest('.node');
-        if(target){
-            const targetId = target.dataset.id;
-            const intent = window.WorkbenchCanvasGraphInteraction?.edgeIntentFromPortDrop(
-                {nodeId:originId, port:originKind}, {nodeId:targetId, port:targetKind}
-            );
-            const fromNode = nodes.find(node => node.id === intent?.from);
-            const toNode = nodes.find(node => node.id === intent?.to);
-            const portsCompatible = window.WorkbenchCanvasPortCompatibility?.isCompatible(
-                {direction:'out', dataType:fromNode?.output_port_type || fromNode?.port_type || 'legacy.any'},
-                {direction:'in', dataType:toNode?.input_port_type || toNode?.port_type || 'legacy.any'},
-            );
-            if(intent && portsCompatible !== false && canConnect(intent.from, intent.to)){
-                const {from:fromId, to:toId} = intent;
-                if(!connections.some(c => c.from === fromId && c.to === toId)){
-                    pushUndo();
-                    connections.push({id:uid('c'), from:fromId, to:toId});
-                    const group = nodes.find(node => node.id === toId && node.type === 'group');
-                    const groupedNode = nodes.find(node => node.id === fromId);
-                    if(group && ['image','prompt'].includes(groupedNode?.type) && window.WorkbenchCanvasCommands?.graphCommand('canvas.group.add-member', 'classic')){
-                        group.items = Array.isArray(group.items) ? group.items : [];
-                        if(!group.items.includes(fromId)) group.items.push(fromId);
-                    }
-                    syncLatestGeneratedOutputToConnection(fromId, toId);
-                }
-                syncGeneratorInputs();
-                scheduleSave();
-                render();
-            }
-        } else if(originKind === 'out'){
-            if(source && CANVAS_GENERATOR_TYPES.includes(source.type)){
-                const p = screenToWorld(e2.clientX, e2.clientY);
-                pushUndo();
-                const out = {id:uid('out'), type:'output', x:p.x, y:p.y - 63, images:[]};
-                nodes.push(out);
-                connections.push({id:uid('c'), from:source.id, to:out.id});
-                syncLatestGeneratedOutputToConnection(source.id, out.id);
-                syncGeneratorInputs();
-                scheduleSave();
-                render();
-            } else {
-                openLinkCreateMenu(originId, originKind, e2.clientX, e2.clientY);
-            }
-        } else if(originKind === 'in'){
-            openLinkCreateMenu(originId, originKind, e2.clientX, e2.clientY);
-        }
-        tempLink = null;
-        window.onmousemove = null;
-        window.onmouseup = null;
-        renderLinks();
-    };
 }
 function nearestPort(clientX, clientY, kind){
     const selector = kind === 'out'

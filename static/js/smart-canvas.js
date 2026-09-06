@@ -1474,7 +1474,63 @@ function startSmartPortDrag(nodeId, portType, pointer){
     shell.classList.add('port-dragging');
     capturePendingUndo();
     ensurePortDragPathElement();
+    ensureSmartConnectionGesture().beginGesture(pointer, portDragState);
     updatePortDragVisual();
+}
+let smartConnectionGesture = null;
+function ensureSmartConnectionGesture(){
+    if(!smartConnectionGesture){
+        smartConnectionGesture = window.WorkbenchInteractionController.createConnectionGestureController({
+            windowRef: window,
+            resolveTarget: (gesture, e2) => {
+                const hitEl = document.elementFromPoint(e2.clientX, e2.clientY);
+                const portEl = hitEl?.closest?.('.node-port, .workbench-node-shell__port');
+                const nodeEl = portEl?.closest?.('.image-node') || hitEl?.closest?.('.image-node');
+                if(nodeEl && nodeEl.dataset.id && nodeEl.dataset.id !== gesture.fromId){
+                    let port = '';
+                    if(portEl){
+                        port = portEl.dataset.port;
+                    } else {
+                        const rect = nodeEl.getBoundingClientRect();
+                        port = (e2.clientX - rect.left) < rect.width / 2 ? 'in' : 'out';
+                    }
+                    return {nodeId: nodeEl.dataset.id, port};
+                }
+                return null;
+            },
+            validate: (gesture, target) => {
+                const intent = window.WorkbenchCanvasGraphInteraction?.edgeIntentFromPortDrop(
+                    {nodeId:gesture.fromId, port:gesture.fromPort}, {nodeId:target.nodeId, port:target.port}
+                );
+                const fromNode = nodes.find(node => node.id === intent?.from);
+                const toNode = nodes.find(node => node.id === intent?.to);
+                const portsCompatible = window.WorkbenchCanvasPortCompatibility?.isCompatible(
+                    {direction:'out', dataType:fromNode?.output_port_type || fromNode?.port_type || 'legacy.any'},
+                    {direction:'in', dataType:toNode?.input_port_type || toNode?.port_type || 'legacy.any'},
+                );
+                if(!intent || portsCompatible === false) return null;
+                return {intent};
+            },
+            move: (gesture, e2) => {
+                gesture.currentWorld = screenToWorld(e2);
+                gesture.moved = true;
+                gesture.hoverTargetId = gesture.result ? gesture.target?.nodeId || '' : '';
+                gesture.hoverPort = gesture.result ? gesture.target?.port || '' : '';
+                updatePortDragVisual();
+            },
+            drop: (gesture, result, e2) => finishSmartPortDrag(gesture, e2),
+            noTarget: (gesture, e2) => finishSmartPortDrag(gesture, e2),
+            finish: (gesture) => {
+                portDragState = null;
+                shell.classList.remove('port-dragging');
+                clearPortDragVisual();
+            },
+        });
+    }
+    return smartConnectionGesture;
+}
+function finishSmartPortDrag(drag, e){
+    handlePortDrop(drag, e);
 }
 function startSmartNodeResize(nodeId, pointer){
     const node = nodes.find(item => item.id === nodeId);
@@ -18523,43 +18579,6 @@ window.onmousemove = e => {
         eraseConnectionsAlongPointer(e);
         return;
     }
-    if(portDragState){
-        e.preventDefault();
-        const p = screenToWorld(e);
-        portDragState.currentWorld = p;
-        portDragState.moved = true;
-        const hitEl = document.elementFromPoint(e.clientX, e.clientY);
-        const portEl = hitEl?.closest?.('.node-port, .workbench-node-shell__port');
-        const nodeEl = portEl?.closest?.('.image-node') || hitEl?.closest?.('.image-node');
-        let targetId = '', targetPort = '';
-        if(nodeEl && nodeEl.dataset.id && nodeEl.dataset.id !== portDragState.fromId){
-            targetId = nodeEl.dataset.id;
-            if(portEl){
-                targetPort = portEl.dataset.port;
-            } else {
-                const rect = nodeEl.getBoundingClientRect();
-                targetPort = (e.clientX - rect.left) < rect.width / 2 ? 'in' : 'out';
-            }
-            const hoverIntent = window.WorkbenchCanvasGraphInteraction?.edgeIntentFromPortDrop(
-                {nodeId:portDragState.fromId, port:portDragState.fromPort}, {nodeId:targetId, port:targetPort}
-            );
-            const fromNode = nodes.find(node => node.id === hoverIntent?.from);
-            const toNode = nodes.find(node => node.id === hoverIntent?.to);
-            const directionCompatible = Boolean(hoverIntent);
-            const compatible = directionCompatible && (
-                !window.WorkbenchCanvasPortCompatibility ||
-                window.WorkbenchCanvasPortCompatibility.isCompatible(
-                    {direction:'out', dataType:fromNode?.output_port_type || fromNode?.port_type || 'legacy.any'},
-                    {direction:'in', dataType:toNode?.input_port_type || toNode?.port_type || 'legacy.any'},
-                )
-            );
-            if(!compatible){ targetId = ''; targetPort = ''; }
-        }
-        portDragState.hoverTargetId = targetId;
-        portDragState.hoverPort = targetPort;
-        updatePortDragVisual();
-        return;
-    }
     if(promptResizeState){
         e.preventDefault();
         const dy = e.clientY - promptResizeState.startY;
@@ -18816,14 +18835,6 @@ window.onmouseup = e => {
         shell.classList.remove('connection-erasing');
         clearConnectionEraseTrail();
         if(changed) scheduleSave();
-        return;
-    }
-    if(portDragState){
-        const drag = portDragState;
-        portDragState = null;
-        shell.classList.remove('port-dragging');
-        clearPortDragVisual();
-        handlePortDrop(drag, e);
         return;
     }
     if(promptResizeState){ promptResizeState = null; scheduleSave(); }

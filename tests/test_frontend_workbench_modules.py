@@ -1760,6 +1760,82 @@ console.log(JSON.stringify({seen, listenerCount: listeners.length, handlerCount:
         self.assertIn("deleteNode(id);", smart)
         self.assertIn("copySelectedNodes();", smart)
 
+    def test_connection_gesture_controller_owns_the_gesture_lifecycle(self):
+        controller_module = ROOT / "static" / "js" / "workbench" / "canvas" / "interaction-controller.js"
+        script = """
+const fs = require('fs'); const vm = require('vm');
+const listeners = [];
+const fakeWindow = {
+  addEventListener: (type, cb) => listeners.push({type, cb, active: true}),
+  removeEventListener: (type, cb) => {
+    const entry = listeners.find(l => l.type === type && l.cb === cb);
+    if (entry) entry.active = false;
+  },
+};
+const sandbox = {window: {}};
+vm.runInNewContext(fs.readFileSync(__MODULE__, 'utf8'), sandbox);
+const events = {moves: [], drops: [], noTargets: [], finishes: []};
+const controller = sandbox.window.WorkbenchInteractionController.createConnectionGestureController({
+  windowRef: fakeWindow,
+  resolveTarget: (gesture, e) => (e.targetId ? {nodeId: e.targetId, port: 'in'} : null),
+  validate: (gesture, target) => (target.nodeId === 'bad' ? null : {intent: {from: gesture.fromId, to: target.nodeId}}),
+  move: (gesture, e) => events.moves.push([gesture.target?.nodeId, Boolean(gesture.result)]),
+  drop: (gesture, result, e) => events.drops.push(result.intent),
+  noTarget: (gesture, e) => events.noTargets.push(gesture.fromId),
+  finish: (gesture, e) => events.finishes.push(gesture.fromId),
+});
+// begin + move: hover target resolution and validation flow into the gesture
+controller.beginGesture({id: 1}, {fromId: 'a'});
+const activeOf = type => listeners.filter(l => l.type === type && l.active);
+activeOf('mousemove').forEach(l => l.cb({targetId: 'b'}));
+activeOf('mousemove').forEach(l => l.cb({targetId: 'bad'}));
+activeOf('mousemove').forEach(l => l.cb({}));
+// drop on a valid target: end dispatches drop then finish and detaches
+activeOf('mouseup').forEach(l => l.cb({targetId: 'b'}));
+// a later move after detach is a no-op; begin works again; veto with no payload
+activeOf('mousemove').forEach(l => l.cb({targetId: 'c'}));
+const vetoed = controller.beginGesture({id: 2}, null);
+controller.beginGesture({id: 3}, {fromId: 'c'});
+activeOf('mouseup').forEach(l => l.cb({}));   // no target -> noTarget + finish
+const again = controller.beginGesture({id: 4}, {fromId: 'd'});
+console.log(JSON.stringify({moves: events.moves, drops: events.drops, noTargets: events.noTargets, finishes: events.finishes, vetoed, begunTwice: !again, activeWhileRunning: 'see-moves'}));
+""".replace("__MODULE__", json.dumps(str(controller_module)))
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        # Hover pipeline: target + validated result ride the gesture into move.
+        self.assertEqual(payload["moves"], [["b", True], ["bad", False], [None, False]])
+        self.assertEqual(payload["drops"], [{"from": "a", "to": "b"}])
+        self.assertEqual(payload["noTargets"], ["c"])
+        self.assertEqual(payload["finishes"], ["a", "c"])
+        self.assertFalse(payload["vetoed"])
+        self.assertFalse(payload["begunTwice"])
+
+    def test_connection_gestures_are_cut_over_on_both_adapters(self):
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
+        for adapter, singleton in (
+            (classic, "ensureClassicConnectionGesture"),
+            (smart, "ensureSmartConnectionGesture"),
+        ):
+            self.assertEqual(adapter.count("WorkbenchInteractionController.createConnectionGestureController"), 1)
+            self.assertIn("beginGesture(", adapter)
+            self.assertIn("scheduleSave()", adapter)
+        # Persistence is only touched through page save/application seams; the
+        # controller module has no save/fetch API surface at all.
+        runtime_module = (ROOT / "static" / "js" / "workbench" / "canvas" / "interaction-controller.js").read_text(encoding="utf-8")
+        self.assertNotIn("scheduleSave", runtime_module)
+        self.assertNotIn("fetch(", runtime_module)
+        # The duplicated page wiring is gone: Classic no longer assigns the
+        # window slot inside startLink, and Smart's dispatcher lost both
+        # portDragState branches.
+        classic_link = classic[classic.index("function startLink(e, originId, originKind){") : classic.index("function nearestPort(clientX, clientY, kind){")]
+        self.assertNotIn("window.onmousemove", classic_link)
+        self.assertNotIn("window.onmouseup", classic_link)
+        self.assertNotIn("if(portDragState){", smart)
+        self.assertIn("function finishSmartPortDrag(drag, e){", smart)
+        self.assertIn("drop: (gesture, result, e2) => finishSmartPortDrag(gesture, e2),", smart)
+        self.assertIn("noTarget: (gesture, e2) => finishSmartPortDrag(gesture, e2),", smart)
+
     def test_minimap_projection_scaling_stays_linear_at_100_and_300_nodes(self):
         # DoD: minimap performance remains acceptable at 100/300 nodes — the
         # projection/rect math the minimap rebuild performs per frame must stay
@@ -2990,12 +3066,16 @@ console.log(JSON.stringify({{
 
     def test_smart_port_hover_uses_the_shared_data_type_compatibility_contract(self):
         smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        on_mouse_move = smart.index("window.onmousemove = e =>")
-        hover = smart[smart.index("if(portDragState){", on_mouse_move) : smart.index("if(promptResizeState){", on_mouse_move)]
-        self.assertIn("const hoverIntent = window.WorkbenchCanvasGraphInteraction?.edgeIntentFromPortDrop(", hover)
-        self.assertIn("WorkbenchCanvasPortCompatibility.isCompatible(", hover)
+        # Since R4-20 the hover validation lives in the Smart connection gesture
+        # controller callbacks, not in the global mousemove dispatcher.
+        hover = smart[smart.index("function ensureSmartConnectionGesture(){") : smart.index("function finishSmartPortDrag(")]
+        self.assertIn("const intent = window.WorkbenchCanvasGraphInteraction?.edgeIntentFromPortDrop(", hover)
+        self.assertIn("WorkbenchCanvasPortCompatibility?.isCompatible(", hover)
         self.assertIn("fromNode?.output_port_type || fromNode?.port_type || 'legacy.any'", hover)
         self.assertIn("toNode?.input_port_type || toNode?.port_type || 'legacy.any'", hover)
+        # The gesture lifecycle is controller-owned: the dispatcher no longer
+        # carries the portDragState branches.
+        self.assertNotIn("if(portDragState){", smart)
 
     def test_classic_and_smart_generation_entries_delegate_to_compatibility_execution(self):
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")

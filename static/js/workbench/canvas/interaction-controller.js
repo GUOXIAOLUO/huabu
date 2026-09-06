@@ -251,5 +251,72 @@
         });
     }
 
-    global.WorkbenchInteractionController = Object.freeze({create, createSelectionStore, createViewportController, createMinimapController, createNodeDragSessionFactory, createNodeResizeSessionFactory, createKeyboardRuntime});
+    // Connection gesture controller: one owner for the port-drag connection
+    // gesture lifecycle. The page builds the draft (begin veto), the controller
+    // owns the captured move/up pair, the hover pipeline (resolveTarget ->
+    // validate -> gesture.target), and the end dispatch (drop | noTarget |
+    // finish). Persistence stays behind the page's drop callback, which routes
+    // through the application service; the controller never persists.
+    function createConnectionGestureController(options) {
+        const settings = options || {};
+        const windowRef = settings.windowRef || global;
+        if (!windowRef || typeof windowRef.addEventListener !== 'function') throw new TypeError('ConnectionGestureController requires windowRef');
+        if (typeof settings.move !== 'function') throw new TypeError('ConnectionGestureController requires move');
+        if (typeof settings.finish !== 'function') throw new TypeError('ConnectionGestureController requires finish');
+        let gesture = null;
+        let moveHandler = null;
+        let upHandler = null;
+
+        function detach() {
+            if (moveHandler) windowRef.removeEventListener('mousemove', moveHandler, true);
+            if (upHandler) windowRef.removeEventListener('mouseup', upHandler, true);
+            moveHandler = null;
+            upHandler = null;
+        }
+
+        function resolve(gestureEntry, event) {
+            const target = typeof settings.resolveTarget === 'function' ? settings.resolveTarget(gestureEntry, event) : null;
+            const result = target && typeof settings.validate === 'function' ? settings.validate(gestureEntry, target, event) : null;
+            return {target, result};
+        }
+
+        function beginGesture(event, payload) {
+            if (gesture || !payload) return false;
+            gesture = payload;
+            moveHandler = event2 => {
+                const {target, result} = resolve(gesture, event2);
+                gesture.target = target;
+                gesture.result = result || null;
+                settings.move(gesture, event2);
+            };
+            upHandler = event2 => {
+                const current = gesture;
+                detach();
+                gesture = null;
+                const {result} = resolve(current, event2);
+                if (result) {
+                    if (typeof settings.drop === 'function') settings.drop(current, result, event2);
+                } else if (typeof settings.noTarget === 'function') {
+                    settings.noTarget(current, event2);
+                }
+                settings.finish(current, event2);
+            };
+            windowRef.addEventListener('mousemove', moveHandler, true);
+            windowRef.addEventListener('mouseup', upHandler, true);
+            return true;
+        }
+
+        function cancel() {
+            if (!gesture) return false;
+            const current = gesture;
+            detach();
+            gesture = null;
+            settings.finish(current, null);
+            return true;
+        }
+
+        return Object.freeze({beginGesture, cancel, isActive: () => Boolean(gesture)});
+    }
+
+    global.WorkbenchInteractionController = Object.freeze({create, createSelectionStore, createViewportController, createMinimapController, createNodeDragSessionFactory, createNodeResizeSessionFactory, createKeyboardRuntime, createConnectionGestureController});
 }(window));
