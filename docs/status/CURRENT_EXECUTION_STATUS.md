@@ -413,6 +413,23 @@ matrix, tolerant reader, wiring refusal, mid-flight authority activation
 detection, recovery availability, startup wiring). Full regression: PASS at
 308 tests.
 
+R4 split-brain regression suite (card R4-04, 2026-09-06T18:10+08:00): the
+incident is now permanent behavioral coverage in
+`tests/test_split_brain_regression.py` — five scenario tests over isolated
+fixtures that drive `main.canvas_repository()`, `main.new_canvas`, and the
+migration service end to end: (1) SQLite authority with default routing returns
+`SqliteCanvasCompatibilityRepository` and serves the imported payload; (2) the
+same authority with `WORKBENCH_CANONICAL_CANVAS_ROUTING_ENABLED=false` raises
+`CanvasAuthoritySplitBrainError` for both routing and startup enforcement;
+(3) while authority is inactive, legacy read/write plus a completed backfill
+import remain supported (legacy JSON write creates no canonical row; import
+reports `imported`, `skipped == ()`, all comparisons matching); (4) a reopened
+repository (restart) still reports `sqlite` and decides routing — the guard
+survives restarts because it reads persisted state, not memory; (5) routed
+writes land in exactly one store — a canonical-routed `new_canvas` creates no
+Legacy file, and a legacy-routed write under SQLite authority is refused. Full
+regression: PASS at 313 tests. No ownership changed.
+
 ## Unified Canvas verified ledger
 
 | Stage | Status | Evidence summary |
@@ -540,13 +557,17 @@ seconds, Python 3.14.7 (2026-09-06). The +11 tests are the authority policy
 resolver/reader tests and the wiring guard tests; five legacy-routed fixtures
 gained temporary-database isolation patches.
 
-Agent regression gate (cards R4-01/R4-02/R4-03):
+Result: PASS after R4-04 split-brain regression suite — 313 tests in 3.1
+seconds, Python 3.14.7 (2026-09-06). The +5 tests are the incident-scenario
+regression suite; no product behavior changed.
+
+Agent regression gate (cards R4-01…R4-04):
 
 ```text
 ./scripts/agent-verify.sh
 ```
 
-Result: PASS — AGENT VERIFY: PASS (308 unit tests, Python AST parse of 70 files,
+Result: PASS — AGENT VERIFY: PASS (313 unit tests, Python AST parse of 71 files,
 `node --check` of 63 JavaScript files, 4 architecture-guard tests,
 `git diff --check`; Node v24.20.0). The gate script was fixed during R4-01 to
 prefer `.venv/bin/python` over PATH `python3`, which lacks project dependencies
@@ -818,6 +839,9 @@ tool and its tests) and 63 JavaScript files; PASS.
 
 R4-03 re-verification (2026-09-06): 70 Python files (adding the authority policy
 seam and its tests) and 63 JavaScript files; PASS.
+
+R4-04 re-verification (2026-09-06): 71 Python files (adding the split-brain
+regression suite) and 63 JavaScript files; PASS.
 
 No repository-supported Ruff, mypy, ESLint, or bundled frontend build configuration
 was found; none is claimed as run.

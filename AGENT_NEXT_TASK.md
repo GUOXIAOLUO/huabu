@@ -5,16 +5,23 @@
 
 ## Active Task
 
-- Task ID: `R4-04`
+- Task ID: `R4-05`
 - Round: `R4`
 - Priority: `P0`
 - Status: `READY`
-- Task Card: `docs/tasks/backlog/R4-04-split-brain-regression.md`
+- Task Card: `docs/tasks/backlog/R4-05-canonical-canvas-api.md`
 
 ## Completed Tasks
 
+- `R4-04` — `DONE` 2026-09-06T18:10+08:00. Card:
+  `docs/tasks/active/R4-04-split-brain-regression.md`. Evidence:
+  `tests/test_split_brain_regression.py` — 5 incident-scenario tests (normal
+  SQLite routing, refused disabled flag, legacy migration/read/write while
+  inactive, restart-durable authority, one-store write isolation); regression
+  313 tests PASS.
+
 - `R4-03` — `DONE` 2026-09-06T17:59+08:00. Card:
-  `docs/tasks/active/R4-03-split-brain-guard.md`. Evidence: explicit authority
+  `docs/tasks/done/R4-03-split-brain-guard.md`. Evidence: explicit authority
   policy seam (`canvas_authority_policy.py`) + three-layer startup guard; live
   refusal of `WORKBENCH_CANONICAL_CANVAS_ROUTING_ENABLED=false` under
   `authority_state=sqlite` with exit 1 and byte-identical database
@@ -40,7 +47,7 @@
 1. `AGENTS.md`
 2. `.agent/AGENT_CONTRACT.md`
 3. `docs/status/CURRENT_EXECUTION_STATUS.md`
-4. `docs/tasks/backlog/R4-04-split-brain-regression.md`
+4. `docs/tasks/backlog/R4-05-canonical-canvas-api.md`
 
 Read architecture documents only as required by the card.
 
@@ -62,8 +69,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor if R4-04 passes:
+Expected successor if R4-05 passes:
 
-`R4-05 — Canonical Canvas API` (`docs/tasks/backlog/R4-05-canonical-canvas-api.md`)
+`R4-06 — Browser Persistence Uses Logical Revision` (`docs/tasks/backlog/R4-06-browser-logical-revision.md`)
 
 Actual successor must still be checked against the repository's current verified state.
