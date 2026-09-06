@@ -792,6 +792,29 @@ pair; wiring contracts pin one runtime per adapter, the registered main
 handlers, and the removed direct window listener blocks. Focused regression:
 PASS (2 new tests); full regression: PASS at 354 tests.
 
+R4 connection interaction cutover (card R4-20, 2026-09-07T00:15+08:00): the
+port-drag connection gesture lifecycle moved under the InteractionController.
+`WorkbenchInteractionController.createConnectionGestureController` owns the
+captured move/up pair, the hover pipeline (resolveTarget -> validate ->
+gesture.target/result), the end dispatch (drop | noTarget | finish),
+detach-on-mouseup, and an explicit cancel() for error paths; the controller
+module has no persistence API surface (no save/fetch calls — pinned). Classic
+`startLink` now begins a controller gesture: the page keeps draft rendering,
+nearest-port DOM resolution, the shared intent/compatibility validation,
+generator output creation, link-create menu branches, and persistence via
+`scheduleSave()`; the direct window-slot assignment inside the gesture is
+gone. Smart's port drag begins the same controller gesture; the
+`portDragState` branches were removed from both the global mousemove and
+mouseup dispatchers, hover validation moved into the controller callbacks,
+and drop/no-target route through `finishSmartPortDrag` -> `handlePortDrop`
+(undo discard/commit and port-create-menu error states preserved).
+Behavioral test pins the pipeline (hover resolution, validated drop,
+no-target, veto, detach-on-mouseup, single-gesture rule); wiring contracts
+pin one controller per adapter, the removed duplicated branches, and the
+untouched page persistence seams. Focused regression: PASS (2 new tests; the
+Smart port-hover contract moved to the controller callbacks); full
+regression: PASS at 356 tests.
+
 ## Unified Canvas verified ledger
 
 | Stage | Status | Evidence summary |
@@ -993,13 +1016,18 @@ Result: PASS after R4-19 keyboard runtime cutover — 354 tests in 3.4 seconds,
 Python 3.14.7 (2026-09-06). The +2 tests are the keyboard dispatch behavioral
 test and the both-adapters wiring contract.
 
-Agent regression gate (cards R4-01…R4-19):
+Result: PASS after R4-20 connection interaction cutover — 356 tests in 3.4
+seconds, Python 3.14.7 (2026-09-07). The +2 tests are the connection gesture
+behavioral test and the both-adapters wiring contract; the Smart port-hover
+contract moved to the controller callbacks.
+
+Agent regression gate (cards R4-01…R4-20):
 
 ```text
 ./scripts/agent-verify.sh
 ```
 
-Result: PASS — AGENT VERIFY: PASS (354 unit tests, Python AST parse of 73 files,
+Result: PASS — AGENT VERIFY: PASS (356 unit tests, Python AST parse of 73 files,
 `node --check` of 67 JavaScript files, 4 architecture-guard tests,
 `git diff --check`; Node v24.20.0). The gate script was fixed during R4-01 to
 prefer `.venv/bin/python` over PATH `python3`, which lacks project dependencies

@@ -5,16 +5,24 @@
 
 ## Active Task
 
-- Task ID: `R4-20`
+- Task ID: `R4-21`
 - Round: `R4`
 - Priority: `P1`
 - Status: `READY`
-- Task Card: `docs/tasks/backlog/R4-20-connection-interaction.md`
+- Task Card: `docs/tasks/backlog/R4-21-creation-controller.md`
 
 ## Completed Tasks
 
+- `R4-20` — `DONE` 2026-09-07T00:15+08:00. Card:
+  `docs/tasks/active/R4-20-connection-interaction.md`. Evidence:
+  `createConnectionGestureController` owns the port-drag gesture lifecycle
+  (hover pipeline, drop/no-target/finish dispatch, cancel); Classic startLink
+  and Smart port drag migrated, Smart dispatcher branches removed; controller
+  has no persistence surface (pinned); behavioral + wiring contract tests;
+  regression 356 tests PASS.
+
 - `R4-19` — `DONE` 2026-09-06T23:58+08:00. Card:
-  `docs/tasks/active/R4-19-keyboard-runtime.md`. Evidence:
+  `docs/tasks/done/R4-19-keyboard-runtime.md`. Independent review: PASS. Evidence:
   `createKeyboardRuntime` owns the window keyboard listener pair (one per
   adapter) with ordered dispatch and short-circuit; Classic main
   keydown/keyup and Smart main keydown register with it; direct listener

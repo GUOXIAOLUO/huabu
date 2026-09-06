@@ -34,7 +34,7 @@ REMOVE       = 可删除/待删除
 | drag | adapter collection/product semantics; pointer-session wiring via InteractionController (R4-14, Classic); session creation via controller factory (R4-18); shared drag session on default path | adapter collection/product semantics; session creation via controller factory (R4-18); shared drag session on default path | NodeShell intent plus `createNodeDragSession` position projection | PARTIAL | Unified | Migrate Smart dispatcher and remaining drag commit/DOM lifecycle. | `runtime-state.js`; `interaction-controller.js`; drag-session contract |
 | resize | adapter clamps/product branches; shared resize proposal on default path | adapter clamps/product branches; shared resize proposal on default path | NodeShell intent plus `createNodeResizeSession` size proposal | PARTIAL | Unified | Migrate remaining resize commit/size-mutation lifecycle. | `runtime-state.js`; NodeShell intent adapters; resize-session contract |
 | keyboard handling | page handlers | page handlers | editable-target helper | PARTIAL | Unified | Migrate key command lifecycle. | `interaction-targets.js` |
-| connection start | page port drag | page port drag | shared command/geometry | PARTIAL | Unified | Migrate port-drag lifecycle. | `graph-interaction.js` |
+| connection start | Classic `startLink` and Smart port drag via the connection gesture controller (R4-20) | Smart port drag via the connection gesture controller (R4-20) | shared command/geometry | PARTIAL | Unified | Migrate remaining connect commit into the service path. | `interaction-controller.js`; `graph-interaction.js` |
 | connection hover | page hover logic | page hover logic | compatibility helper | PARTIAL | Unified | Migrate hover lifecycle. | status U2 |
 | port compatibility | adapter invocation | adapter invocation | shared compatibility contract | PARTIAL | Unified | Route one interaction runtime through it. | `port-compatibility.js` |
 | connection mutation | GraphMutationService/API for supported connected Group/Image/Prompt/default Loop creation; page mutation otherwise | GraphMutationService/API for supported connected creation; page mutation otherwise | GraphMutationService/API available | PARTIAL | Unified | Migrate normal connect to service. | graph API tests; save/merge characterization below records the side-effect blocker |
@@ -526,6 +526,30 @@ true, handler unregistration, and the persistent listener pair; wiring
 contracts pin one runtime per adapter, the registered main handlers, and the
 removed direct window listener blocks. Focused regression: PASS (2 new
 tests); full regression: PASS (354 tests).
+
+
+2026-09-06 connection interaction cutover (R4-20): the port-drag connection
+gesture lifecycle moved under the InteractionController.
+`WorkbenchInteractionController.createConnectionGestureController({windowRef,
+...})` owns the captured move/up pair, the hover pipeline (resolveTarget ->
+validate -> gesture.target/result), the end dispatch (drop | noTarget |
+finish), detach-on-mouseup, and an explicit cancel() for error paths; it has
+no persistence API surface (no save/fetch calls — pinned). Classic
+`startLink` now begins a controller gesture: the page keeps draft rendering,
+nearest-port DOM resolution, the shared intent/compatibility validation,
+generator output creation, the link-create menu branches, and persistence via
+`scheduleSave()`; the direct `window.onmousemove`/`window.onmouseup`
+assignment inside the gesture is gone. Smart's port drag begins the same
+controller gesture; the `portDragState` branches were removed from both the
+global mousemove and mouseup dispatchers, the hover validation moved into the
+controller callbacks, and drop/no-target both route through
+`finishSmartPortDrag` -> `handlePortDrop` (undo discard/commit and
+port-create-menu error states preserved). Behavioral test pins the pipeline
+(hover resolution, validated drop, no-target, veto, detach-on-mouseup,
+single-gesture rule); wiring contracts pin one controller per adapter, the
+removed duplicated branches, and the untouched page persistence seams.
+Focused regression: PASS (2 new tests; the Smart port-hover contract moved to
+the controller callbacks); full regression: PASS (356 tests).
 ```
 
 ## Rendering ownership map (R4-08 characterization, 2026-09-06)
