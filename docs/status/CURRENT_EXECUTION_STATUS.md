@@ -5,12 +5,12 @@ status_schema: workbench.execution-status/2
 ## Repository
 
 repository: local worktree (remote repository out of scope)
-verified_head: b088d6d945fc64b5c475566bd00e75699ed47a2b
-verified_commit: "docs: record R4-01 local-truth verification and agent scaffolding repair"
+verified_head: e024ed84a68b43619d9f0cb02af01301e3f1029f
+verified_commit: "docs: record R4-13 provider compat renderer acceptance"
 branch: main
 remote_state: not checked; GitHub/remote synchronization is out of scope for this local task
-verified_at: 2026-09-06T17:59:00+08:00
-verification_source: current local worktree (R4-03 authority split-brain guard)
+verified_at: 2026-09-06T22:10:00+08:00
+verification_source: current local worktree (R4-13 review accepted; R4-14 activated)
 worktree_before_R0: clean
 worktree_at_R4_03: HEAD a1195c9 plus the R4-03 card's own pending additions only —
 the authority policy seam, the main.py guard wiring, focused policy/wiring tests,
@@ -621,6 +621,35 @@ source-payload); a wiring contract pins load order, the provider type list,
 the cleanup hook, and the absence of direct page cleanup calls in both delete
 flows. Smart's composer-owned provider bodies remain page-owned for now.
 Focused regression: PASS (2 new tests); full regression: PASS at 341 tests.
+Independent review of this card (2026-09-06T22:10+08:00, read-only): PASS —
+scope, architecture constraints (provider identities stay legacy
+definition_ref values, no Core NodeKind), ownership claims, and test evidence
+re-verified against commits c487c66/e024ed8; recorded non-blocking nuance: on
+the flags-off rollback path a deleted LTX node's editor cleanup is skipped
+because no handle exists, benign since the node object and its detached editor
+DOM are discarded together. Card archived to `docs/tasks/done/` and R4-14
+activated.
+
+R4 InteractionController established (card R4-14, 2026-09-06T22:23+08:00): a
+single interaction owner now exists over the pure runtime-state kernel —
+`static/js/workbench/canvas/interaction-controller.js`
+(`WorkbenchInteractionController.create({windowRef})`). Its lifecycle
+contract: `begin({kind, onMove, onEnd})` wires the window move/up slot with
+supersede-on-begin semantics (a new session replaces the slot without ending
+the previous one, matching the page runtimes' guarded no-op behavior),
+mouseup ends the active session and invokes onEnd while the handlers remain
+assigned as guarded no-ops, `end()` unwires explicitly, and `activeKind()`
+reports the live session. The first migrated responsibility: the Classic
+node-drag and node-resize pointer sessions — `startNodeDrag` and
+`startNodeResize` begin controller sessions instead of assigning
+`window.onmousemove`/`window.onmouseup` directly, and the old direct
+assignments are gone. Smart's multi-concern global dispatcher is
+intentionally not migrated in this card. A behavioral test pins the
+lifecycle (wiring, move dispatch, mouseup end, guarded no-ops after end,
+supersede-on-begin, programmatic end, validation); a wiring contract pins
+load order, both session kinds, the singleton, and the removed direct
+assignments. Focused regression: PASS (2 new tests); full regression: PASS
+at 343 tests.
 
 ## Unified Canvas verified ledger
 
@@ -795,14 +824,18 @@ Result: PASS after R4-13 provider compatibility renderers — 341 tests in 3.8
 seconds, Python 3.14.7 (2026-09-06). The +2 tests are the provider-compat
 adoption/cleanup behavioral test and the Classic lifecycle wiring contract.
 
-Agent regression gate (cards R4-01…R4-13):
+Result: PASS after R4-14 InteractionController — 343 tests in 3.6 seconds,
+Python 3.14.7 (2026-09-06). The +2 tests are the pointer-session lifecycle
+behavioral test and the Classic drag/resize wiring contract.
+
+Agent regression gate (cards R4-01…R4-14):
 
 ```text
 ./scripts/agent-verify.sh
 ```
 
-Result: PASS — AGENT VERIFY: PASS (341 unit tests, Python AST parse of 73 files,
-`node --check` of 66 JavaScript files, 4 architecture-guard tests,
+Result: PASS — AGENT VERIFY: PASS (343 unit tests, Python AST parse of 73 files,
+`node --check` of 67 JavaScript files, 4 architecture-guard tests,
 `git diff --check`; Node v24.20.0). The gate script was fixed during R4-01 to
 prefer `.venv/bin/python` over PATH `python3`, which lacks project dependencies
 (`pydantic`); verification tooling only, no product behavior change.

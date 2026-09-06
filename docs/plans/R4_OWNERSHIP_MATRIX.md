@@ -31,7 +31,7 @@ REMOVE       = 可删除/待删除
 | semantic zoom | adapter enablement/iteration; shared DOM application on default path | adapter enablement/iteration; shared DOM application on default path | shared policy plus `WorkbenchSemanticZoomApply` indicator/presentation apply+reset owner | PARTIAL | Unified | Move remaining enablement/call timing with renderer ownership. | `semantic-zoom.js`; `semantic-zoom-apply.js` |
 | selection | page state machine, except NodeShell and box-selection completion | page state machine, except NodeShell/box completion, media-thumbnail, upload-target and group-menu selection | runtime command primitive plus migrated completion transitions | PARTIAL | Unified | Migrate remaining selection lifecycle. | `runtime-state.js`; NodeShell/box/media-thumbnail/upload-target/group-menu contracts |
 | multi-selection | page state machine | page state machine | runtime command primitive | PARTIAL | Unified | Migrate selection lifecycle. | same |
-| drag | adapter collection/product semantics; shared drag session on default path | adapter collection/product semantics; shared drag session on default path | NodeShell intent plus `createNodeDragSession` position projection | PARTIAL | Unified | Migrate remaining drag commit/DOM lifecycle and group move. | `runtime-state.js`; NodeShell intent adapters; drag-session contract |
+| drag | adapter collection/product semantics; pointer-session wiring via InteractionController (R4-14, Classic); shared drag session on default path | adapter collection/product semantics; shared drag session on default path | NodeShell intent plus `createNodeDragSession` position projection | PARTIAL | Unified | Migrate Smart dispatcher and remaining drag commit/DOM lifecycle. | `runtime-state.js`; `interaction-controller.js`; drag-session contract |
 | resize | adapter clamps/product branches; shared resize proposal on default path | adapter clamps/product branches; shared resize proposal on default path | NodeShell intent plus `createNodeResizeSession` size proposal | PARTIAL | Unified | Migrate remaining resize commit/size-mutation lifecycle. | `runtime-state.js`; NodeShell intent adapters; resize-session contract |
 | keyboard handling | page handlers | page handlers | editable-target helper | PARTIAL | Unified | Migrate key command lifecycle. | `interaction-targets.js` |
 | connection start | page port drag | page port drag | shared command/geometry | PARTIAL | Unified | Migrate port-drag lifecycle. | `graph-interaction.js` |
@@ -414,6 +414,26 @@ source-payload); a wiring contract pins load order, the provider type list,
 the cleanup hook, and the absence of direct page cleanup calls in both delete
 flows. Smart's composer-owned provider bodies remain page-owned for now.
 Focused regression: PASS (2 new tests); full regression: PASS (341 tests).
+
+2026-09-06 InteractionController established (R4-14): a single interaction
+owner now exists over the pure runtime-state kernel —
+`static/js/workbench/canvas/interaction-controller.js`
+(`WorkbenchInteractionController.create({windowRef})`). Its lifecycle
+contract: `begin({kind, onMove, onEnd})` wires the window move/up slot with
+supersede-on-begin semantics (a new session replaces the slot without ending
+the previous one, matching the page runtimes' long-standing guarded no-op
+behavior), mouseup ends the active session and invokes onEnd while the
+handlers remain assigned as guarded no-ops, `end()` unwires explicitly, and
+`activeKind()` reports the live session. The first migrated responsibility:
+the Classic node-drag and node-resize pointer sessions — `startNodeDrag` and
+`startNodeResize` now begin controller sessions instead of assigning
+`window.onmousemove`/`window.onmouseup` directly, and the old direct
+assignments are gone. Smart's multi-concern global dispatcher is intentionally
+not migrated in this card. Behavioral test pins the lifecycle (wiring, move
+dispatch, mouseup end, guarded no-ops after end, supersede-on-begin,
+programmatic end, validation); a wiring contract pins load order, both session
+kinds, the singleton, and the removed direct assignments. Focused regression:
+PASS (2 new tests); full regression: PASS (343 tests).
 ```
 
 ## Rendering ownership map (R4-08 characterization, 2026-09-06)
@@ -515,6 +535,16 @@ card. `MediaRenderer` stamps `dataset.url` on its created elements so the
 shared signature recognizes renderer-created media, and the page-level
 world sweeps exclude `.node-shell-mounted` cards, removing duplicate
 projection ownership for mounted media.
+
+Established by R4-14 (2026-09-06, InteractionController): `interaction-
+controller.js` provides `WorkbenchInteractionController.create({windowRef})` —
+a single owner for pointer-session lifecycle over the runtime-state kernel's
+pure sessions. `begin({kind, onMove, onEnd})` wires the window move/up slot
+with supersede-on-begin semantics, mouseup ends the active session and invokes
+onEnd (handlers remain as guarded no-ops), `end()` unwires explicitly, and
+`activeKind()` reports state. The Classic node-drag and node-resize sessions
+are the first migrated responsibility; Smart's multi-concern global dispatcher
+is deliberately deferred to a later unit.
 
 Extended by R4-12 (2026-09-06, generic Prompt cutover): the Classic prompt
 family moved from adopted pre-rendered DOM to registry-owned rendering —

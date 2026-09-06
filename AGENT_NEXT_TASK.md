@@ -5,16 +5,24 @@
 
 ## Active Task
 
-- Task ID: `R4-14`
+- Task ID: `R4-15`
 - Round: `R4`
 - Priority: `P1`
 - Status: `READY`
-- Task Card: `docs/tasks/backlog/R4-14-interaction-controller.md`
+- Task Card: `docs/tasks/backlog/R4-15-selection-cutover.md`
 
 ## Completed Tasks
 
+- `R4-14` — `DONE` 2026-09-06T22:23+08:00. Card:
+  `docs/tasks/active/R4-14-interaction-controller.md`. Evidence:
+  `WorkbenchInteractionController` owns the pointer-session lifecycle
+  (begin/move dispatch/mouseup end/programmatic end with supersede-on-begin
+  semantics); Classic node-drag and node-resize sessions migrated, direct
+  window assignments removed; behavioral + wiring contract tests; regression
+  343 tests PASS.
+
 - `R4-13` — `DONE` 2026-09-06T21:54+08:00. Card:
-  `docs/tasks/active/R4-13-provider-compat-renderers.md`. Evidence:
+  `docs/tasks/done/R4-13-provider-compat-renderers.md`. Independent review: PASS. Evidence:
   `provider-compat` renderer (priority 5) adopts provider-shaped Classic bodies
   and carries per-card cleanup through the mounted-handle lifecycle; LTX
   teardown moved behind the runtime unmount boundary; both delete flows unmount
@@ -136,8 +144,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor if R4-14 passes:
+Expected successor if R4-15 passes:
 
-`R4-15 — Selection Ownership Cutover` (`docs/tasks/backlog/R4-15-selection-cutover.md`)
+`R4-16 — Viewport Cutover` (`docs/tasks/backlog/R4-16-viewport-cutover.md`)
 
 Actual successor must still be checked against the repository's current verified state.
