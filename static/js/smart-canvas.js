@@ -1561,20 +1561,24 @@ function mountNodeShellForSmartGroups(){
         if(!canUseNodeShellForSmartGroup(node)) return [];
         const contentHost = el.querySelector('.node-body');
         if(!contentHost) return [];
-        const record = canUseMediaRendererForSmartGroup(node) ? smartGroupMediaRecord(node) : window.WorkbenchCanvas.legacyNodeView(node, {projectId:canvas?.project, canvasId:canvas?.id});
         // The shell owns these interaction affordances. Keeping the Legacy
         // controls on the node would expose duplicate ports and let the
         // already-bound Legacy resize handler observe the same node.
-        return [{
-            document, node:record, card:el, contentHost,
-            preserveLegacyContent:!canUseMediaRendererForSmartGroup(node),
+        return {node, card:el, contentHost};
+    });
+    entries.forEach(entry => {
+        ensureSmartRenderRuntime().mountGroupCard({
+            document, node:entry.node, card:entry.card, contentHost:entry.contentHost,
+            mediaEnabled:canUseMediaRendererForSmartGroup(entry.node),
+            context:{projectId:canvas?.project, canvasId:canvas?.id},
+            memberImages:smartGroupMembers(entry.node).flatMap(member => (member.images || []).map(item => ({url:item?.url, name:item?.name || member.title || 'Media', type:item?.type || item?.kind || ''}))),
+            selected:isNodeSelected(entry.node.id),
+            onIntent:handleSmartNodeShellIntent,
             controlSettings:{selectors:SMART_NODE_SHELL_LEGACY_CONTROLS},
             removeControlsBeforeMount:true,
             cardClasses:['node-shell-mounted'],
-            ...window.WorkbenchUnifiedRenderHost.cardShellView({selected:isNodeSelected(node.id), onIntent:handleSmartNodeShellIntent}),
-        }];
+        });
     });
-    ensureSmartRenderRuntime().mountAll(entries);
 }
 function mountNodeShellForSmartImages(){
     const entries = Array.from(world.querySelectorAll('.image-node')).flatMap(el => {

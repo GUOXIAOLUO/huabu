@@ -49,7 +49,47 @@
             return Object.freeze([...mounted.keys()]);
         }
 
-        return Object.freeze({mount, mountAll, unmount, unmountAll, isMounted, mountedNodeIds});
+        // Group family mount: the runtime owns the group record assembly, the
+        // media-vs-legacy-content decision, the mount execution and its
+        // lifecycle entry; pages supply only member resolution, intent
+        // callbacks, control selectors, card classes, and an optional empty
+        // state hook. `cardClasses` may be a function receiving the mount
+        // outcome so page CSS-state classes stay page-owned.
+        function mountGroupCard(options) {
+            const group = options || {};
+            const node = group.node;
+            if (!node || !node.id) throw new TypeError('RenderRuntime group mount requires node.id');
+            const record = global.WorkbenchCanvas.legacyNodeView(node, group.context || {});
+            const ownMedia = (node.images || []).map(item => ({url:item?.url, name:item?.name || node.title || 'Media', type:item?.type || item?.kind || ''}));
+            const memberMedia = (group.memberImages || []).map(item => ({url:item?.url, name:item?.name || 'Media', type:item?.type || ''}));
+            record.output_refs = [...ownMedia, ...memberMedia].filter(item => item.url);
+            const mediaAllowed = group.mediaEnabled !== false;
+            const hasRenderableMedia = mediaAllowed && Boolean(global.WorkbenchMediaRenderer?.canRender(record));
+            const useLegacyContent = !hasRenderableMedia && (!global.WorkbenchLegacyRenderer || global.WorkbenchLegacyRenderer.canRender(record));
+            const classList = typeof group.cardClasses === 'function'
+                ? group.cardClasses({hasRenderableMedia, useLegacyContent})
+                : (group.cardClasses || ['node-shell-mounted']);
+            const handle = mount({
+                document: group.document, node: record, card: group.card, contentHost: group.contentHost,
+                preserveLegacyContent: group.preserveLegacyContent !== undefined ? group.preserveLegacyContent : useLegacyContent,
+                ...(group.legacyContentClassName ? {legacyContentClassName: group.legacyContentClassName} : {}),
+                ...(group.controlSettings ? {controlSettings: group.controlSettings} : {}),
+                removeControlsBeforeMount: group.removeControlsBeforeMount === true,
+                cardClasses: classList.filter(Boolean),
+                ...global.WorkbenchUnifiedRenderHost.cardShellView({
+                    selected: group.selected,
+                    onIntent: group.onIntent,
+                    ...(group.ports ? {ports: group.ports} : {}),
+                }),
+            });
+            const result = Object.freeze({...handle, node: handle.node || record, hasRenderableMedia, useLegacyContent});
+            if (!hasRenderableMedia && !useLegacyContent && typeof group.mountEmptyState === 'function') {
+                group.mountEmptyState(result);
+            }
+            return result;
+        }
+
+        return Object.freeze({mount, mountAll, mountGroupCard, unmount, unmountAll, isMounted, mountedNodeIds});
     }
 
     global.WorkbenchRenderRuntime = Object.freeze({create});

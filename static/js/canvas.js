@@ -6429,28 +6429,42 @@ function ensureRenderRuntime(){
 }
 function mountCanvasNodeShellForMedia(node, body, el){
     if(!canUseCanvasNodeShellForMedia(node)) return false;
+    if(node.type === 'group') return mountCanvasGroupShell(node, body, el);
     const record = canvasMediaRecord(node);
-    const hasRenderableMedia = window.WorkbenchMediaRenderer.canRender(record);
-    if(!hasRenderableMedia && node.type !== 'group') return false;
-    const useLegacyContent = !hasRenderableMedia && window.WorkbenchLegacyRenderer?.canRender(record);
+    if(!window.WorkbenchMediaRenderer.canRender(record)) return false;
     const mounted = ensureRenderRuntime().mount({
         document, node:record, card:el, contentHost:body,
-        preserveLegacyContent:useLegacyContent,
+        preserveLegacyContent:false,
         legacyContentClassName:'canvas-node-shell-legacy-content',
         controlSettings:CANVAS_NODE_SHELL_LEGACY_CONTROLS,
-        cardClasses:['node-shell-mounted', hasRenderableMedia && 'media-renderer-mounted'],
+        cardClasses:['node-shell-mounted', 'media-renderer-mounted'],
         ...window.WorkbenchUnifiedRenderHost.cardShellView({selected:selected.has(node.id), onIntent:handleCanvasNodeShellIntent}),
     });
-    const nodeShell = mounted.shell;
-    if(!hasRenderableMedia && !useLegacyContent) {
-        const itemCount = (node.items || []).length;
-        const empty = document.createElement('div');
-        empty.className = 'workbench-node-shell__group-empty';
-        empty.textContent = itemCount ? `${itemCount} ${tr('canvas.grouped')}` : tr('canvas.groupEmpty');
-        nodeShell.contentHost.replaceChildren(empty);
-    }
     // Legacy Canvas keeps link anchors on the outer card. The shared host
     // preserves that geometry while NodeShell remains the interaction owner.
+    return Boolean(mounted.shell);
+}
+function mountCanvasGroupShell(node, body, el){
+    const memberImages = (node.items || []).map(id => nodes.find(candidate => candidate.id === id))
+        .filter(item => item?.type === 'image' && item.url)
+        .map(item => ({url:item.url, name:item.name || 'Media', type:mediaKindForNode(item)}));
+    ensureRenderRuntime().mountGroupCard({
+        document, node, card:el, contentHost:body,
+        context:{projectId:canvas?.project, canvasId:canvas?.id},
+        memberImages,
+        selected:selected.has(node.id),
+        onIntent:handleCanvasNodeShellIntent,
+        legacyContentClassName:'canvas-node-shell-legacy-content',
+        controlSettings:CANVAS_NODE_SHELL_LEGACY_CONTROLS,
+        cardClasses:({hasRenderableMedia}) => ['node-shell-mounted', hasRenderableMedia && 'media-renderer-mounted'],
+        mountEmptyState: handle => {
+            const itemCount = (node.items || []).length;
+            const empty = document.createElement('div');
+            empty.className = 'workbench-node-shell__group-empty';
+            empty.textContent = itemCount ? `${itemCount} ${tr('canvas.grouped')}` : tr('canvas.groupEmpty');
+            handle.shell.contentHost.replaceChildren(empty);
+        },
+    });
     return true;
 }
 function mountCanvasNodeShellForLegacy(node, body, el){

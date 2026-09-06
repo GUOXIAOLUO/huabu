@@ -1091,6 +1091,93 @@ console.log(JSON.stringify({{invalid}}));
         self.assertIn("renderRuntime?.unmount(id)", classic)
         self.assertIn("smartRenderRuntime?.unmount(deleteId)", smart)
 
+    def test_render_runtime_group_mount_owns_record_decision_and_lifecycle(self):
+        runtime_module = ROOT / "static" / "js" / "workbench" / "canvas" / "render-runtime.js"
+        script = """
+const fs = require('fs');
+const vm = require('vm');
+const requests = [];
+const sandbox = {
+  window: {
+    WorkbenchCanvas: {legacyNodeView: node => ({id:String(node.id), title:node.title || '', output_refs:[]})},
+    WorkbenchMediaRenderer: {canRender: record => (record.output_refs || []).length > 0},
+    WorkbenchLegacyRenderer: {canRender: record => record.id !== 'g3'},
+    WorkbenchUnifiedRenderHost: {cardShellView: options => ({viewState:{selected:Boolean(options.selected)}, onIntent:options.onIntent})},
+  },
+};
+vm.runInNewContext(fs.readFileSync(__MODULE__, 'utf8'), sandbox);
+const runtime = sandbox.window.WorkbenchRenderRuntime.create({
+  mount: request => {
+    requests.push(request);
+    const handle = {shell:{contentHost:{replaceChildren:() => {}}}, destroyed:false};
+    handle.destroy = () => { handle.destroyed = true; };
+    return handle;
+  },
+});
+const mediaOutcome = runtime.mountGroupCard({
+  node: {id:'g1', title:'Group', images:[{url:'own.png', name:'Own'}]},
+  memberImages: [{url:'member.png', name:'Member', type:'image'}, {url:'', name:'broken'}],
+  cardClasses: ({hasRenderableMedia}) => ['node-shell-mounted', hasRenderableMedia && 'media-renderer-mounted'],
+  selected: true, onIntent: 'intent-callback',
+});
+const legacyOutcome = runtime.mountGroupCard({
+  node: {id:'g2'}, mediaEnabled:false, cardClasses:['node-shell-mounted'],
+  controlSettings:{selectors:['.port']}, removeControlsBeforeMount:true,
+});
+let emptyState = null;
+runtime.mountGroupCard({
+  node: {id:'g3'},
+  mountEmptyState: handle => { emptyState = handle; },
+});
+let invalid = 'no-throw';
+try { runtime.mountGroupCard({card:'x'}); } catch (error) { invalid = 'throws'; }
+console.log(JSON.stringify({
+  mediaOutcome: {has:mediaOutcome.hasRenderableMedia, legacy:mediaOutcome.useLegacyContent, refs:mediaOutcome.node.output_refs, selected:mediaOutcome.viewState.selected, intent:mediaOutcome.onIntent},
+  mediaRequest: {preserve:requests[0].preserveLegacyContent, classes:requests[0].cardClasses},
+  legacyOutcome: {has:legacyOutcome.hasRenderableMedia, legacy:legacyOutcome.useLegacyContent, preserve:requests[1].preserveLegacyContent, removeBefore:requests[1].removeControlsBeforeMount},
+  emptyStateFor: emptyState && emptyState.node.id,
+  invalid,
+  mounted: runtime.mountedNodeIds().join(','),
+}));
+""".replace("__MODULE__", json.dumps(str(runtime_module)))
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        # The runtime assembled the group record from own + member media and
+        # decided media itself; page-supplied member type mapping is preserved.
+        self.assertEqual(payload["mediaOutcome"]["refs"], [{"url": "own.png", "name": "Own", "type": ""}, {"url": "member.png", "name": "Member", "type": "image"}])
+        self.assertTrue(payload["mediaOutcome"]["has"])
+        self.assertFalse(payload["mediaOutcome"]["legacy"])
+        self.assertTrue(payload["mediaOutcome"]["selected"])
+        self.assertEqual(payload["mediaOutcome"]["intent"], "intent-callback")
+        self.assertEqual(payload["mediaRequest"]["preserve"], False)
+        self.assertEqual(payload["mediaRequest"]["classes"], ["node-shell-mounted", "media-renderer-mounted"])
+        # mediaEnabled:false keeps the rollback semantics: legacy content wins.
+        self.assertFalse(payload["legacyOutcome"]["has"])
+        self.assertTrue(payload["legacyOutcome"]["legacy"])
+        self.assertTrue(payload["legacyOutcome"]["preserve"])
+        self.assertTrue(payload["legacyOutcome"]["removeBefore"])
+        self.assertEqual(payload["emptyStateFor"], "g3")
+        self.assertEqual(payload["invalid"], "throws")
+        self.assertEqual(payload["mounted"], "g1,g2,g3")
+
+    def test_group_rendering_is_cut_over_to_the_runtime_on_both_adapters(self):
+        runtime_source = (ROOT / "static" / "js" / "workbench" / "canvas" / "render-runtime.js").read_text(encoding="utf-8")
+        self.assertIn("function mountGroupCard(options)", runtime_source)
+        self.assertIn("output_refs", runtime_source)
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
+        # Classic: the group branch routes through the runtime with the page
+        # supplying member resolution and the empty-state hook.
+        self.assertIn("function mountCanvasGroupShell(node, body, el){", classic)
+        self.assertIn("ensureRenderRuntime().mountGroupCard({", classic)
+        self.assertIn("type:mediaKindForNode(item)", classic)
+        self.assertIn("workbench-node-shell__group-empty", classic)
+        # Smart: the record/media decision left the page; the rollback flag
+        # stays page-owned via mediaEnabled.
+        self.assertIn("ensureSmartRenderRuntime().mountGroupCard({", smart)
+        self.assertIn("mediaEnabled:canUseMediaRendererForSmartGroup(entry.node)", smart)
+        self.assertNotIn("smartGroupMediaRecord(node) : window.WorkbenchCanvas.legacyNodeView", smart)
+
     def test_versioned_writes_adopt_revisions_through_one_shared_owner(self):
         client = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-persistence-client.js"
         script = f"""
