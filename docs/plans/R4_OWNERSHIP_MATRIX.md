@@ -26,8 +26,8 @@ REMOVE       = 可删除/待删除
 | revision/CAS | none | none | API/application service; canonical transport + browser save client read/increment/409 logical revision | UNIFIED | Unified | Keep conflict coverage; migrate remote-sync/polling callers onto the revision (R4-07). | `tests/test_canvas_nodes_runtime.py`; `tests/test_canonical_canvas_api.py`; `tests/test_frontend_workbench_modules.py` |
 | remote/version polling | interval/merge policy; revision-ordered version probes on default path | interval/merge policy; revision-ordered version probes on default path | transport-neutral coordinator with revision ordering (timestamp fallback) | PARTIAL | Unified | Move polling policy/state into the product runtime. | `canvas-remote-sync.js`; save/merge characterization below |
 | viewport state | page load/swap adopt through one seam; interaction commits and mirror read from runtime | page load/swap adopt through one seam; interaction commits and mirror read from runtime | `CanvasRuntime` viewport authority with adapter adopt/reset seam | PARTIAL | Unified | Migrate remaining pan/zoom/minimap DOM and persistence lifecycle on top of the authoritative state. | `canvas.js`, `smart-canvas.js`, `runtime-state.js`; canvas-state-swap contract |
-| pan | page DOM/save shell; shared viewport pan session on default path | page DOM/save shell; shared viewport pan session on default path | CanvasRuntime command plus shared pan session | PARTIAL | Unified | Migrate remaining DOM/persistence lifecycle. | `runtime-state.js`; pan-session contract |
-| zoom | page preview/minimap shell; shared wheel-scale, centering and default preview-exit commits | page preview/minimap shell; shared wheel-scale, centering and default preview-exit commits | CanvasRuntime command plus shared viewport policy | PARTIAL | Unified | Migrate remaining DOM/minimap/persistence lifecycle. | `runtime-state.js`; viewport interaction contracts |
+| pan | board-pan pointer session wired via InteractionController; dispatch through the viewport controller (R4-16) | page DOM/save shell; shared viewport pan session on default path | CanvasRuntime command plus shared pan session | PARTIAL | Unified | Migrate Smart pan wiring. | `interaction-controller.js`; pan-session contract |
+| zoom | wheel zoom via `canvasViewportController.zoomAt`; fit/restore/handoff/centering via `set`/`centerOn` (R4-16) | page preview/minimap shell; shared wheel-scale, centering and default preview-exit commits | CanvasRuntime command plus shared viewport policy | PARTIAL | Unified | Migrate Smart zoom wiring. | `interaction-controller.js`; viewport interaction contracts |
 | semantic zoom | adapter enablement/iteration; shared DOM application on default path | adapter enablement/iteration; shared DOM application on default path | shared policy plus `WorkbenchSemanticZoomApply` indicator/presentation apply+reset owner | PARTIAL | Unified | Move remaining enablement/call timing with renderer ownership. | `semantic-zoom.js`; `semantic-zoom-apply.js` |
 | selection | Classic `selected` state is the InteractionController selection store (R4-15); box/single/multi flow through it | page state machine, except NodeShell/box completion, media-thumbnail, upload-target and group-menu selection | runtime command primitive plus migrated completion transitions | PARTIAL | Unified | Migrate Smart's dual-variable selection onto the store. | `interaction-controller.js`; NodeShell/box/media-thumbnail/upload-target/group-menu contracts |
 | multi-selection | page state machine | page state machine | runtime command primitive | PARTIAL | Unified | Migrate selection lifecycle. | same |
@@ -451,6 +451,27 @@ clear); wiring contracts pin the store declaration, the absence of direct
 Set reassignments, the runtime-mirror replace, and module load order.
 Focused regression: PASS (2 new tests; one box-selection contract assertion
 updated to the authority call); full regression: PASS (345 tests).
+
+2026-09-06 viewport / pan / zoom cutover (R4-16): viewport mutation dispatch
+moved into the InteractionController module.
+`WorkbenchInteractionController.createViewportController({getKernel,
+applyViewport})` owns set/panBy/zoomAt/centerOn over the runtime-state kernel
+and returns the resolved viewport; the page's DOM/persistence shell stays a
+callback. The Classic board-pan pointer session now wires through the
+InteractionController session lifecycle (`begin({kind:'board-pan', ...})`
+combining the former move/up handlers), wheel zoom goes through
+`canvasViewportController.zoomAt`, and the fit, restore, handoff-set, and
+world-point-centering flows dispatch through `set`/`centerOn`. The duplicate
+`applyCanvasRuntimeViewport` helper is deleted (single dispatch owner remains
+the kernel). Viewport persistence/restore is unchanged — the controller only
+changed who dispatches, not what persists. Smart's pan/zoom wiring is
+deferred; its `applySmartRuntimeViewport` and VIEWPORT_ZOOM_AT literals
+remain. Behavioral test pins dispatch-through-kernel, resolved-viewport
+returns, shell-callback invocation, centerOn argument order, and the
+no-kernel no-op path; wiring contracts pin the singleton, all five flows, and
+the removed helper. Focused regression: PASS (2 new tests; two shared-runtime
+contract assertions updated to the per-page zoom identifiers); full
+regression: PASS (347 tests).
 ```
 
 ## Rendering ownership map (R4-08 characterization, 2026-09-06)
@@ -570,6 +591,14 @@ multi, and box-selection mutations flow through it, the five direct
 `selected = new Set(...)` reassignments are gone, and the runtime mirror
 (snapshot.selectedIds publish at canvas swaps) is unchanged. Smart's
 dual-variable (selectedId/selectedIds) model is deferred.
+
+Established by R4-16 (2026-09-06, viewport authority): `createViewportController`
+on the same module owns viewport mutation dispatch over the runtime-state
+kernel — set/panBy/zoomAt/centerOn with the resolved viewport returned and the
+page's applyViewport shell injected as a callback. The Classic board-pan
+pointer session, wheel zoom, fit, restore, handoff-set, and world-point
+centering flows all dispatch through it; the duplicate
+`applyCanvasRuntimeViewport` helper is removed.
 
 Extended by R4-12 (2026-09-06, generic Prompt cutover): the Classic prompt
 family moved from adopted pre-rendered DOM to registry-owned rendering —

@@ -5,16 +5,24 @@
 
 ## Active Task
 
-- Task ID: `R4-16`
+- Task ID: `R4-17`
 - Round: `R4`
 - Priority: `P1`
 - Status: `READY`
-- Task Card: `docs/tasks/backlog/R4-16-viewport-cutover.md`
+- Task Card: `docs/tasks/backlog/R4-17-minimap-cutover.md`
 
 ## Completed Tasks
 
+- `R4-16` — `DONE` 2026-09-06T23:18+08:00. Card:
+  `docs/tasks/active/R4-16-viewport-cutover.md`. Evidence:
+  `createViewportController` owns viewport mutation dispatch over the
+  runtime-state kernel; Classic board-pan session via InteractionController,
+  wheel zoom + fit/restore/handoff/centering via the controller; duplicate
+  page dispatch helper removed; behavioral + wiring contract tests; regression
+  347 tests PASS.
+
 - `R4-15` — `DONE` 2026-09-06T22:55+08:00. Card:
-  `docs/tasks/active/R4-15-selection-cutover.md`. Evidence:
+  `docs/tasks/done/R4-15-selection-cutover.md`. Independent review: PASS. Evidence:
   `createSelectionStore` selection authority on the interaction-controller
   module; Classic selection fully cut over (five direct reassignments and all
   mutations through the store); Smart dual-variable model deferred as a

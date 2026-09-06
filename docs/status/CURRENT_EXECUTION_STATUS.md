@@ -5,12 +5,12 @@ status_schema: workbench.execution-status/2
 ## Repository
 
 repository: local worktree (remote repository out of scope)
-verified_head: e024ed84a68b43619d9f0cb02af01301e3f1029f
-verified_commit: "docs: record R4-13 provider compat renderer acceptance"
+verified_head: 959038b759322f6d1b26dee0dc70653762cfa497
+verified_commit: "docs: record R4-15 selection ownership cutover acceptance"
 branch: main
 remote_state: not checked; GitHub/remote synchronization is out of scope for this local task
-verified_at: 2026-09-06T22:10:00+08:00
-verification_source: current local worktree (R4-13 review accepted; R4-14 activated)
+verified_at: 2026-09-06T23:03:00+08:00
+verification_source: current local worktree (R4-15 review accepted; R4-16 activated)
 worktree_before_R0: clean
 worktree_at_R4_03: HEAD a1195c9 plus the R4-03 card's own pending additions only —
 the authority policy seam, the main.py guard wiring, focused policy/wiring tests,
@@ -686,6 +686,34 @@ replace, clear); wiring contracts pin the store declaration, the absence of
 direct Set reassignments, the runtime-mirror replace, and module load order.
 Focused regression: PASS (2 new tests; one box-selection contract assertion
 updated to the authority call); full regression: PASS at 345 tests.
+Independent review of this card (2026-09-06T23:03+08:00, read-only): PASS —
+scope, architecture constraints (runtime-state kernel untouched; no new
+business responsibility in the legacy monolith), Set-compatibility of the
+store against all 49 page touchpoints, and test evidence re-verified against
+commits 2d416f7/959038b. Card archived to `docs/tasks/done/` and R4-16
+activated.
+
+R4 viewport / pan / zoom cutover (card R4-16, 2026-09-06T23:18+08:00):
+viewport mutation dispatch moved into the InteractionController module.
+`WorkbenchInteractionController.createViewportController({getKernel,
+applyViewport})` owns set/panBy/zoomAt/centerOn over the runtime-state kernel
+and returns the resolved viewport; the page's DOM/persistence shell stays a
+callback. The Classic board-pan pointer session now wires through the
+InteractionController session lifecycle (`begin({kind:'board-pan', ...})`
+combining the former move/up handlers), wheel zoom goes through
+`canvasViewportController.zoomAt`, and the fit, restore, handoff-set, and
+world-point-centering flows dispatch through `set`/`centerOn`. The duplicate
+`applyCanvasRuntimeViewport` helper is deleted — the kernel is the single
+dispatch owner. Viewport persistence/restore is unchanged: the controller
+changed only who dispatches, not what persists (local viewport save, canvas
+payload viewport, and recovery flows untouched). Smart's pan/zoom wiring is
+deferred; its `applySmartRuntimeViewport` and `VIEWPORT_ZOOM_AT` literals
+remain. A behavioral test pins dispatch-through-kernel, resolved-viewport
+returns, shell-callback invocation, centerOn argument order, and the
+no-kernel no-op path; wiring contracts pin the singleton, all five flows, and
+the removed helper. Focused regression: PASS (2 new tests; two shared-runtime
+contract assertions updated to per-page zoom identifiers); full regression:
+PASS at 347 tests.
 
 ## Unified Canvas verified ledger
 
