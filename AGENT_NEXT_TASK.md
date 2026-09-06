@@ -5,16 +5,23 @@
 
 ## Active Task
 
-- Task ID: `R4-05`
+- Task ID: `R4-06`
 - Round: `R4`
 - Priority: `P0`
 - Status: `READY`
-- Task Card: `docs/tasks/backlog/R4-05-canonical-canvas-api.md`
+- Task Card: `docs/tasks/backlog/R4-06-browser-logical-revision.md`
 
 ## Completed Tasks
 
+- `R4-05` — `DONE` 2026-09-06T18:22+08:00. Card:
+  `docs/tasks/active/R4-05-canonical-canvas-api.md`. Evidence: canonical
+  transport `/api/v1/canvases/{canvas_id}` GET (revision/updated_at) + PUT
+  (expected_revision CAS, explicit 409 conflict info, 503 without SQLite
+  authority) in `workbench/api/canvases.py`; legacy transport shape pinned;
+  regression 319 tests PASS. Ownership matrix revision/CAS row updated.
+
 - `R4-04` — `DONE` 2026-09-06T18:10+08:00. Card:
-  `docs/tasks/active/R4-04-split-brain-regression.md`. Evidence:
+  `docs/tasks/done/R4-04-split-brain-regression.md`. Evidence:
   `tests/test_split_brain_regression.py` — 5 incident-scenario tests (normal
   SQLite routing, refused disabled flag, legacy migration/read/write while
   inactive, restart-durable authority, one-store write isolation); regression
@@ -47,7 +54,7 @@
 1. `AGENTS.md`
 2. `.agent/AGENT_CONTRACT.md`
 3. `docs/status/CURRENT_EXECUTION_STATUS.md`
-4. `docs/tasks/backlog/R4-05-canonical-canvas-api.md`
+4. `docs/tasks/backlog/R4-06-browser-logical-revision.md`
 
 Read architecture documents only as required by the card.
 
@@ -69,8 +76,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor if R4-05 passes:
+Expected successor if R4-06 passes:
 
-`R4-06 — Browser Persistence Uses Logical Revision` (`docs/tasks/backlog/R4-06-browser-logical-revision.md`)
+`R4-07 — Remote Sync Uses Revision` (`docs/tasks/backlog/R4-07-remote-sync-revision.md`)
 
 Actual successor must still be checked against the repository's current verified state.

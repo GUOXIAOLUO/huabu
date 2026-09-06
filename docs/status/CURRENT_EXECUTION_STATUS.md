@@ -430,6 +430,26 @@ writes land in exactly one store — a canonical-routed `new_canvas` creates no
 Legacy file, and a legacy-routed write under SQLite authority is refused. Full
 regression: PASS at 313 tests. No ownership changed.
 
+R4 canonical Canvas transport API (card R4-05, 2026-09-06T18:22+08:00): a
+canonical transport with explicit logical revision now exists at
+`workbench/api/canvases.py` and is registered under the loopback-gated
+versioned API block as `/api/v1/canvases/{canvas_id}` GET/PUT. GET returns the
+lossless payload plus canonical `revision`, `updated_at`, `project_id`, title,
+and a `deleted` flag from `CanvasRecord`. PUT performs full-payload
+compare-and-swap through `replace_canvas_payload` with a required
+`expected_revision`; success increments the revision, a stale write returns 409
+with explicit conflict information (`error: stale_revision`,
+`expected_revision`, `current_revision`, `current_updated_at`), an unknown
+canvas returns 404, an authorization failure returns 403, and any state other
+than active SQLite authority returns 503 with
+`canonical_canvas_api_requires_sqlite_authority` — the transport never falls
+back to legacy. The legacy `/api/canvases` endpoints keep their characterized
+shapes (`{"canvas": ...}` without a revision key; `base_updated_at`
+optimistic-concurrency semantics) as the compatibility transport until browser
+callers migrate. Ownership moved from `main.py` legacy-shaped transport to the
+canonical seam; the matrix revision/CAS row was updated. Focused regression:
+PASS (6 new tests); full regression: PASS at 319 tests.
+
 ## Unified Canvas verified ledger
 
 | Stage | Status | Evidence summary |
@@ -561,13 +581,18 @@ Result: PASS after R4-04 split-brain regression suite — 313 tests in 3.1
 seconds, Python 3.14.7 (2026-09-06). The +5 tests are the incident-scenario
 regression suite; no product behavior changed.
 
-Agent regression gate (cards R4-01…R4-04):
+Result: PASS after R4-05 canonical Canvas transport — 319 tests in 3.4 seconds,
+Python 3.14.7 (2026-09-06). The +6 tests cover logical-revision reads, CAS
+success and stale conflict, authority-gated 503, 404, and the unchanged legacy
+transport shape.
+
+Agent regression gate (cards R4-01…R4-05):
 
 ```text
 ./scripts/agent-verify.sh
 ```
 
-Result: PASS — AGENT VERIFY: PASS (313 unit tests, Python AST parse of 71 files,
+Result: PASS — AGENT VERIFY: PASS (319 unit tests, Python AST parse of 73 files,
 `node --check` of 63 JavaScript files, 4 architecture-guard tests,
 `git diff --check`; Node v24.20.0). The gate script was fixed during R4-01 to
 prefer `.venv/bin/python` over PATH `python3`, which lacks project dependencies
@@ -842,6 +867,9 @@ seam and its tests) and 63 JavaScript files; PASS.
 
 R4-04 re-verification (2026-09-06): 71 Python files (adding the split-brain
 regression suite) and 63 JavaScript files; PASS.
+
+R4-05 re-verification (2026-09-06): 73 Python files (adding the canonical
+transport router and its tests) and 63 JavaScript files; PASS.
 
 No repository-supported Ruff, mypy, ESLint, or bundled frontend build configuration
 was found; none is claimed as run.

@@ -23,7 +23,7 @@ REMOVE       = 可删除/待删除
 |---|---|---|---|---|---|---|---|
 | Canvas entry | compatibility handoff | compatibility page | `canvas.html` | PARTIAL | Unified | Remove retained Smart deep-link handoff after Smart record rendering is native. | `canvas-entry-compatibility.js`; status U6 |
 | Canvas persistence | adapter client | adapter client | SQLite `CanvasRecord` | UNIFIED | Unified | Keep Legacy JSON only as import/rollback; repository selection goes only through the explicit authority policy seam. | status R3/R4 acceptance; R4-03 split-brain guard |
-| revision/CAS | none | none | API/application service | UNIFIED | Unified | Maintain conflict coverage. | `tests/test_canvas_nodes_runtime.py` |
+| revision/CAS | none | none | API/application service; canonical transport reads/increments/409s logical revision | UNIFIED | Unified | Maintain conflict coverage; migrate browser callers onto the canonical transport. | `tests/test_canvas_nodes_runtime.py`; `tests/test_canonical_canvas_api.py` |
 | remote/version polling | interval/merge policy | interval/merge policy | transport-neutral coordinator only | PARTIAL | Unified | Move polling policy/state into the product runtime. | `canvas-remote-sync.js`; save/merge characterization below |
 | viewport state | page load/swap adopt through one seam; interaction commits and mirror read from runtime | page load/swap adopt through one seam; interaction commits and mirror read from runtime | `CanvasRuntime` viewport authority with adapter adopt/reset seam | PARTIAL | Unified | Migrate remaining pan/zoom/minimap DOM and persistence lifecycle on top of the authoritative state. | `canvas.js`, `smart-canvas.js`, `runtime-state.js`; canvas-state-swap contract |
 | pan | page DOM/save shell; shared viewport pan session on default path | page DOM/save shell; shared viewport pan session on default path | CanvasRuntime command plus shared pan session | PARTIAL | Unified | Migrate remaining DOM/persistence lifecycle. | `runtime-state.js`; pan-session contract |
@@ -272,6 +272,21 @@ authority state. Live check: default routing returns `SqliteCanvasCompatibilityR
 payloads; with `WORKBENCH_CANONICAL_CANVAS_ROUTING_ENABLED=false` the process refuses with exit 1
 and the database stays byte-identical (sha256 `3cca0054…`). Focused regression: PASS (11 new
 tests); full regression: PASS (308 tests).
+
+2026-09-06 canonical Canvas transport API (R4-05): logical-revision transport
+ownership moved from the legacy-shaped `/api/canvases` endpoints to a canonical
+seam — `workbench/api/canvases.py` (`/api/v1/canvases/{canvas_id}` GET/PUT,
+registered inside the loopback-gated versioned API block). GET returns the
+payload plus `revision`/`updated_at`/`deleted` from the canonical record; PUT
+performs full-payload CAS via `replace_canvas_payload` with `expected_revision`;
+stale writes return explicit 409 conflict information
+(`expected_revision`/`current_revision`/`current_updated_at`); 503 with an
+explicit error while authority is not `sqlite` (no silent legacy fallback); 404
+for unknown canvases; 403 on authorization failure. The legacy transport keeps
+its characterized shape (no `revision` key; `base_updated_at` semantics) and
+remains the compatibility path until browser callers migrate (R4-06/R4-07).
+Ownership matrix revision/CAS row updated. Focused regression: PASS (6 new
+tests); full regression: PASS (319 tests).
 ```
 
 # Save/merge machinery characterization (U7 blocker analysis, 2026-09-06)
