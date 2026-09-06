@@ -54,6 +54,7 @@ from workbench.application.canvas_authority_policy import (
     split_brain_error,
 )
 from workbench.application.project_canvas_migration import ProjectCanvasMigrationService
+from workbench.api.canvases import create_canonical_canvases_router
 from workbench.api.canvas_nodes import create_canvas_nodes_router
 from workbench.application.legacy_definitions import LegacyDefinitionRegistry, LegacyImageModelCompatibilityPolicy
 from workbench.application.node_creation import NodeCreationService
@@ -18403,6 +18404,10 @@ if WORKBENCH_NODE_API_ENABLED:
         # R4 split-brain guard fires during import-time wiring: refuse cleanly.
         print(f"ERROR: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc
+    app.include_router(create_canonical_canvases_router(
+        canonical_repository_factory=canonical_project_canvas_repository,
+        authority_decision_factory=canvas_authority_decision,
+    ))
     app.include_router(create_canvas_nodes_router(
         service_for_actor=local_node_creation_service,
         mutation_service_for_actor=local_node_mutation_service,
