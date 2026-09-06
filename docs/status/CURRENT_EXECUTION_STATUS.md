@@ -602,6 +602,26 @@ class, callbacks, scroll binding); a wiring contract pins load order, the
 conditional fallback branch, and the Smart page exclusion. Focused
 regression: PASS (2 new tests); full regression: PASS at 339 tests.
 
+R4 provider-shaped compatibility renderers (card R4-13, 2026-09-06T21:54+08:00):
+provider-shaped Classic card rendering moved behind a compatibility renderer
+boundary without making provider identities Core NodeKinds.
+`static/js/workbench/canvas/provider-compat-renderer.js` registers
+`provider-compat` (priority 5) for llm/generator/midjourney/msgen/video/comfy/
+rh/ltxDirector/minimax legacy records; it adopts the page-built body verbatim
+(presentation stays with the page for now) and its mounted-handle `destroy()`
+invokes a page-supplied `onCardDestroy` hook. The Classic wiring passes
+`onCardDestroy: payloadNode => destroyLTXEditor(payloadNode)`, so the LTX
+timeline editor teardown now runs inside the runtime unmount boundary;
+`deleteNode` no longer calls `destroyLTXEditor` directly, and
+`deleteSelectedNodes` — which previously had no runtime unmounts at all — now
+unmounts every removed id through the runtime. A behavioral test drives the
+real NodeCardHost + registry pipeline (adoption, renderer-id stamping,
+destroy → cleanup + DOM removal, and loop records still resolving to
+source-payload); a wiring contract pins load order, the provider type list,
+the cleanup hook, and the absence of direct page cleanup calls in both delete
+flows. Smart's composer-owned provider bodies remain page-owned for now.
+Focused regression: PASS (2 new tests); full regression: PASS at 341 tests.
+
 ## Unified Canvas verified ledger
 
 | Stage | Status | Evidence summary |
@@ -771,14 +791,18 @@ Result: PASS after R4-12 generic prompt cutover — 339 tests in 3.7 seconds,
 Python 3.14.7 (2026-09-06). The +2 tests are the prompt-card renderer
 behavioral pipeline test and the Classic wiring contract.
 
-Agent regression gate (cards R4-01…R4-12):
+Result: PASS after R4-13 provider compatibility renderers — 341 tests in 3.8
+seconds, Python 3.14.7 (2026-09-06). The +2 tests are the provider-compat
+adoption/cleanup behavioral test and the Classic lifecycle wiring contract.
+
+Agent regression gate (cards R4-01…R4-13):
 
 ```text
 ./scripts/agent-verify.sh
 ```
 
-Result: PASS — AGENT VERIFY: PASS (339 unit tests, Python AST parse of 73 files,
-`node --check` of 65 JavaScript files, 4 architecture-guard tests,
+Result: PASS — AGENT VERIFY: PASS (341 unit tests, Python AST parse of 73 files,
+`node --check` of 66 JavaScript files, 4 architecture-guard tests,
 `git diff --check`; Node v24.20.0). The gate script was fixed during R4-01 to
 prefer `.venv/bin/python` over PATH `python3`, which lacks project dependencies
 (`pydantic`); verification tooling only, no product behavior change.

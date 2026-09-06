@@ -394,6 +394,26 @@ document (renderer id stamping, initial text, counter update, over-limit
 class, callbacks, scroll binding); a wiring contract pins load order, the
 conditional fallback branch, and the Smart page exclusion. Focused
 regression: PASS (2 new tests); full regression: PASS (339 tests).
+
+2026-09-06 provider-shaped compatibility renderers (R4-13): provider-shaped
+Classic card rendering moved behind a compatibility renderer boundary without
+making provider identities Core NodeKinds.
+`static/js/workbench/canvas/provider-compat-renderer.js` registers
+`provider-compat` (priority 5) for llm/generator/midjourney/msgen/video/comfy/
+rh/ltxDirector/minimax legacy records; it adopts the page-built body verbatim
+(presentation stays with the page for now) and its mounted-handle `destroy()`
+invokes a page-supplied `onCardDestroy` hook. The Classic wiring passes
+`onCardDestroy: payloadNode => destroyLTXEditor(payloadNode)`, so the LTX
+timeline editor teardown now runs inside the runtime unmount boundary;
+`deleteNode` no longer calls `destroyLTXEditor` directly, and
+`deleteSelectedNodes` (previously missing runtime unmounts entirely) now
+unmounts every removed id through the runtime. Behavioral test drives the
+real NodeCardHost + registry pipeline (adoption, renderer-id stamping,
+destroy -> cleanup + DOM removal, loop records still resolving to
+source-payload); a wiring contract pins load order, the provider type list,
+the cleanup hook, and the absence of direct page cleanup calls in both delete
+flows. Smart's composer-owned provider bodies remain page-owned for now.
+Focused regression: PASS (2 new tests); full regression: PASS (341 tests).
 ```
 
 ## Rendering ownership map (R4-08 characterization, 2026-09-06)
@@ -433,7 +453,7 @@ keeping DOM alive.
 | Output (Classic only) | `addOutputNode` C3357; versioned C2655 | keyed grid diff `refreshOutputNodeContent` C6809 / full C14417 | content-clear C13580 → versioned C13804 / `deleteNode` | `bindOutputWrap` C6708 | preview video/audio C14397; scroll capture C6240 | adapter (only targeted DOM diff) | Unified RenderRuntime (diff moves into runtime); item actions compat |
 | MiniMax (Classic) | `addMiniMaxNode` C2778 | `renderMiniMaxBody` C9434 | `deleteNode` | in-body | incidental shared playback-state | adapter | Unified RenderRuntime lifecycle |
 | MiniMax (Smart) | `createMinimaxNode` S6805; versioned S1657 | in-place `smartMinimaxSyncPlayerDom` S8128 | `deleteNode` S10595 | `bindMinimaxNodeControls` S9522 | adapter player model (playhead/mute/volume) + stage transplant S7379 | adapter player state machine | Unified RenderRuntime lifecycle; player model Smart compat |
-| Provider-shaped (Classic llm/generator/midjourney/msgen/video/comfy/rh/ltxDirector) | `addNode` C2516 via menu C3855 | full render per setting; run status `refreshRunNodes` C6155 | `deleteNode` C13558 (+LTX C13561) | per-body; `isNodeControl` C6274 | input refs via shared media-references C3929 | adapter bodies; shell adopts via `mountCanvasNodeShellForLegacy` C6446 | shell/registry shared; bodies stay provider compat |
+| Provider-shaped (Classic llm/generator/midjourney/msgen/video/comfy/rh/ltxDirector) | `addNode` C2516 via menu C3855 | full render per setting; run status `refreshRunNodes` C6155 | runtime unmount destroys handle → `onCardDestroy` cleanup (R4-13) | per-body; `isNodeControl` C6274 | input refs via shared media-references C3929 | `provider-compat` renderer adopts page body; bodies stay provider compat | shell/registry/lifecycle shared; bodies stay provider compat |
 | Smart legacy skill nodes | composer/creation flows | full render + per-family binders | `deleteNode` S10595 | per-family binders | n/a | adapter bodies adopted losslessly S1589 | Unified RenderRuntime lifecycle; bodies compat |
 
 Legacy DOM adoption paths (all funnel through `UnifiedRenderHost`):
@@ -503,6 +523,14 @@ family moved from adopted pre-rendered DOM to registry-owned rendering —
 keeps state and services behind `rendererOptions` callbacks (onPromptInput,
 onOpenTemplate, templateActive, counter limits, scroll binding) and retains
 the pre-rendered markup only as the flags-off fallback.
+
+Extended by R4-13 (2026-09-06, provider compatibility): `provider-compat-
+renderer.js` registers `provider-compat` (priority 5) for the provider-shaped
+Classic types (llm/generator/midjourney/msgen/video/comfy/rh/ltxDirector/
+minimax); it adopts the page-built body verbatim and carries per-card cleanup
+through the mounted-handle lifecycle via an `onCardDestroy` hook — the LTX
+editor teardown now runs at the runtime unmount boundary, and both delete
+flows unmount through the runtime instead of calling page cleanup directly.
 
 # Save/merge machinery characterization (U7 blocker analysis, 2026-09-06)
 

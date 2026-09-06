@@ -5,16 +5,24 @@
 
 ## Active Task
 
-- Task ID: `R4-13`
+- Task ID: `R4-14`
 - Round: `R4`
 - Priority: `P1`
 - Status: `READY`
-- Task Card: `docs/tasks/backlog/R4-13-provider-compat-renderers.md`
+- Task Card: `docs/tasks/backlog/R4-14-interaction-controller.md`
 
 ## Completed Tasks
 
+- `R4-13` — `DONE` 2026-09-06T21:54+08:00. Card:
+  `docs/tasks/active/R4-13-provider-compat-renderers.md`. Evidence:
+  `provider-compat` renderer (priority 5) adopts provider-shaped Classic bodies
+  and carries per-card cleanup through the mounted-handle lifecycle; LTX
+  teardown moved behind the runtime unmount boundary; both delete flows unmount
+  through the runtime; behavioral + wiring contract tests; regression 341
+  tests PASS.
+
 - `R4-12` — `DONE` 2026-09-06T21:28+08:00. Card:
-  `docs/tasks/active/R4-12-generic-rendering.md`. Evidence: Classic prompt
+  `docs/tasks/done/R4-12-generic-rendering.md`. Evidence: Classic prompt
   family cut over to registry-owned rendering (`prompt-card` renderer builds
   the card DOM inside NodeShell; page state behind rendererOptions callbacks;
   flags-off fallback preserved); behavioral pipeline + wiring contract tests;
@@ -128,8 +136,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor if R4-13 passes:
+Expected successor if R4-14 passes:
 
-`R4-14 — Interaction Controller` (`docs/tasks/backlog/R4-14-interaction-controller.md`)
+`R4-15 — Selection Ownership Cutover` (`docs/tasks/backlog/R4-15-selection-cutover.md`)
 
 Actual successor must still be checked against the repository's current verified state.
