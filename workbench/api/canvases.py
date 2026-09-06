@@ -9,6 +9,7 @@ anything else is an explicit 503, never a silent legacy fallback.
 """
 
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Any, Protocol
 
 from fastapi import APIRouter, HTTPException
@@ -80,6 +81,9 @@ def create_canonical_canvases_router(
     async def put_canonical_canvas(canvas_id: str, body: CanonicalCanvasPutPayload):
         _require_canonical_authority(authority_decision_factory())
         repository = canonical_repository_factory()
+        # payload.updated_at is display/compat metadata: the canonical transport
+        # keeps it fresh server-side so the logical revision stays the only CAS.
+        body.payload["updated_at"] = int(datetime.now(tz=UTC).timestamp() * 1000)
         try:
             record, payload = repository.replace_canvas_payload(
                 actor_id=LOCAL_WORKSPACE_ACTOR_ID,
@@ -94,9 +98,13 @@ def create_canonical_canvases_router(
         except CanonicalStaleRevisionError as error:
             try:
                 current = repository.load_canvas_record(canvas_id)
+                current_payload = repository.load_canvas_payload(canvas_id)
                 current_updated_at = current.updated_at.isoformat() if current.updated_at else None
             except CanonicalNotFoundError:
+                current_payload = None
                 current_updated_at = None
+            # The current payload rides along so conflict-merging clients keep
+            # their characterized recovery semantics.
             raise HTTPException(
                 status_code=409,
                 detail={
@@ -106,6 +114,7 @@ def create_canonical_canvases_router(
                     "expected_revision": body.expected_revision,
                     "current_revision": error.current_revision,
                     "current_updated_at": current_updated_at,
+                    "canvas": current_payload,
                 },
             )
         except CanonicalRepositoryError as error:

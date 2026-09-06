@@ -95,6 +95,10 @@ class CanonicalCanvasApiTests(unittest.TestCase):
         body = self._put_canvas("canvas-1", payload, expected_revision=current["revision"])
         self.assertEqual(body["revision"], 2)
         self.assertEqual(body["canvas"]["title"], "Renamed via canonical CAS")
+        # updated_at is display/compat metadata kept fresh server-side; the
+        # logical revision is the only concurrency cursor.
+        self.assertIsInstance(body["canvas"]["updated_at"], int)
+        self.assertGreater(body["canvas"]["updated_at"], 1788000001000)
 
         refreshed = self._get_canvas("canvas-1")
         self.assertEqual(refreshed["revision"], 2)
@@ -113,6 +117,10 @@ class CanonicalCanvasApiTests(unittest.TestCase):
         self.assertEqual(detail["expected_revision"], 1)
         self.assertEqual(detail["current_revision"], 2)
         self.assertTrue(detail["current_updated_at"])
+        # The current payload rides along so conflict-merging clients keep
+        # their characterized recovery semantics.
+        self.assertEqual(detail["canvas"]["id"], "canvas-1")
+        self.assertEqual(detail["canvas"]["title"], "One")
 
     def test_canonical_transport_requires_sqlite_authority(self):
         main.canonical_project_canvas_repository()  # authority stays legacy_json
@@ -136,6 +144,35 @@ class CanonicalCanvasApiTests(unittest.TestCase):
         self.assertIn("canvas", legacy_get)
         self.assertNotIn("revision", legacy_get)
         self.assertNotIn("revision", legacy_get["canvas"])
+
+    def test_http_round_trip_cas_recovers_from_a_stale_write(self):
+        from fastapi.testclient import TestClient
+
+        self._activate_sqlite_authority()
+        client = TestClient(main.app)
+
+        loaded = client.get("/api/v1/canvases/canvas-1")
+        self.assertEqual(loaded.status_code, 200)
+        revision = loaded.json()["revision"]
+
+        payload = dict(loaded.json()["canvas"])
+        payload["title"] = "HTTP writer A"
+        saved = client.put("/api/v1/canvases/canvas-1", json={"payload": payload, "expected_revision": revision})
+        self.assertEqual(saved.status_code, 200)
+        self.assertEqual(saved.json()["revision"], revision + 1)
+
+        stale = client.put("/api/v1/canvases/canvas-1", json={"payload": payload, "expected_revision": revision})
+        self.assertEqual(stale.status_code, 409)
+        conflict = stale.json()["detail"]
+        self.assertEqual(conflict["current_revision"], revision + 1)
+        self.assertEqual(conflict["canvas"]["title"], "HTTP writer A")
+
+        recovered = client.put(
+            "/api/v1/canvases/canvas-1",
+            json={"payload": {**payload, "title": "HTTP writer B"}, "expected_revision": conflict["current_revision"]},
+        )
+        self.assertEqual(recovered.status_code, 200)
+        self.assertEqual(recovered.json()["revision"], revision + 2)
 
 
 if __name__ == "__main__":

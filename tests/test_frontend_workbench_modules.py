@@ -749,9 +749,12 @@ vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
         self.assertEqual(payload["stale"]["canvas"]["updated_at"], 8)
         self.assertEqual(payload["stale"]["updatedAt"], 8)
         self.assertEqual(payload["metadata"]["updatedAt"], 9)
-        self.assertEqual(payload["requests"][0]["path"], "/api/canvases/canvas%2F1")
+        # Canonical-first load: a revision-less canonical response carries no cursor,
+        # so the save falls back to the legacy transport with the record as body.
+        self.assertEqual(payload["requests"][0]["path"], "/api/v1/canvases/canvas%2F1")
         self.assertEqual(payload["requests"][0]["options"]["method"], "GET")
         self.assertEqual(payload["requests"][1]["options"]["method"], "PUT")
+        self.assertEqual(payload["requests"][1]["path"], "/api/canvases/canvas%2F1")
         self.assertEqual(json.loads(payload["requests"][1]["options"]["body"]), {"title": "Shared"})
         self.assertEqual(payload["requests"][2]["path"], "/api/canvases/canvas%2F1/meta")
 
@@ -771,6 +774,114 @@ vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
         for adapter in (classic_save, classic_open, smart_load, smart_save, classic_remote_sync, smart_remote_sync):
             self.assertIn("WorkbenchCanvasPersistence", adapter)
             self.assertNotIn("fetch(`/api/canvases/", adapter)
+
+    def test_persistence_client_saves_with_logical_revision_cas_on_the_canonical_transport(self):
+        client = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-persistence-client.js"
+        script = f"""
+const fs = require('fs');
+const vm = require('vm');
+const requests = [];
+const responses = [
+  {{ok:true, status:200, json: async () => ({{canvas:{{id:'c1', updated_at:1000}}, revision:5}})}},
+  {{ok:true, status:200, json: async () => ({{canvas:{{id:'c1', updated_at:1001, title:'A'}}, revision:6}})}},
+  {{ok:false, status:409, json: async () => ({{detail:{{error:'stale_revision', current_revision:9, canvas:{{id:'c1', updated_at:1002}}}}}})}},
+  {{ok:true, status:200, json: async () => ({{canvas:{{id:'c1', updated_at:1003}}, revision:10}})}},
+  {{ok:false, status:503, json: async () => ({{detail:{{error:'canonical_canvas_api_requires_sqlite_authority'}}}})}},
+  {{ok:true, status:200, json: async () => ({{canvas:{{id:'c1', updated_at:1004}}}})}},
+];
+const sandbox = {{window: {{}}, fetch: async (path, options={{}}) => {{
+  requests.push({{path, options}});
+  return responses.shift();
+}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
+const persistence = sandbox.window.WorkbenchCanvasPersistence;
+(async () => {{
+  const loaded = await persistence.load('c1');
+  const save1 = await persistence.save('c1', {{title:'A', base_updated_at:1000, client_id:'editor-1'}});
+  const save2 = await persistence.save('c1', {{title:'B', base_updated_at:1001, client_id:'editor-1'}});
+  const save3 = await persistence.save('c1', {{title:'C', base_updated_at:1002, client_id:'editor-1'}});
+  const save4 = await persistence.save('c1', {{title:'D', base_updated_at:1003, client_id:'editor-1'}});
+  console.log(JSON.stringify({{loaded, save1, save2, save3, save4, requests}}));
+}})();
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["loaded"]["revision"], 5)
+        self.assertEqual(payload["save1"]["revision"], 6)
+        self.assertEqual(payload["save2"]["status"], 409)
+        self.assertEqual(payload["save2"]["revision"], 9)
+        self.assertEqual(payload["save2"]["canvas"]["updated_at"], 1002)
+        self.assertEqual(payload["save3"]["revision"], 10)
+        self.assertEqual(payload["save4"]["status"], 200)
+        # Canonical GET then three canonical CAS PUTs whose expected_revision follows
+        # load -> save -> conflict -> recovery, with transport fields stripped.
+        self.assertEqual(payload["requests"][0]["path"], "/api/v1/canvases/c1")
+        self.assertEqual(payload["requests"][1]["path"], "/api/v1/canvases/c1")
+        self.assertEqual(json.loads(payload["requests"][1]["options"]["body"]), {"payload": {"title": "A"}, "expected_revision": 5})
+        self.assertEqual(json.loads(payload["requests"][2]["options"]["body"])["expected_revision"], 6)
+        self.assertEqual(json.loads(payload["requests"][3]["options"]["body"])["expected_revision"], 9)
+        # 503 falls back to the legacy transport with the full record body intact.
+        self.assertEqual(payload["requests"][4]["path"], "/api/v1/canvases/c1")
+        self.assertEqual(json.loads(payload["requests"][4]["options"]["body"])["expected_revision"], 10)
+        self.assertEqual(payload["requests"][5]["path"], "/api/canvases/c1")
+        self.assertEqual(json.loads(payload["requests"][5]["options"]["body"]), {"title": "D", "base_updated_at": 1003, "client_id": "editor-1"})
+
+    def test_persistence_client_adopts_versioned_write_revisions_into_the_save_cursor(self):
+        client = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-persistence-client.js"
+        script = f"""
+const fs = require('fs');
+const vm = require('vm');
+const requests = [];
+const responses = [
+  {{ok:true, status:200, json: async () => ({{canvas:{{id:'c2', updated_at:2000}}, revision:8}})}},
+  {{ok:false, status:503, json: async () => ({{detail:{{}}}})}},
+  {{ok:true, status:200, json: async () => ({{canvas:{{id:'c3', updated_at:3000}}}})}},
+];
+const sandbox = {{window: {{}}, fetch: async (path, options={{}}) => {{
+  requests.push({{path, options}});
+  return responses.shift();
+}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
+const persistence = sandbox.window.WorkbenchCanvasPersistence;
+(async () => {{
+  persistence.adoptRevision({{id:'c2', updated_at:1}}, 7);
+  const afterAdopt = await persistence.save('c2', {{title:'x', base_updated_at:1}});
+  const revisionless = await persistence.save('c3', {{title:'y', base_updated_at:2}});
+  console.log(JSON.stringify({{afterAdopt, revisionless, requests}}));
+}})();
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["afterAdopt"]["revision"], 8)
+        self.assertEqual(json.loads(payload["requests"][0]["options"]["body"])["expected_revision"], 7)
+        # A revision-less (legacy-loaded) canvas keeps using the legacy transport.
+        self.assertEqual(payload["requests"][1]["path"], "/api/canvases/c3")
+        self.assertEqual(json.loads(payload["requests"][1]["options"]["body"]), {"title": "y", "base_updated_at": 2})
+
+    def test_persistence_client_falls_back_to_legacy_load_when_canonical_is_unavailable(self):
+        client = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-persistence-client.js"
+        script = f"""
+const fs = require('fs');
+const vm = require('vm');
+const requests = [];
+const responses = [
+  {{ok:false, status:503, json: async () => ({{detail:{{error:'canonical_canvas_api_requires_sqlite_authority'}}}})}},
+  {{ok:true, status:200, json: async () => ({{canvas:{{id:'c4', updated_at:4000}}}})}},
+];
+const sandbox = {{window: {{}}, fetch: async (path, options={{}}) => {{
+  requests.push({{path, options}});
+  return responses.shift();
+}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
+(async () => {{
+  const loaded = await sandbox.window.WorkbenchCanvasPersistence.load('c4');
+  console.log(JSON.stringify({{loaded, requests}}));
+}})();
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["loaded"]["canvas"]["id"], "c4")
+        self.assertEqual([request["path"] for request in payload["requests"]], ["/api/v1/canvases/c4", "/api/canvases/c4"])
 
     def test_versioned_writes_adopt_revisions_through_one_shared_owner(self):
         client = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-persistence-client.js"
