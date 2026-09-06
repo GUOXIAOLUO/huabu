@@ -69,6 +69,11 @@
             const classList = typeof group.cardClasses === 'function'
                 ? group.cardClasses({hasRenderableMedia, useLegacyContent})
                 : (group.cardClasses || ['node-shell-mounted']);
+            const shellView = global.WorkbenchUnifiedRenderHost.cardShellView({
+                selected: group.selected,
+                onIntent: group.onIntent,
+                ...(group.ports ? {ports: group.ports} : {}),
+            });
             const handle = mount({
                 document: group.document, node: record, card: group.card, contentHost: group.contentHost,
                 preserveLegacyContent: group.preserveLegacyContent !== undefined ? group.preserveLegacyContent : useLegacyContent,
@@ -76,13 +81,13 @@
                 ...(group.controlSettings ? {controlSettings: group.controlSettings} : {}),
                 removeControlsBeforeMount: group.removeControlsBeforeMount === true,
                 cardClasses: classList.filter(Boolean),
-                ...global.WorkbenchUnifiedRenderHost.cardShellView({
-                    selected: group.selected,
-                    onIntent: group.onIntent,
-                    ...(group.ports ? {ports: group.ports} : {}),
-                }),
+                ...shellView,
             });
-            const result = Object.freeze({...handle, node: handle.node || record, hasRenderableMedia, useLegacyContent});
+            const result = Object.freeze({
+                ...handle, ...shellView,
+                node: handle.node || record,
+                hasRenderableMedia, useLegacyContent,
+            });
             if (!hasRenderableMedia && !useLegacyContent && typeof group.mountEmptyState === 'function') {
                 group.mountEmptyState(result);
             }
