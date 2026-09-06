@@ -1197,6 +1197,106 @@ console.log(JSON.stringify({src: video.src, signatureUrl: video.dataset.url, con
         self.assertTrue(payload["controls"])
         self.assertTrue(payload["root"])
 
+    def test_prompt_card_renderer_owns_dom_with_page_state_behind_callbacks(self):
+        canvas_dir = ROOT / "static" / "js" / "workbench" / "canvas"
+        module_paths = [
+            json.dumps(str(canvas_dir / "renderer-registry.js")),
+            json.dumps(str(canvas_dir / "node-shell.js")),
+            json.dumps(str(canvas_dir / "node-card-host.js")),
+            json.dumps(str(canvas_dir / "prompt-card-renderer.js")),
+        ]
+        module_loads = "\n".join(
+            f"vm.runInNewContext(fs.readFileSync({path}, 'utf8'), sandbox);" for path in module_paths
+        )
+        script = """
+const fs = require('fs'); const vm = require('vm');
+const makeElement = tag => {
+  const el = {
+    tagName: tag.toUpperCase(), children: [], dataset: {}, style: {},
+    className: '', textContent: '', value: '', placeholder: '', title: '', type: '',
+    listeners: {},
+    append(...kids) { this.children.push(...kids); },
+    appendChild(child) { this.children.push(child); },
+    replaceChildren(...kids) { this.children = kids; },
+    setAttribute(name, value) { this.dataset['attr-' + name] = String(value); },
+    addEventListener(type, cb) { (this.listeners[type] = this.listeners[type] || []).push(cb); },
+    classList: {add() {}, remove() {}, toggle() {}},
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    getAttribute: () => '',
+  };
+  return el;
+};
+const fakeDocument = {createElement: makeElement};
+const sandbox = {window: {document: fakeDocument, StudioI18n: null}};
+__MODULES__
+const record = {
+  id: 'prompt-1', kind: 'legacy',
+  definition_ref: {type: 'legacy', id: 'prompt', version: '0'},
+  extensions: {legacy: {payload: {id: 'prompt-1', type: 'prompt', text: 'Hello'}}},
+};
+const callbacks = {inputs: [], opens: [], bound: []};
+const shell = sandbox.window.WorkbenchNodeCardHost.mount({
+  node: record,
+  document: fakeDocument,
+  viewState: {},
+  rendererOptions: {
+    templateActive: true,
+    maxLength: 2,
+    textLength: value => Array.from(String(value || '')).length,
+    bindTextElement: element => callbacks.bound.push(element),
+    onPromptInput: text => callbacks.inputs.push(text),
+    onOpenTemplate: nodeId => callbacks.opens.push(nodeId),
+  },
+});
+const editor = shell.shell.contentHost.children[0];
+const toolbar = editor.children[0];
+const textarea = editor.children[1];
+const button = toolbar.children[0];
+const initialValue = textarea.value;
+textarea.value = 'Hi!';
+textarea.listeners.input[0]({target: textarea});
+button.listeners.click[0]({preventDefault() {}, stopPropagation() {}});
+console.log(JSON.stringify({
+  rendererId: shell.element.dataset.rendererId,
+  editorClass: editor.className,
+  textareaValue: initialValue,
+  buttonClass: button.className,
+  pressed: button.dataset['attr-aria-pressed'],
+  countSpan: toolbar.children[1].children[0].textContent,
+  inputs: callbacks.inputs,
+  opens: callbacks.opens,
+  bound: callbacks.bound.length,
+}));
+""".replace("__MODULES__", module_loads)
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        # NodeRecord -> Registry -> Renderer -> NodeShell: the prompt card DOM is
+        # renderer-owned; page state arrives only through callbacks.
+        self.assertEqual(payload["rendererId"], "prompt-card")
+        self.assertEqual(payload["editorClass"], "prompt-editor")
+        self.assertEqual(payload["textareaValue"], "Hello")
+        self.assertIn("prompt-template-btn active", payload["buttonClass"])
+        self.assertEqual(payload["pressed"], "true")
+        self.assertEqual(payload["countSpan"], "3")
+        self.assertEqual(payload["inputs"], ["Hi!"])
+        self.assertEqual(payload["opens"], ["prompt-1"])
+        self.assertEqual(payload["bound"], 1)
+
+    def test_generic_prompt_rendering_is_cut_over_to_the_registry_on_classic(self):
+        classic_page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
+        self.assertLess(classic_page.index("workbench/canvas/node-card-host.js"), classic_page.index("workbench/canvas/prompt-card-renderer.js"))
+        self.assertLess(classic_page.index("workbench/canvas/prompt-card-renderer.js"), classic_page.index("js/canvas.js"))
+        # Smart keeps its composer-owned smart-prompt card; the module is Classic-only.
+        self.assertNotIn("prompt-card-renderer.js", (ROOT / "static" / "smart-canvas.html").read_text(encoding="utf-8"))
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        self.assertIn("if(node.type === 'prompt' && !canUseCanvasNodeShellForLegacy(node))", classic)
+        self.assertIn("rendererOptions = node.type === 'prompt' ?", classic)
+        self.assertIn("preserveLegacyContent: node.type !== 'prompt'", classic)
+        self.assertIn("onPromptInput: text =>", classic)
+        # Flags-off fallback markup is preserved verbatim.
+        self.assertIn('data-prompt-template-open data-prompt-template-node-id=', classic)
+
     def test_render_runtime_group_mount_owns_record_decision_and_lifecycle(self):
         runtime_module = ROOT / "static" / "js" / "workbench" / "canvas" / "render-runtime.js"
         script = """

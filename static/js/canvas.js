@@ -6474,10 +6474,26 @@ function mountCanvasGroupShell(node, body, el){
 function mountCanvasNodeShellForLegacy(node, body, el){
     if(!canUseCanvasNodeShellForLegacy(node)) return false;
     const record = canvasMediaRecord(node);
+    // Migrated generic families receive renderer-owned DOM through the
+    // registry; state and page services stay behind rendererOptions callbacks.
+    const rendererOptions = node.type === 'prompt' ? {
+        templateActive: Boolean(promptTemplateModal?.classList.contains('open') && promptTemplateNodeId === node.id),
+        maxLength: PROMPT_TEXT_MAX_LENGTH,
+        textLength: promptTextLength,
+        bindTextElement: bindScrollableText,
+        onPromptInput: text => {
+            node.text = text;
+            scheduleSave();
+            scheduleGeneratorInputSync();
+        },
+        onOpenTemplate: openPromptTemplateModal,
+    } : null;
     const mounted = ensureRenderRuntime().mount({
-        document, node:record, card:el, contentHost:body, preserveLegacyContent:true,
+        document, node:record, card:el, contentHost:body,
+        preserveLegacyContent: node.type !== 'prompt',
         legacyContentClassName:'canvas-node-shell-legacy-content',
         controlSettings:CANVAS_NODE_SHELL_LEGACY_CONTROLS,
+        ...(rendererOptions ? {rendererOptions} : {}),
         cardClasses:['node-shell-mounted', 'legacy-renderer-mounted'],
         ...window.WorkbenchUnifiedRenderHost.cardShellView({selected:selected.has(node.id), onIntent:handleCanvasNodeShellIntent, ports:canvasLegacyNodeShellPorts(node)}),
     });
@@ -6625,7 +6641,9 @@ function renderNode(node){
             blank.ondrop = e => handleImageNodeDropEvent(e, node.id, blank);
         }
     }
-    if(node.type === 'prompt') {
+    if(node.type === 'prompt' && !canUseCanvasNodeShellForLegacy(node)) {
+        // Renderer-owned path: the prompt-card renderer builds this DOM inside
+        // NodeShell; this pre-rendered markup remains the flags-off fallback.
         const templateActive = promptTemplateModal?.classList.contains('open') && promptTemplateNodeId === node.id;
         body.innerHTML = `<div class="prompt-editor"><div class="prompt-toolbar"><button class="prompt-template-btn ${templateActive ? 'active' : ''}" type="button" data-prompt-template-open data-prompt-template-node-id="${escapeAttr(node.id)}" aria-pressed="${templateActive ? 'true' : 'false'}" title="${escapeAttr(tr('canvas.promptTemplateLibrary'))}"><i data-lucide="library"></i><span>${escapeHtml(tr('canvas.promptTemplateShort'))}</span></button>${promptCounterHtml(node.text || '')}</div><textarea placeholder="${tr('canvas.promptPlaceholder')}">${escapeHtml(node.text || '')}</textarea></div>`;
         const textarea = body.querySelector('textarea');
