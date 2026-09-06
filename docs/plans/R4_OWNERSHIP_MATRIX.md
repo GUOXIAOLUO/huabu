@@ -23,7 +23,7 @@ REMOVE       = 可删除/待删除
 |---|---|---|---|---|---|---|---|
 | Canvas entry | compatibility handoff | compatibility page | `canvas.html` | PARTIAL | Unified | Remove retained Smart deep-link handoff after Smart record rendering is native. | `canvas-entry-compatibility.js`; status U6 |
 | Canvas persistence | adapter client | adapter client | SQLite `CanvasRecord` | UNIFIED | Unified | Keep Legacy JSON only as import/rollback; repository selection goes only through the explicit authority policy seam. | status R3/R4 acceptance; R4-03 split-brain guard |
-| revision/CAS | none | none | API/application service; canonical transport reads/increments/409s logical revision | UNIFIED | Unified | Maintain conflict coverage; migrate browser callers onto the canonical transport. | `tests/test_canvas_nodes_runtime.py`; `tests/test_canonical_canvas_api.py` |
+| revision/CAS | none | none | API/application service; canonical transport + browser save client read/increment/409 logical revision | UNIFIED | Unified | Keep conflict coverage; migrate remote-sync/polling callers onto the revision (R4-07). | `tests/test_canvas_nodes_runtime.py`; `tests/test_canonical_canvas_api.py`; `tests/test_frontend_workbench_modules.py` |
 | remote/version polling | interval/merge policy | interval/merge policy | transport-neutral coordinator only | PARTIAL | Unified | Move polling policy/state into the product runtime. | `canvas-remote-sync.js`; save/merge characterization below |
 | viewport state | page load/swap adopt through one seam; interaction commits and mirror read from runtime | page load/swap adopt through one seam; interaction commits and mirror read from runtime | `CanvasRuntime` viewport authority with adapter adopt/reset seam | PARTIAL | Unified | Migrate remaining pan/zoom/minimap DOM and persistence lifecycle on top of the authoritative state. | `canvas.js`, `smart-canvas.js`, `runtime-state.js`; canvas-state-swap contract |
 | pan | page DOM/save shell; shared viewport pan session on default path | page DOM/save shell; shared viewport pan session on default path | CanvasRuntime command plus shared pan session | PARTIAL | Unified | Migrate remaining DOM/persistence lifecycle. | `runtime-state.js`; pan-session contract |
@@ -287,6 +287,23 @@ its characterized shape (no `revision` key; `base_updated_at` semantics) and
 remains the compatibility path until browser callers migrate (R4-06/R4-07).
 Ownership matrix revision/CAS row updated. Focused regression: PASS (6 new
 tests); full regression: PASS (319 tests).
+
+2026-09-06 browser persistence uses logical revision (R4-06): normal browser
+save concurrency moved from the updated_at/base_updated_at cursor to the
+logical Canvas revision inside one bounded seam — the shared persistence
+client (`canvas-persistence-client.js`). It now owns a revision cursor fed by
+canonical load/save responses and by `adoptRevision` after versioned writes;
+`savingCanvasNow`-style saves go canonical-first (`PUT /api/v1/canvases/{id}`
+with `expected_revision` and the payload minus transport fields) and the client
+falls back to the legacy `updated_at` transport only when the canonical API
+reports 503 or no revision cursor exists (legacy-loaded state). The canonical
+409 conflict now carries the current payload, preserving Classic's
+apply-remote and Smart's merge-then-reschedule recovery semantics, and the
+canonical PUT stamps `payload.updated_at` server-side so it stays
+display/compat metadata only. Adapter save/load handlers are unchanged; the
+remote-sync comparison paths (still timestamp-based) belong to R4-07.
+Ownership matrix revision/CAS row updated. Focused regression: PASS (4 new
+sandbox tests + 1 HTTP round-trip test); full regression: PASS (323 tests).
 ```
 
 # Save/merge machinery characterization (U7 blocker analysis, 2026-09-06)

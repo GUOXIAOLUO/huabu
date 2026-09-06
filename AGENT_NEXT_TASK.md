@@ -5,16 +5,24 @@
 
 ## Active Task
 
-- Task ID: `R4-06`
+- Task ID: `R4-07`
 - Round: `R4`
 - Priority: `P0`
 - Status: `READY`
-- Task Card: `docs/tasks/backlog/R4-06-browser-logical-revision.md`
+- Task Card: `docs/tasks/backlog/R4-07-remote-sync-revision.md`
 
 ## Completed Tasks
 
+- `R4-06` — `DONE` 2026-09-06T18:40+08:00. Card:
+  `docs/tasks/active/R4-06-browser-logical-revision.md`. Evidence: shared
+  persistence client owns the logical-revision cursor and sends canonical CAS
+  saves (`expected_revision`); sandbox tests prove load→save→conflict→recovery
+  cursor chain and 503/legacy fallbacks; HTTP round-trip test proves CAS
+  recovery; regression 323 tests PASS. Ownership matrix revision/CAS row
+  updated.
+
 - `R4-05` — `DONE` 2026-09-06T18:22+08:00. Card:
-  `docs/tasks/active/R4-05-canonical-canvas-api.md`. Evidence: canonical
+  `docs/tasks/done/R4-05-canonical-canvas-api.md`. Evidence: canonical
   transport `/api/v1/canvases/{canvas_id}` GET (revision/updated_at) + PUT
   (expected_revision CAS, explicit 409 conflict info, 503 without SQLite
   authority) in `workbench/api/canvases.py`; legacy transport shape pinned;
@@ -54,7 +62,7 @@
 1. `AGENTS.md`
 2. `.agent/AGENT_CONTRACT.md`
 3. `docs/status/CURRENT_EXECUTION_STATUS.md`
-4. `docs/tasks/backlog/R4-06-browser-logical-revision.md`
+4. `docs/tasks/backlog/R4-07-remote-sync-revision.md`
 
 Read architecture documents only as required by the card.
 
@@ -76,8 +84,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor if R4-06 passes:
+Expected successor if R4-07 passes:
 
-`R4-07 — Remote Sync Uses Revision` (`docs/tasks/backlog/R4-07-remote-sync-revision.md`)
+`R4-08 — Render Ownership Map` (`docs/tasks/backlog/R4-08-render-ownership-map.md`)
 
 Actual successor must still be checked against the repository's current verified state.

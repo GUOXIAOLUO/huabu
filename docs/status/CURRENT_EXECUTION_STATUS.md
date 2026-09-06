@@ -450,6 +450,28 @@ callers migrate. Ownership moved from `main.py` legacy-shaped transport to the
 canonical seam; the matrix revision/CAS row was updated. Focused regression:
 PASS (6 new tests); full regression: PASS at 319 tests.
 
+R4 browser persistence uses logical revision (card R4-06, 2026-09-06T18:40+08:00):
+normal browser save concurrency moved from the timestamp cursor to the logical
+Canvas revision inside one bounded seam — the shared persistence client
+(`static/js/workbench/canvas/canvas-persistence-client.js`) now owns the
+revision cursor, fed by canonical load/save responses and by `adoptRevision`
+after versioned writes. Full-canvas saves go canonical-first
+(`PUT /api/v1/canvases/{id}` with `expected_revision` and the record minus
+transport fields) and fall back to the legacy `updated_at` transport only when
+the canonical API reports 503 or no revision cursor exists (legacy-loaded
+state); `metadata()` stays on the legacy `/meta` endpoint pending R4-07. The
+canonical 409 conflict now carries the current payload so Classic's
+apply-remote and Smart's merge-then-reschedule recovery keep their
+characterized semantics, and the canonical PUT stamps `payload.updated_at`
+server-side — `updated_at` is display/compat metadata only, never the normal
+CAS cursor. Adapter save/load handlers needed no changes; the still-timestamp
+remote-sync comparison paths belong to R4-07. Sandbox tests prove the wire
+format and cursor chain (load revision 5 → save 5 → conflict adopts
+current_revision 9 → recovery → 503 legacy fallback with the record intact),
+and an in-process HTTP round-trip test proves CAS recovery end to end.
+Focused regression: PASS (4 new sandbox tests + 1 HTTP round-trip test); full
+regression: PASS at 323 tests.
+
 ## Unified Canvas verified ledger
 
 | Stage | Status | Evidence summary |
@@ -586,13 +608,19 @@ Python 3.14.7 (2026-09-06). The +6 tests cover logical-revision reads, CAS
 success and stale conflict, authority-gated 503, 404, and the unchanged legacy
 transport shape.
 
-Agent regression gate (cards R4-01…R4-05):
+Result: PASS after R4-06 browser logical-revision persistence — 323 tests in
+3.2 seconds, Python 3.14.7 (2026-09-06). The +4 tests are the persistence
+client sandbox scenarios (canonical CAS wire format, cursor chain through
+conflict recovery, versioned-write adoption, 503/legacy fallbacks) plus an
+in-process HTTP round-trip test.
+
+Agent regression gate (cards R4-01…R4-06):
 
 ```text
 ./scripts/agent-verify.sh
 ```
 
-Result: PASS — AGENT VERIFY: PASS (319 unit tests, Python AST parse of 73 files,
+Result: PASS — AGENT VERIFY: PASS (323 unit tests, Python AST parse of 73 files,
 `node --check` of 63 JavaScript files, 4 architecture-guard tests,
 `git diff --check`; Node v24.20.0). The gate script was fixed during R4-01 to
 prefer `.venv/bin/python` over PATH `python3`, which lacks project dependencies
