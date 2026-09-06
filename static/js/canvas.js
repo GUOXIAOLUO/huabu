@@ -16450,23 +16450,32 @@ function continueKnifeDrag(e){
 function isEditableTarget(target){
     return WorkbenchCanvasInteractionTargets.isEditableTarget(target);
 }
-minimap?.addEventListener('mousedown', e => {
-    if(!canvas || e.button !== 0) return;
-    if(e.target.closest?.('#canvasArrangeBtn')) return;
-    e.preventDefault();
-    e.stopPropagation();
-    minimapDrag = true;
-    centerViewportOnWorldPoint(minimapEventToWorld(e));
-    window.onmousemove = e2 => {
-        if(minimapDrag) centerViewportOnWorldPoint(minimapEventToWorld(e2));
-    };
-    window.onmouseup = () => {
-        minimapDrag = false;
-        window.onmousemove = null;
-        window.onmouseup = null;
-        scheduleViewportSave();
-    };
-});
+let minimapController = null;
+function ensureMinimapController(){
+    if(!minimapController){
+        minimapController = window.WorkbenchInteractionController.createMinimapController({
+            windowRef: window,
+            pointerRef: minimap,
+            canBegin: () => Boolean(canvas),
+            onPointerDown: e => {
+                if(e.button !== 0) return false;
+                if(e.target.closest?.('#canvasArrangeBtn')) return false;
+                e.preventDefault();
+                e.stopPropagation();
+                return true;
+            },
+            beginSession: () => { minimapDrag = true; },
+            project: minimapEventToWorld,
+            apply: worldPoint => centerViewportOnWorldPoint(worldPoint),
+            endSession: () => {
+                minimapDrag = false;
+                scheduleViewportSave();
+            },
+        });
+    }
+    return minimapController;
+}
+ensureMinimapController();
 canvasArrangeBtn?.addEventListener('mousedown', e => e.stopPropagation());
 canvasArrangeBtn?.addEventListener('click', e => {
     e.preventDefault();

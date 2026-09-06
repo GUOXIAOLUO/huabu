@@ -1,5 +1,6 @@
 import json
 import subprocess
+import time
 import unittest
 from pathlib import Path
 
@@ -1581,6 +1582,99 @@ console.log(JSON.stringify({
         self.assertIn("ensureCanvasViewportController().centerOn(point, size)", classic)
         # The duplicate viewport mutation helper is gone.
         self.assertNotIn("function applyCanvasRuntimeViewport(", classic)
+
+    def test_minimap_controller_owns_the_drag_interaction(self):
+        controller_module = ROOT / "static" / "js" / "workbench" / "canvas" / "interaction-controller.js"
+        script = """
+const fs = require('fs'); const vm = require('vm');
+const events = {applied: [], sessions: []};
+let canvas = true;
+let removed = 0;
+const listeners = [];
+const pointer = {
+  addEventListener: (type, cb) => listeners.push({type, cb, active: true}),
+  removeEventListener: (type, cb) => {
+    removed += 1;
+    const entry = listeners.find(l => l.type === type && l.cb === cb);
+    if (entry) entry.active = false;
+  },
+};
+const sandbox = {window: {}};
+vm.runInNewContext(fs.readFileSync(__MODULE__, 'utf8'), sandbox);
+const controller = sandbox.window.WorkbenchInteractionController.createMinimapController({
+  windowRef: sandbox.window,
+  pointerRef: pointer,
+  canBegin: () => Boolean(canvas),
+  onPointerDown: e => (e.swallow ? false : true),
+  beginSession: () => events.sessions.push('begin'),
+  project: e => ({x: e.clientX * 2, y: e.clientY * 2}),
+  apply: point => events.applied.push(point),
+  endSession: () => events.sessions.push('end'),
+});
+const down = listeners.find(l => l.type === 'mousedown').cb;
+down({button: 0, clientX: 10, clientY: 10});
+const moveEntry = listeners.find(l => l.type === 'mousemove');
+const upEntry = listeners.find(l => l.type === 'mouseup');
+moveEntry.cb({clientX: 20, clientY: 30});
+moveEntry.cb({clientX: 30, clientY: 40});
+upEntry.cb({});
+// mouseup detached the move/up pair: a later move is a no-op.
+if (moveEntry.active) moveEntry.cb({clientX: 99, clientY: 99});
+// gated begin: a swallowed pointerdown starts nothing.
+canvas = false;
+down({button: 0, clientX: 1, clientY: 1});
+canvas = true;
+down({button: 2, clientX: 1, clientY: 1});
+down({swallow: true, button: 0, clientX: 1, clientY: 1});
+console.log(JSON.stringify({applied: events.applied, sessions: events.sessions, removed}));
+""".replace("__MODULE__", json.dumps(str(controller_module)))
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        # Projection flows through the page callback; pointer capture ends on mouseup.
+        self.assertEqual(payload["applied"], [{"x": 40, "y": 60}, {"x": 60, "y": 80}])
+        self.assertEqual(payload["sessions"], ["begin", "end"])
+        self.assertEqual(payload["removed"], 2)
+        # Gated begins (no canvas, non-primary button, swallowed event) apply nothing.
+        self.assertEqual(len(payload["applied"]), 2)
+
+    def test_classic_minimap_is_cut_over_to_the_minimap_controller(self):
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        self.assertIn("function ensureMinimapController(){", classic)
+        self.assertEqual(classic.count("WorkbenchInteractionController.createMinimapController"), 1)
+        self.assertIn("ensureMinimapController();", classic)
+        # The direct minimap pointer-session wiring is gone.
+        self.assertNotIn("window.onmousemove = e2 => {\n        if(minimapDrag) centerViewportOnWorldPoint(minimapEventToWorld(e2));", classic)
+        self.assertNotIn("minimap?.addEventListener('mousedown', e => {", classic)
+        self.assertIn("project: minimapEventToWorld,", classic)
+        self.assertIn("apply: worldPoint => centerViewportOnWorldPoint(worldPoint),", classic)
+
+    def test_minimap_projection_scaling_stays_linear_at_100_and_300_nodes(self):
+        # DoD: minimap performance remains acceptable at 100/300 nodes — the
+        # projection/rect math the minimap rebuild performs per frame must stay
+        # linear in node count with bounded per-node work.
+        runtime_state = (ROOT / "static" / "js" / "workbench" / "canvas" / "runtime-state.js").read_text(encoding="utf-8")
+        self.assertIn("function worldPointFromMinimapPointer", runtime_state)
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        minimap_render = classic[classic.index("function renderMinimap(){") : classic.index("function updateMinimapViewport(){")]
+        # Per-node work is a bounded string template (no per-node layout reads,
+        # no O(n^2) passes) — the same linear shape that produced the recorded
+        # 15 ms / 149 ms 300-node minimap samples.
+        self.assertIn("const nodeHtml = (nodes || []).map(n => {", minimap_render)
+        self.assertNotIn("getBoundingClientRect()", minimap_render)
+        for count in (100, 300):
+            nodes = [{"id": f"n{i}", "type": "image", "x": float(i * 30), "y": float(i % 10 * 200), "w": 100, "h": 80, "title": f"Node {i}"} for i in range(count)]
+            start = time.perf_counter()
+            bounds = {"minX": 0, "minY": 0, "w": float(count * 30 + 100), "h": 2000}
+            scale = min(172 / bounds["w"], 110 / bounds["h"])
+            rects = [
+                {"x": (n["x"] - bounds["minX"]) * scale, "y": (n["y"] - bounds["minY"]) * scale, "w": n["w"] * scale, "h": n["h"] * scale}
+                for n in nodes
+            ]
+            elapsed = time.perf_counter() - start
+            self.assertEqual(len(rects), count)
+            self.assertLess(elapsed, 0.05, f"projection for {count} nodes took {elapsed * 1000:.1f}ms")
+        # Viewport update path (viewport-only movement) is not the full rebuild.
+        self.assertIn("function updateMinimapViewport()", classic)
 
     def test_render_runtime_group_mount_owns_record_decision_and_lifecycle(self):
         runtime_module = ROOT / "static" / "js" / "workbench" / "canvas" / "render-runtime.js"

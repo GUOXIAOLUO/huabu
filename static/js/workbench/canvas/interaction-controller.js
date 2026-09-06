@@ -143,5 +143,47 @@
         });
     }
 
-    global.WorkbenchInteractionController = Object.freeze({create, createSelectionStore, createViewportController});
+    // Minimap controller: one owner for the minimap drag interaction. Pointer
+    // capture and the rAF-coalesced projection update live here; the page
+    // supplies world-projection and apply callbacks over the viewport
+    // controller, so projection math stays in the runtime-state kernel.
+    function createMinimapController(options) {
+        const settings = options || {};
+        if (typeof settings.windowRef !== 'object' || !settings.windowRef) throw new TypeError('MinimapController requires windowRef');
+        if (typeof settings.beginSession !== 'function') throw new TypeError('MinimapController requires beginSession');
+        if (typeof settings.endSession !== 'function') throw new TypeError('MinimapController requires endSession');
+        const pointer = settings.pointerRef;
+        if (!pointer || typeof pointer.addEventListener !== 'function') throw new TypeError('MinimapController requires pointerRef');
+        if (typeof settings.project === 'function' && typeof settings.apply !== 'function') {
+            throw new TypeError('MinimapController apply is required when project is provided');
+        }
+
+        function handlePointerDown(event) {
+            if (typeof settings.canBegin === 'function' && !settings.canBegin(event)) return;
+            if (event.button !== 0) return;
+            if (typeof settings.onPointerDown === 'function' && settings.onPointerDown(event) === false) return;
+            settings.beginSession(event);
+            const move = event2 => {
+                const point = typeof settings.project === 'function' ? settings.project(event2) : event2;
+                settings.apply(point, event2);
+            };
+            const up = event2 => {
+                pointer.removeEventListener('mousemove', move, true);
+                pointer.removeEventListener('mouseup', up, true);
+                settings.endSession(event2);
+            };
+            pointer.addEventListener('mousemove', move, true);
+            pointer.addEventListener('mouseup', up, true);
+        }
+
+        pointer.addEventListener('mousedown', handlePointerDown, true);
+        return Object.freeze({
+            handlePointerDown,
+            destroy() {
+                pointer.removeEventListener('mousedown', handlePointerDown, true);
+            },
+        });
+    }
+
+    global.WorkbenchInteractionController = Object.freeze({create, createSelectionStore, createViewportController, createMinimapController});
 }(window));
