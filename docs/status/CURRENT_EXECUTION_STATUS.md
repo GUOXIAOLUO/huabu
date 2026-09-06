@@ -668,6 +668,25 @@ database. Note: coordinate-level cua dragging over a MediaRenderer card is
 correctly absorbed by the renderer's native-media interaction isolation; the
 scripted-event chain exercises the migrated controller wiring directly.
 
+R4 selection ownership cutover (card R4-15, 2026-09-06T22:55+08:00): the
+InteractionController module gained `createSelectionStore` — a Set-compatible
+selection authority (string-coerced ids, add/delete/clear/replace/has/size/
+iteration, change events). The Classic page's `selected` state is now a store
+instance: all single, multi, and box-selection mutations flow through it, the
+five direct `selected = new Set(...)` reassignments became store calls
+(`replace`/`clear`), and no page-local selection Set remains. The runtime
+mirror (snapshot.selectedIds published at canvas swaps) is unchanged, and the
+box-selection finish contract was updated to the authority call. Selection
+behavior on old Classic/Smart records is covered by the existing versioned
+selection, box-selection, and render tests, all passing. Smart's
+dual-variable (selectedId/selectedIds) selection model is deferred — 88
+assignment sites make it a dedicated unit. Behavioral test pins store
+semantics (coercion, dedup, change events including a no-op dedup skip,
+replace, clear); wiring contracts pin the store declaration, the absence of
+direct Set reassignments, the runtime-mirror replace, and module load order.
+Focused regression: PASS (2 new tests; one box-selection contract assertion
+updated to the authority call); full regression: PASS at 345 tests.
+
 ## Unified Canvas verified ledger
 
 | Stage | Status | Evidence summary |
@@ -845,13 +864,18 @@ Result: PASS after R4-14 InteractionController — 343 tests in 3.6 seconds,
 Python 3.14.7 (2026-09-06). The +2 tests are the pointer-session lifecycle
 behavioral test and the Classic drag/resize wiring contract.
 
-Agent regression gate (cards R4-01…R4-14):
+Result: PASS after R4-15 selection ownership cutover — 345 tests in 4.0
+seconds, Python 3.14.7 (2026-09-06). The +2 tests are the selection store
+behavioral test and the Classic authority wiring contract; one box-selection
+contract assertion moved to the authority call.
+
+Agent regression gate (cards R4-01…R4-15):
 
 ```text
 ./scripts/agent-verify.sh
 ```
 
-Result: PASS — AGENT VERIFY: PASS (343 unit tests, Python AST parse of 73 files,
+Result: PASS — AGENT VERIFY: PASS (345 unit tests, Python AST parse of 73 files,
 `node --check` of 67 JavaScript files, 4 architecture-guard tests,
 `git diff --check`; Node v24.20.0). The gate script was fixed during R4-01 to
 prefer `.venv/bin/python` over PATH `python3`, which lacks project dependencies

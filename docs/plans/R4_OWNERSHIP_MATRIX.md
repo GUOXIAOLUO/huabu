@@ -29,7 +29,7 @@ REMOVE       = 可删除/待删除
 | pan | page DOM/save shell; shared viewport pan session on default path | page DOM/save shell; shared viewport pan session on default path | CanvasRuntime command plus shared pan session | PARTIAL | Unified | Migrate remaining DOM/persistence lifecycle. | `runtime-state.js`; pan-session contract |
 | zoom | page preview/minimap shell; shared wheel-scale, centering and default preview-exit commits | page preview/minimap shell; shared wheel-scale, centering and default preview-exit commits | CanvasRuntime command plus shared viewport policy | PARTIAL | Unified | Migrate remaining DOM/minimap/persistence lifecycle. | `runtime-state.js`; viewport interaction contracts |
 | semantic zoom | adapter enablement/iteration; shared DOM application on default path | adapter enablement/iteration; shared DOM application on default path | shared policy plus `WorkbenchSemanticZoomApply` indicator/presentation apply+reset owner | PARTIAL | Unified | Move remaining enablement/call timing with renderer ownership. | `semantic-zoom.js`; `semantic-zoom-apply.js` |
-| selection | page state machine, except NodeShell and box-selection completion | page state machine, except NodeShell/box completion, media-thumbnail, upload-target and group-menu selection | runtime command primitive plus migrated completion transitions | PARTIAL | Unified | Migrate remaining selection lifecycle. | `runtime-state.js`; NodeShell/box/media-thumbnail/upload-target/group-menu contracts |
+| selection | Classic `selected` state is the InteractionController selection store (R4-15); box/single/multi flow through it | page state machine, except NodeShell/box completion, media-thumbnail, upload-target and group-menu selection | runtime command primitive plus migrated completion transitions | PARTIAL | Unified | Migrate Smart's dual-variable selection onto the store. | `interaction-controller.js`; NodeShell/box/media-thumbnail/upload-target/group-menu contracts |
 | multi-selection | page state machine | page state machine | runtime command primitive | PARTIAL | Unified | Migrate selection lifecycle. | same |
 | drag | adapter collection/product semantics; pointer-session wiring via InteractionController (R4-14, Classic); shared drag session on default path | adapter collection/product semantics; shared drag session on default path | NodeShell intent plus `createNodeDragSession` position projection | PARTIAL | Unified | Migrate Smart dispatcher and remaining drag commit/DOM lifecycle. | `runtime-state.js`; `interaction-controller.js`; drag-session contract |
 | resize | adapter clamps/product branches; shared resize proposal on default path | adapter clamps/product branches; shared resize proposal on default path | NodeShell intent plus `createNodeResizeSession` size proposal | PARTIAL | Unified | Migrate remaining resize commit/size-mutation lifecycle. | `runtime-state.js`; NodeShell intent adapters; resize-session contract |
@@ -434,6 +434,23 @@ dispatch, mouseup end, guarded no-ops after end, supersede-on-begin,
 programmatic end, validation); a wiring contract pins load order, both session
 kinds, the singleton, and the removed direct assignments. Focused regression:
 PASS (2 new tests); full regression: PASS (343 tests).
+
+2026-09-06 selection ownership cutover (R4-15): the InteractionController
+module gained `createSelectionStore` — a Set-compatible selection authority
+(string-coerced ids, add/delete/clear/replace/has/size/iteration, change
+events). The Classic page's `selected` state is now a store instance: all
+single, multi, and box-selection mutations flow through it, the five direct
+`selected = new Set(...)` reassignments became store calls
+(`replace`/`clear`), and no page-local selection Set remains. The runtime
+mirror (snapshot.selectedIds published at canvas swaps) is unchanged, and the
+box-selection finish contract was updated to the authority call. Smart's
+dual-variable (selectedId/selectedIds) selection model is deferred — 88
+assignment sites make it a dedicated unit. Behavioral test pins store
+semantics (coercion, dedup, change events incl. a no-op dedup skip, replace,
+clear); wiring contracts pin the store declaration, the absence of direct
+Set reassignments, the runtime-mirror replace, and module load order.
+Focused regression: PASS (2 new tests; one box-selection contract assertion
+updated to the authority call); full regression: PASS (345 tests).
 ```
 
 ## Rendering ownership map (R4-08 characterization, 2026-09-06)
@@ -545,6 +562,14 @@ onEnd (handlers remain as guarded no-ops), `end()` unwires explicitly, and
 `activeKind()` reports state. The Classic node-drag and node-resize sessions
 are the first migrated responsibility; Smart's multi-concern global dispatcher
 is deliberately deferred to a later unit.
+
+Extended by R4-15 (2026-09-06, selection authority): `createSelectionStore` on
+the same module is a Set-compatible selection authority with change events;
+the Classic page's `selected` state is now a store instance — all single,
+multi, and box-selection mutations flow through it, the five direct
+`selected = new Set(...)` reassignments are gone, and the runtime mirror
+(snapshot.selectedIds publish at canvas swaps) is unchanged. Smart's
+dual-variable (selectedId/selectedIds) model is deferred.
 
 Extended by R4-12 (2026-09-06, generic Prompt cutover): the Classic prompt
 family moved from adopted pre-rendered DOM to registry-owned rendering —

@@ -5,16 +5,24 @@
 
 ## Active Task
 
-- Task ID: `R4-15`
+- Task ID: `R4-16`
 - Round: `R4`
 - Priority: `P1`
 - Status: `READY`
-- Task Card: `docs/tasks/backlog/R4-15-selection-cutover.md`
+- Task Card: `docs/tasks/backlog/R4-16-viewport-cutover.md`
 
 ## Completed Tasks
 
+- `R4-15` — `DONE` 2026-09-06T22:55+08:00. Card:
+  `docs/tasks/active/R4-15-selection-cutover.md`. Evidence:
+  `createSelectionStore` selection authority on the interaction-controller
+  module; Classic selection fully cut over (five direct reassignments and all
+  mutations through the store); Smart dual-variable model deferred as a
+  dedicated unit; behavioral + wiring contract tests; regression 345 tests
+  PASS.
+
 - `R4-14` — `DONE` 2026-09-06T22:23+08:00. Card:
-  `docs/tasks/active/R4-14-interaction-controller.md`. Evidence:
+  `docs/tasks/done/R4-14-interaction-controller.md`. Independent review: PASS (browser drag/resize smoke recorded). Evidence:
   `WorkbenchInteractionController` owns the pointer-session lifecycle
   (begin/move dispatch/mouseup end/programmatic end with supersede-on-begin
   semantics); Classic node-drag and node-resize sessions migrated, direct
