@@ -6420,6 +6420,13 @@ const CANVAS_NODE_SHELL_LEGACY_CONTROLS = Object.freeze({
     selectors:Object.freeze([':scope > .port, :scope > .resize-handle']),
 });
 let renderRuntime = null;
+let interactionController = null;
+function ensureInteractionController(){
+    if(!interactionController){
+        interactionController = window.WorkbenchInteractionController.create({windowRef: window});
+    }
+    return interactionController;
+}
 function ensureRenderRuntime(){
     if(!renderRuntime){
         renderRuntime = window.WorkbenchRenderRuntime.create({
@@ -15763,8 +15770,7 @@ function startNodeDrag(e, node){
         : null;
     dragNode = {node: dragTarget, children, sx:e.clientX, sy:e.clientY, ox:dragTarget.x, oy:dragTarget.y, isLocalCopy:Boolean(e.altKey), dragSession};
     document.body.classList.add('canvas-node-drag');
-    window.onmousemove = onNodeDrag;
-    window.onmouseup = endDrag;
+    ensureInteractionController().begin({kind:'node-drag', onMove:onNodeDrag, onEnd:endDrag});
 }
 function onNodeDrag(e){
     if(!dragNode) return;
@@ -15810,8 +15816,7 @@ function startNodeResize(e, node){
         : null;
     resizeNode = {node, sx:e.clientX, sy:e.clientY, sw, sh, resizeSession};
     document.body.classList.add('canvas-node-resize');
-    window.onmousemove = onNodeResize;
-    window.onmouseup = endDrag;
+    ensureInteractionController().begin({kind:'node-resize', onMove:onNodeResize, onEnd:endDrag});
 }
 function onNodeResize(e){
     if(!resizeNode) return;

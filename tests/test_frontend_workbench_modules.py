@@ -1407,6 +1407,72 @@ console.log(JSON.stringify({
         self.assertIn("toDelete.forEach(id => renderRuntime?.unmount(id));", bulk_flow)
         self.assertNotIn("destroyLTXEditor(", bulk_flow[:bulk_flow.index("renderRuntime?.unmount") + 40])
 
+    def test_interaction_controller_owns_the_pointer_session_lifecycle(self):
+        controller_module = ROOT / "static" / "js" / "workbench" / "canvas" / "interaction-controller.js"
+        script = """
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {window: {}};
+vm.runInNewContext(fs.readFileSync(__MODULE__, 'utf8'), sandbox);
+const controller = sandbox.window.WorkbenchInteractionController.create({windowRef: sandbox.window});
+const events = {movesA: [], movesB: [], ends: []};
+const assigned = [];
+const handler = () => assigned;
+// begin wires the window move/up slot and dispatches to the active session
+controller.begin({kind: 'node-drag', onMove: e => events.movesA.push(e.dx), onEnd: e => events.ends.push('A:' + e.kind)});
+const assignedAfterBegin = typeof sandbox.window.onmousemove;
+sandbox.window.onmousemove({dx: 3});
+// mouseup ends the session and invokes onEnd; further moves are guarded no-ops
+sandbox.window.onmouseup({kind: 'mouseup'});
+sandbox.window.onmousemove({dx: 99});
+// supersede-on-begin: a second session replaces the slot without ending the first
+controller.begin({kind: 'node-resize', onMove: e => events.movesB.push(e.dx), onEnd: e => events.ends.push('B')});
+sandbox.window.onmousemove({dx: 7});
+// programmatic end unwires the slot
+const ended = controller.end();
+console.log(JSON.stringify({
+  assignedAfterBegin,
+  movesA: events.movesA,
+  ends: events.ends,
+  movesB: events.movesB,
+  ended,
+  endedAgain: controller.end(),
+  activeDuringSession: 'node-drag',
+  kindAfterEnd: controller.activeKind(),
+  clearedSlot: sandbox.window.onmousemove,
+}));
+let invalid = 'no-throw';
+try { controller.begin({kind: 'x'}); } catch (error) { invalid = 'throws'; }
+console.log(JSON.stringify({invalid}));
+""".replace("__MODULE__", json.dumps(str(controller_module)))
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout.splitlines()[0])
+        self.assertEqual(payload["assignedAfterBegin"], "function")
+        self.assertEqual(payload["movesA"], [3])
+        # mouseup ends the active session; later moves dispatch nothing.
+        self.assertEqual(payload["ends"], ["A:mouseup"])
+        self.assertEqual(payload["movesB"], [7])
+        self.assertTrue(payload["ended"])
+        self.assertFalse(payload["endedAgain"])
+        self.assertEqual(payload["kindAfterEnd"], None)
+        self.assertIsNone(payload["clearedSlot"])
+        self.assertEqual(json.loads(result.stdout.splitlines()[1])["invalid"], "throws")
+
+    def test_classic_node_drag_and_resize_sessions_are_cut_over_to_the_controller(self):
+        controller_page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
+        self.assertLess(controller_page.index("workbench/canvas/render-runtime.js"), controller_page.index("workbench/canvas/interaction-controller.js"))
+        self.assertLess(controller_page.index("workbench/canvas/interaction-controller.js"), controller_page.index("js/canvas.js"))
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        drag_flow = classic[classic.index("function startNodeDrag(") : classic.index("function onNodeDrag(")]
+        resize_flow = classic[classic.index("function startNodeResize(") : classic.index("function onNodeResize(")]
+        self.assertIn("ensureInteractionController().begin({kind:'node-drag', onMove:onNodeDrag, onEnd:endDrag})", drag_flow)
+        self.assertIn("ensureInteractionController().begin({kind:'node-resize', onMove:onNodeResize, onEnd:endDrag})", resize_flow)
+        self.assertNotIn("window.onmousemove = onNodeDrag", drag_flow)
+        self.assertNotIn("window.onmouseup = endDrag", drag_flow)
+        self.assertNotIn("window.onmousemove = onNodeResize", resize_flow)
+        # The controller singleton is the single wiring owner for these sessions.
+        self.assertEqual(classic.count("WorkbenchInteractionController.create"), 1)
+        self.assertEqual(classic.count("ensureInteractionController().begin("), 2)
+
     def test_render_runtime_group_mount_owns_record_decision_and_lifecycle(self):
         runtime_module = ROOT / "static" / "js" / "workbench" / "canvas" / "render-runtime.js"
         script = """
