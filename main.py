@@ -202,12 +202,13 @@ class ConnectionManager:
                 print(f"Broadcast image error: {e}")
                 self.active_connections.remove(connection)
 
-    async def broadcast_canvas_updated(self, canvas_id: str, updated_at: int, client_id: str = ""):
+    async def broadcast_canvas_updated(self, canvas_id: str, updated_at: int, client_id: str = "", revision: int = 0):
         data = json.dumps({
             "type": "canvas_updated",
             "canvas_id": canvas_id,
             "updated_at": updated_at,
             "client_id": client_id or "",
+            "revision": int(revision or 0),
         })
         for connection in self.active_connections[:]:
             try:
@@ -2662,6 +2663,15 @@ def canvas_path(canvas_id):
     if not cleaned:
         raise HTTPException(status_code=400, detail="无效的画布 ID")
     return os.path.join(CANVAS_DIR, f"{cleaned}.json")
+
+async def broadcast_canonical_canvas_update(message: dict):
+    """Relay canonical-transport save notifications onto the WebSocket manager."""
+    await manager.broadcast_canvas_updated(
+        message.get("canvas_id") or "",
+        int(message.get("updated_at") or 0),
+        message.get("client_id") or "",
+        int(message.get("revision") or 0),
+    )
 
 def canvas_authority_decision():
     """One shared routing decision from the explicit R4 authority policy."""
@@ -18407,6 +18417,7 @@ if WORKBENCH_NODE_API_ENABLED:
     app.include_router(create_canonical_canvases_router(
         canonical_repository_factory=canonical_project_canvas_repository,
         authority_decision_factory=canvas_authority_decision,
+        canvas_updated_broadcast=broadcast_canonical_canvas_update,
     ))
     app.include_router(create_canvas_nodes_router(
         service_for_actor=local_node_creation_service,

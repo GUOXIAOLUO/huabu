@@ -45,8 +45,8 @@
             ok: response.ok,
             status: response.status,
             canvas: detail.canvas || payload.canvas || null,
-            updatedAt: Number(detail.updated_at || payload.updated_at || detail.canvas?.updated_at || payload.canvas?.updated_at || 0),
-            revision: Number(detail.current_revision || payload.revision || 0),
+            updatedAt: Number(detail.updated_at || payload.updated_at || detail.canvas?.updated_at || payload.canvas?.updated_at || 0) || 0,
+            revision: Number(detail.current_revision || payload.revision || 0) || 0,
             payload,
         };
     }
@@ -78,7 +78,7 @@
             const canonical = await requestPath(canonicalPath(canvasId), {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({payload: canonicalPayload(record), expected_revision: expected}),
+                body: JSON.stringify({payload: canonicalPayload(record), expected_revision: expected, client_id: String(record?.client_id || '')}),
             });
             if (canonical.status !== 503) {
                 rememberRevision(canvasId, canonical.revision);
@@ -94,8 +94,12 @@
 
     global.WorkbenchCanvasPersistence = Object.freeze({
         load,
-        metadata: canvasId => requestPath(`${canvasPath(canvasId)}/meta`, {method: 'GET'}),
+        metadata: canvasId => requestPath(`${canonicalPath(canvasId)}/meta`, {method: 'GET'})
+            .then(canonical => canonical.status === 503
+                ? requestPath(`${canvasPath(canvasId)}/meta`, {method: 'GET'})
+                : canonical),
         save,
         adoptRevision,
+        revisionOf: canvasId => Number(revisionCursors.get(String(canvasId)) || 0),
     });
 }(window));

@@ -39,9 +39,14 @@ class EventContractTests(unittest.IsolatedAsyncioTestCase):
                 "canvas_id": "canvas-1",
                 "updated_at": 123,
                 "client_id": "client-1",
+                "revision": 0,
             },
         )
         self.assertEqual(manager.active_connections, [receiver])
+
+        revision_broadcasts = []
+        await manager.broadcast_canvas_updated("canvas-1", 124, "client-1", revision=7)
+        self.assertEqual(json.loads(receiver.messages[1])["revision"], 7)
 
     async def test_chat_sse_emits_meta_delta_and_done_without_provider_network(self):
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -756,7 +756,7 @@ vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
         self.assertEqual(payload["requests"][1]["options"]["method"], "PUT")
         self.assertEqual(payload["requests"][1]["path"], "/api/canvases/canvas%2F1")
         self.assertEqual(json.loads(payload["requests"][1]["options"]["body"]), {"title": "Shared"})
-        self.assertEqual(payload["requests"][2]["path"], "/api/canvases/canvas%2F1/meta")
+        self.assertEqual(payload["requests"][2]["path"], "/api/v1/canvases/canvas%2F1/meta")
 
         for page, editor in (("canvas.html", "canvas.js"), ("smart-canvas.html", "smart-canvas.js")):
             text = (ROOT / "static" / page).read_text(encoding="utf-8")
@@ -817,7 +817,7 @@ const persistence = sandbox.window.WorkbenchCanvasPersistence;
         # load -> save -> conflict -> recovery, with transport fields stripped.
         self.assertEqual(payload["requests"][0]["path"], "/api/v1/canvases/c1")
         self.assertEqual(payload["requests"][1]["path"], "/api/v1/canvases/c1")
-        self.assertEqual(json.loads(payload["requests"][1]["options"]["body"]), {"payload": {"title": "A"}, "expected_revision": 5})
+        self.assertEqual(json.loads(payload["requests"][1]["options"]["body"]), {"payload": {"title": "A"}, "expected_revision": 5, "client_id": "editor-1"})
         self.assertEqual(json.loads(payload["requests"][2]["options"]["body"])["expected_revision"], 6)
         self.assertEqual(json.loads(payload["requests"][3]["options"]["body"])["expected_revision"], 9)
         # 503 falls back to the legacy transport with the full record body intact.
@@ -882,6 +882,118 @@ vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
         payload = json.loads(result.stdout)
         self.assertEqual(payload["loaded"]["canvas"]["id"], "c4")
         self.assertEqual([request["path"] for request in payload["requests"]], ["/api/v1/canvases/c4", "/api/canvases/c4"])
+
+    def test_persistence_client_metadata_peeks_canonical_first_without_moving_the_save_cursor(self):
+        client = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-persistence-client.js"
+        script = f"""
+const fs = require('fs');
+const vm = require('vm');
+const requests = [];
+const responses = [
+  {{ok:true, status:200, json: async () => ({{canvas_id:'c1', revision:7, updated_at:'2026-09-06T00:00:00Z', deleted:false}})}},
+  {{ok:false, status:503, json: async () => ({{detail:{{}}}})}},
+  {{ok:true, status:200, json: async () => ({{updated_at:4000}})}},
+];
+const sandbox = {{window: {{}}, fetch: async (path, options={{}}) => {{
+  requests.push({{path, options}});
+  return responses.shift();
+}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
+const persistence = sandbox.window.WorkbenchCanvasPersistence;
+(async () => {{
+  const canonicalMeta = await persistence.metadata('c1');
+  const before = persistence.revisionOf('c1');
+  const legacyMeta = await persistence.metadata('c1');
+  console.log(JSON.stringify({{canonicalMeta, before, legacyMeta, requests}}));
+}})();
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["canonicalMeta"]["revision"], 7)
+        # A version peek never moves the save cursor: local content was not adopted.
+        self.assertEqual(payload["before"], 0)
+        self.assertEqual(payload["legacyMeta"]["updatedAt"], 4000)
+        self.assertEqual(payload["legacyMeta"]["revision"], 0)
+        self.assertEqual([request["path"] for request in payload["requests"]],
+                         ["/api/v1/canvases/c1/meta", "/api/v1/canvases/c1/meta", "/api/canvases/c1/meta"])
+
+    def test_remote_sync_orders_remote_versions_by_revision_with_timestamp_fallback(self):
+        remote_sync = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-remote-sync.js"
+        script = f"""
+const fs = require('fs');
+const vm = require('vm');
+const probes = [];
+let onNewerCalls = 0;
+const sandbox = {{
+  window: {{
+    WorkbenchCanvasPersistence: {{
+      metadata: async canvasId => probes.shift(),
+    }},
+  }},
+}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(remote_sync))}, 'utf8'), sandbox);
+const sync = sandbox.window.WorkbenchCanvasRemoteSync.create({{
+  canvasId: () => 'c1',
+  currentUpdatedAt: () => 4000,
+  currentRevision: () => 6,
+  onNewer: async () => {{ onNewerCalls += 1; }},
+}});
+(async () => {{
+  // Remote revision ahead of the local cursor: applies.
+  probes.push({{ok:true, status:200, revision:9, updatedAt:0, payload:{{}}}});
+  const newer = await sync.check();
+  // Same revision as local: deterministic no-op, never regresses.
+  probes.push({{ok:true, status:200, revision:6, updatedAt:0, payload:{{}}}});
+  const sameRevision = await sync.check();
+  // Older revision than local: no-op.
+  probes.push({{ok:true, status:200, revision:2, updatedAt:99999, payload:{{}}}});
+  const olderRevision = await sync.check();
+  // Revision-less probe (legacy): falls back to timestamp ordering.
+  probes.push({{ok:true, status:200, revision:0, updatedAt:5000, payload:{{}}}});
+  const legacyNewer = await sync.check();
+  probes.push({{ok:true, status:200, revision:0, updatedAt:3000, payload:{{}}}});
+  const legacyOlder = await sync.check();
+  console.log(JSON.stringify({{newer, sameRevision, olderRevision, legacyNewer, legacyOlder, onNewerCalls}}));
+}})();
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["newer"])
+        self.assertFalse(payload["sameRevision"])
+        self.assertFalse(payload["olderRevision"])
+        self.assertTrue(payload["legacyNewer"])
+        self.assertFalse(payload["legacyOlder"])
+        self.assertEqual(payload["onNewerCalls"], 2)
+
+    def test_canvas_update_message_orders_notifications_by_revision(self):
+        update_message = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-update-message.js"
+        script = f"""
+const fs = require('fs');
+const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(update_message))}, 'utf8'), sandbox);
+const newerForCanvas = sandbox.window.WorkbenchCanvasUpdateMessage.newerForCanvas;
+const base = {{type:'canvas_updated', canvas_id:'c1', client_id:'other'}};
+const options = {{canvasId:'c1', clientId:'self', currentUpdatedAt:4000, currentRevision:6}};
+(async () => {{
+  console.log(JSON.stringify({{
+    newerRevision: newerForCanvas({{...base, updated_at:999, revision:8}}, options),
+    sameRevision: newerForCanvas({{...base, updated_at:999, revision:6}}, options),
+    olderRevision: newerForCanvas({{...base, updated_at:999, revision:2}}, options),
+    revisionlessNewer: newerForCanvas({{...base, updated_at:5000}}, options),
+    revisionlessStale: newerForCanvas({{...base, updated_at:3000}}, options),
+    ownClientId: newerForCanvas({{...base, client_id:'self', revision:9}}, options),
+  }}));
+}})();
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["newerRevision"]["revision"], 8)
+        self.assertIsNone(payload["sameRevision"])
+        self.assertIsNone(payload["olderRevision"])
+        self.assertEqual(payload["revisionlessNewer"]["updatedAt"], 5000)
+        self.assertIsNone(payload["revisionlessStale"])
+        self.assertIsNone(payload["ownClientId"])
 
     def test_versioned_writes_adopt_revisions_through_one_shared_owner(self):
         client = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-persistence-client.js"

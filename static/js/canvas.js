@@ -2207,12 +2207,16 @@ async function refreshMissingCanvasAssets(){
 async function syncRemoteCanvasNow(){
     if(!canvas) return;
     try {
+        const meta = await window.WorkbenchCanvasPersistence.metadata(canvas.id);
+        if(!meta.ok) return;
+        const remoteRevision = Number(meta.revision || 0);
+        const newer = remoteRevision > 0
+            ? remoteRevision > Number(window.WorkbenchCanvasPersistence.revisionOf(canvas.id) || 0)
+            : Number(meta.updatedAt || 0) >= Number(lastCanvasUpdatedAt || 0);
+        if(!newer) return;
         const data = await window.WorkbenchCanvasPersistence.load(canvas.id);
-        if(!data.ok) throw new Error(tr('canvas.openFailed'));
-        const remote = data.canvas;
-        if(Number(remote?.updated_at || 0) >= Number(lastCanvasUpdatedAt || 0)){
-            applyRemoteCanvasData(remote);
-        }
+        if(!data.ok) return;
+        applyRemoteCanvasData(data.canvas);
     } catch(e) {
         console.error(e);
         setStatus('Sync failed');
@@ -2226,6 +2230,7 @@ function ensureCanvasRemoteSync(){
         canvasRemoteSync = window.WorkbenchCanvasRemoteSync.create({
             canvasId:() => canvas?.id,
             currentUpdatedAt:() => lastCanvasUpdatedAt,
+            currentRevision:() => window.WorkbenchCanvasPersistence.revisionOf(canvas?.id),
             isEligible:() => Boolean(canvas && !applyingRemoteCanvas && !document.hidden),
             onNewer:() => syncRemoteCanvasNow(),
             intervalMs:2500,

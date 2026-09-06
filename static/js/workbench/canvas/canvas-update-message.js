@@ -14,6 +14,13 @@
         if (String(message.canvas_id || '') !== canvasId) return null;
         if (message.client_id && String(message.client_id) === String(settings.clientId || '')) return null;
         const updatedAt = normalizedTimestamp(message.updated_at);
+        // Revision ordering first; timestamps remain the bounded fallback for
+        // transports that do not carry a logical revision.
+        const revision = normalizedTimestamp(message.revision);
+        if (revision) {
+            if (revision <= normalizedTimestamp(settings.currentRevision)) return null;
+            return Object.freeze({canvasId, clientId: String(message.client_id || ''), updatedAt, revision});
+        }
         if (updatedAt && updatedAt <= normalizedTimestamp(settings.currentUpdatedAt)) return null;
         return Object.freeze({canvasId, clientId: String(message.client_id || ''), updatedAt});
     }

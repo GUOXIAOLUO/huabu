@@ -6092,6 +6092,7 @@ async function mergeReloadCanvasNow(){
 function handleCanvasUpdatedMessage(data={}){
     const update = window.WorkbenchCanvasUpdateMessage.newerForCanvas(data, {
         canvasId, clientId:smartClientId, currentUpdatedAt:canvas?.updated_at,
+        currentRevision:() => window.WorkbenchCanvasPersistence.revisionOf(canvasId),
     });
     if(!update) return;
     if(saveScheduler.isInFlight()) return; // 我正在保存，保存完成/409 合并会处理
@@ -6103,6 +6104,7 @@ function startCanvasMetaPoll(){
         smartRemoteSync = window.WorkbenchCanvasRemoteSync.create({
             canvasId:() => canvasId,
             currentUpdatedAt:() => canvas?.updated_at,
+            currentRevision:() => window.WorkbenchCanvasPersistence.revisionOf(canvasId),
             isEligible:() => Boolean(canvas && !saveScheduler.isInFlight() && !dragState && !selectionState),
             onNewer:() => mergeReloadCanvasNow(),
             intervalMs:8000,

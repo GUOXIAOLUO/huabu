@@ -30,6 +30,7 @@ class CanonicalCanvasPutPayload(BaseModel):
 
     payload: dict[str, Any]
     expected_revision: int = Field(ge=1)
+    client_id: str = Field(default="", max_length=255)
 
 
 class _RepositoryFactory(Protocol):
@@ -52,6 +53,7 @@ def create_canonical_canvases_router(
     *,
     canonical_repository_factory: _RepositoryFactory,
     authority_decision_factory: Callable[[], Any],
+    canvas_updated_broadcast: Callable[[dict[str, Any]], Any] | None = None,
 ) -> APIRouter:
     """Compose the canonical transport; dependencies are injected for testability."""
     router = APIRouter(prefix="/api/v1/canvases", tags=["canvas"])
@@ -65,6 +67,17 @@ def create_canonical_canvases_router(
             "updated_at": record.updated_at.isoformat() if record.updated_at else None,
             "deleted": record.deleted_at is not None,
         }
+
+    @router.get("/{canvas_id}/meta")
+    async def get_canonical_canvas_meta(canvas_id: str):
+        _require_canonical_authority(authority_decision_factory())
+        repository = canonical_repository_factory()
+        try:
+            record = repository.load_canvas_record(canvas_id)
+        except CanonicalNotFoundError:
+            raise HTTPException(status_code=404, detail={"error": "canvas_not_found", "canvas_id": canvas_id})
+        # Lightweight version probe for remote sync: revision ordering, no payload.
+        return _serialize(record)
 
     @router.get("/{canvas_id}")
     async def get_canonical_canvas(canvas_id: str):
@@ -119,6 +132,14 @@ def create_canonical_canvases_router(
             )
         except CanonicalRepositoryError as error:
             raise HTTPException(status_code=422, detail={"error": "canonical_canvas_error", "message": str(error)})
+        if canvas_updated_broadcast is not None:
+            await canvas_updated_broadcast({
+                "type": "canvas_updated",
+                "canvas_id": canvas_id,
+                "updated_at": int(payload.get("updated_at") or 0),
+                "revision": record.revision,
+                "client_id": body.client_id,
+            })
         return {"canvas": payload, **_serialize(record)}
 
     return router

@@ -138,6 +138,45 @@ class CanonicalCanvasApiTests(unittest.TestCase):
             self._get_canvas("missing-canvas")
         self.assertEqual(caught.exception.status_code, 404)
 
+    def test_meta_returns_revision_without_payload(self):
+        self._activate_sqlite_authority()
+        from fastapi.testclient import TestClient
+        client = TestClient(main.app)
+        meta = client.get("/api/v1/canvases/canvas-1/meta")
+        self.assertEqual(meta.status_code, 200)
+        body = meta.json()
+        self.assertEqual(body["canvas_id"], "canvas-1")
+        self.assertEqual(body["revision"], 1)
+        self.assertFalse(body["deleted"])
+        self.assertNotIn("canvas", body)
+        self.assertEqual(client.get("/api/v1/canvases/missing/meta").status_code, 404)
+
+    def test_canonical_meta_requires_sqlite_authority(self):
+        main.canonical_project_canvas_repository()  # authority stays legacy_json
+        from fastapi.testclient import TestClient
+        client = TestClient(main.app)
+        self.assertEqual(client.get("/api/v1/canvases/canvas-1/meta").status_code, 503)
+
+    def test_put_broadcasts_canvas_updated_with_revision_and_client_id(self):
+        self._activate_sqlite_authority()
+        from fastapi.testclient import TestClient
+        broadcasts = []
+
+        async def recording(canvas_id, updated_at, client_id="", revision=0):
+            broadcasts.append({"canvas_id": canvas_id, "updated_at": updated_at, "client_id": client_id, "revision": revision})
+
+        with patch.object(main.manager, "broadcast_canvas_updated", recording):
+            client = TestClient(main.app)
+            saved = client.put(
+                "/api/v1/canvases/canvas-1",
+                json={"payload": _legacy_payload("canvas-1", "Broadcast"), "expected_revision": 1, "client_id": "window-b"},
+            )
+        self.assertEqual(saved.status_code, 200)
+        self.assertEqual(len(broadcasts), 1)
+        self.assertEqual(broadcasts[0]["canvas_id"], "canvas-1")
+        self.assertEqual(broadcasts[0]["revision"], 2)
+        self.assertEqual(broadcasts[0]["client_id"], "window-b")
+
     def test_legacy_transport_keeps_its_characterized_shape_without_revision(self):
         self._activate_sqlite_authority()
         legacy_get = asyncio.run(self._endpoint("/api/canvases/{canvas_id}", "GET")(canvas_id="canvas-1"))
