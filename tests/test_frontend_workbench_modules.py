@@ -1648,6 +1648,53 @@ console.log(JSON.stringify({applied: events.applied, sessions: events.sessions, 
         self.assertIn("project: minimapEventToWorld,", classic)
         self.assertIn("apply: worldPoint => centerViewportOnWorldPoint(worldPoint),", classic)
 
+    def test_node_session_factories_delegate_to_the_kernel_and_validate_it(self):
+        controller_module = ROOT / "static" / "js" / "workbench" / "canvas" / "interaction-controller.js"
+        script = """
+const fs = require('fs'); const vm = require('vm');
+const dragCalls = [];
+const resizeCalls = [];
+const fakeKernel = {
+  createNodeDragSession: options => { dragCalls.push(options); return {members: [], move: () => ({})}; },
+  createNodeResizeSession: options => { resizeCalls.push(options); return {move: () => ({})}; },
+};
+const sandbox = {window: {}};
+vm.runInNewContext(fs.readFileSync(__MODULE__, 'utf8'), sandbox);
+const dragFactory = sandbox.window.WorkbenchInteractionController.createNodeDragSessionFactory({runtime: fakeKernel});
+const resizeFactory = sandbox.window.WorkbenchInteractionController.createNodeResizeSessionFactory({runtime: fakeKernel});
+const drag = dragFactory({start: {x: 1, y: 2}, scale: 2, members: [{id: 'a', ox: 0, oy: 0}]});
+const resize = resizeFactory({start: {x: 3, y: 4}, scale: 1, startWidth: 100, startHeight: 50});
+let noKernel = 'no-throw';
+try { sandbox.window.WorkbenchInteractionController.createNodeDragSessionFactory({runtime: null}); } catch (error) {
+  noKernel = String(error.message || '').includes('requires the Canvas runtime kernel') ? 'throws' : 'other';
+}
+console.log(JSON.stringify({dragCalls, resizeCalls, dragMembers: drag.members.length, resizeReady: typeof resize.move, noKernel}));
+""".replace("__MODULE__", json.dumps(str(controller_module)))
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        # Factories delegate options verbatim to the kernel and return its session.
+        self.assertEqual(payload["dragCalls"], [{"start": {"x": 1, "y": 2}, "scale": 2, "members": [{"id": "a", "ox": 0, "oy": 0}]}])
+        self.assertEqual(payload["resizeCalls"], [{"start": {"x": 3, "y": 4}, "scale": 1, "startWidth": 100, "startHeight": 50}])
+        self.assertEqual(payload["dragMembers"], 0)
+        self.assertEqual(payload["resizeReady"], "function")
+        self.assertEqual(payload["noKernel"], "throws")
+
+    def test_node_drag_and_resize_session_creation_is_cut_over_on_both_adapters(self):
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
+        for adapter, drag_factory, resize_factory in (
+            (classic, "ensureNodeDragSessionFactory()", "ensureNodeResizeSessionFactory()"),
+            (smart, "ensureSmartNodeDragSessionFactory()", "ensureSmartNodeResizeSessionFactory()"),
+        ):
+            self.assertEqual(adapter.count("WorkbenchInteractionController.createNodeDragSessionFactory"), 1)
+            self.assertEqual(adapter.count("WorkbenchInteractionController.createNodeResizeSessionFactory"), 1)
+            self.assertIn(f"{drag_factory}({{", adapter)
+            self.assertIn(f"{resize_factory}({{", adapter)
+        # No page wires kernel session creation directly anymore.
+        for adapter in (classic, smart):
+            self.assertNotIn("WorkbenchCanvasRuntime?.createNodeDragSession", adapter)
+            self.assertNotIn("WorkbenchCanvasRuntime?.createNodeResizeSession", adapter)
+
     def test_minimap_projection_scaling_stays_linear_at_100_and_300_nodes(self):
         # DoD: minimap performance remains acceptable at 100/300 nodes — the
         # projection/rect math the minimap rebuild performs per frame must stay
@@ -2178,11 +2225,11 @@ console.log(JSON.stringify({{
         })
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
         smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        self.assertIn("window.WorkbenchCanvasRuntime?.createNodeDragSession?.({", classic)
+        self.assertIn("ensureNodeDragSessionFactory()({", classic)
         self.assertIn("isLocalCopy:Boolean(e.altKey), dragSession};", classic)
         self.assertIn("const dragPosition = (id, ox, oy) => sharedPositions?.get(id) || {x:ox + dx, y:oy + dy};", classic)
         self.assertIn("(e.clientX - dragNode.sx) / viewport.scale", classic)
-        self.assertIn("window.WorkbenchCanvasRuntime?.createNodeDragSession?.({", smart)
+        self.assertIn("ensureSmartNodeDragSessionFactory()({", smart)
         self.assertIn("const dragSession = smartUnifiedRuntimeEnabled", smart)
         self.assertIn("dragSession:detachSession", smart)
         self.assertIn("const pos = sharedPositions?.get(item.id) || {x:item.ox + moveDx, y:item.oy + moveDy};", smart)
@@ -2214,10 +2261,10 @@ console.log(JSON.stringify({{
         })
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
         smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        self.assertIn("window.WorkbenchCanvasRuntime?.createNodeResizeSession?.({start:{x:e.clientX, y:e.clientY}, scale:viewport.scale, startWidth:sw, startHeight:sh})", classic)
+        self.assertIn("ensureNodeResizeSessionFactory()({start:{x:e.clientX, y:e.clientY}, scale:viewport.scale, startWidth:sw, startHeight:sh})", classic)
         self.assertIn("const nextW = Math.max(Math.min(min.w, 220), resize ? resize.width : resizeNode.sw + (e.clientX - resizeNode.sx) / viewport.scale);", classic)
         self.assertIn("(e.clientY - resizeNode.sy) / viewport.scale", classic)
-        self.assertIn("window.WorkbenchCanvasRuntime?.createNodeResizeSession?.({start:{x:pointer.clientX, y:pointer.clientY}, scale:viewport.scale, startWidth:rect.width, startHeight:rect.height})", smart)
+        self.assertIn("ensureSmartNodeResizeSessionFactory()({start:{x:pointer.clientX, y:pointer.clientY}, scale:viewport.scale, startWidth:rect.width, startHeight:rect.height})", smart)
         self.assertIn("const proposedW = resize ? resize.width : resizeState.startW + dx;", smart)
         self.assertIn("const proposedH = resize ? resize.height : resizeState.startH + dy;", smart)
         self.assertIn("(e.clientY - resizeState.startY) / viewport.scale", smart)

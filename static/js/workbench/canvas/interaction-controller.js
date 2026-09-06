@@ -185,5 +185,28 @@
         });
     }
 
-    global.WorkbenchInteractionController = Object.freeze({create, createSelectionStore, createViewportController, createMinimapController});
+    // Node drag/resize session factories: one owner for creating interaction
+    // sessions over the runtime-state kernel. The kernel stays the pure math
+    // owner; this seam records the session kind and keeps pages from wiring
+    // kernel internals directly. The kernel reference is injected so the
+    // controller has no global dependency.
+    function createNodeDragSessionFactory(options) {
+        const settings = options || {};
+        const kernel = settings.runtime || global.WorkbenchCanvasRuntime;
+        if (!kernel || typeof kernel.createNodeDragSession !== 'function') {
+            throw new TypeError('NodeDragSessionFactory requires the Canvas runtime kernel');
+        }
+        return sessionOptions => kernel.createNodeDragSession(sessionOptions);
+    }
+
+    function createNodeResizeSessionFactory(options) {
+        const settings = options || {};
+        const kernel = settings.runtime || global.WorkbenchCanvasRuntime;
+        if (!kernel || typeof kernel.createNodeResizeSession !== 'function') {
+            throw new TypeError('NodeResizeSessionFactory requires the Canvas runtime kernel');
+        }
+        return sessionOptions => kernel.createNodeResizeSession(sessionOptions);
+    }
+
+    global.WorkbenchInteractionController = Object.freeze({create, createSelectionStore, createViewportController, createMinimapController, createNodeDragSessionFactory, createNodeResizeSessionFactory});
 }(window));

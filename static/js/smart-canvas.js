@@ -1481,7 +1481,7 @@ function startSmartNodeResize(nodeId, pointer){
     if(!node) return;
     const rect = nodeRect(node);
     const resizeSession = smartUnifiedRuntimeEnabled
-        ? window.WorkbenchCanvasRuntime?.createNodeResizeSession?.({start:{x:pointer.clientX, y:pointer.clientY}, scale:viewport.scale, startWidth:rect.width, startHeight:rect.height})
+        ? ensureSmartNodeResizeSessionFactory()({start:{x:pointer.clientX, y:pointer.clientY}, scale:viewport.scale, startWidth:rect.width, startHeight:rect.height})
         : null;
     resizeState = {id:node.id, startX:pointer.clientX, startY:pointer.clientY, startW:rect.width, startH:rect.height, resizeSession};
     if(isSmartGroupNode(node)){
@@ -1516,7 +1516,7 @@ function startSmartNodeDrag(nodeId, pointer){
         return item ? {id:item.id, ox:Number(item.x) || 0, oy:Number(item.y) || 0} : null;
     }).filter(Boolean);
     const dragSession = smartUnifiedRuntimeEnabled
-        ? window.WorkbenchCanvasRuntime?.createNodeDragSession?.({
+        ? ensureSmartNodeDragSessionFactory()({
             start:{x:pointer.clientX, y:pointer.clientY},
             scale:viewport.scale,
             members:group.map(item => ({id:item.id, ox:item.ox, oy:item.oy})),
@@ -1546,6 +1546,20 @@ const smartNodeShellIntentAdapter = window.WorkbenchUnifiedRenderHost.createInte
 });
 function handleSmartNodeShellIntent(intent){ smartNodeShellIntentAdapter(intent); }
 const SMART_NODE_SHELL_LEGACY_CONTROLS = Object.freeze(['.node-port', '.node-resize-handle']);
+let smartNodeDragSessionFactory = null;
+function ensureSmartNodeDragSessionFactory(){
+    if(!smartNodeDragSessionFactory){
+        smartNodeDragSessionFactory = window.WorkbenchInteractionController.createNodeDragSessionFactory({});
+    }
+    return smartNodeDragSessionFactory;
+}
+let smartNodeResizeSessionFactory = null;
+function ensureSmartNodeResizeSessionFactory(){
+    if(!smartNodeResizeSessionFactory){
+        smartNodeResizeSessionFactory = window.WorkbenchInteractionController.createNodeResizeSessionFactory({});
+    }
+    return smartNodeResizeSessionFactory;
+}
 let smartRenderRuntime = null;
 function ensureSmartRenderRuntime(){
     if(!smartRenderRuntime){
@@ -18736,7 +18750,7 @@ window.onmousemove = e => {
                     const newNode = createImageNodeAt(point, [img], {select:false, skipUndo:true});
                     undoSuppressed = false;
                     const detachSession = smartUnifiedRuntimeEnabled
-                        ? window.WorkbenchCanvasRuntime?.createNodeDragSession?.({start:{x:e.clientX, y:e.clientY}, scale:viewport.scale, members:[{id:newNode.id, ox:newNode.x, oy:newNode.y}]})
+                        ? ensureSmartNodeDragSessionFactory()({start:{x:e.clientX, y:e.clientY}, scale:viewport.scale, members:[{id:newNode.id, ox:newNode.x, oy:newNode.y}]})
                         : null;
                     dragState = {id:newNode.id, startX:e.clientX, startY:e.clientY, ox:newNode.x, oy:newNode.y, thumbDetached:true, dragSession:detachSession};
                     thumbDragState.detached = true;

@@ -6420,6 +6420,20 @@ function ensureInteractionController(){
     }
     return interactionController;
 }
+let nodeDragSessionFactory = null;
+function ensureNodeDragSessionFactory(){
+    if(!nodeDragSessionFactory){
+        nodeDragSessionFactory = window.WorkbenchInteractionController.createNodeDragSessionFactory({});
+    }
+    return nodeDragSessionFactory;
+}
+let nodeResizeSessionFactory = null;
+function ensureNodeResizeSessionFactory(){
+    if(!nodeResizeSessionFactory){
+        nodeResizeSessionFactory = window.WorkbenchInteractionController.createNodeResizeSessionFactory({});
+    }
+    return nodeResizeSessionFactory;
+}
 function ensureCanvasViewportController(){
     if(!canvasViewportController){
         canvasViewportController = window.WorkbenchInteractionController.createViewportController({
@@ -15764,7 +15778,7 @@ function startNodeDrag(e, node){
     }
     const children = [...collected.values()];
     const dragSession = canvasUnifiedRuntimeEnabled
-        ? window.WorkbenchCanvasRuntime?.createNodeDragSession?.({
+        ? ensureNodeDragSessionFactory()({
             start:{x:e.clientX, y:e.clientY},
             scale:viewport.scale,
             members:[{id:dragTarget.id, ox:dragTarget.x, oy:dragTarget.y}, ...children.map(child => ({id:child.node.id, ox:child.ox, oy:child.oy}))],
@@ -15814,7 +15828,7 @@ function startNodeResize(e, node){
     const sw = (rect?.width ? rect.width / viewport.scale : node.w || defaultNodeSize(node.type).w);
     const sh = (rect?.height ? rect.height / viewport.scale : node.h || defaultNodeSize(node.type).h || 160);
     const resizeSession = canvasUnifiedRuntimeEnabled
-        ? window.WorkbenchCanvasRuntime?.createNodeResizeSession?.({start:{x:e.clientX, y:e.clientY}, scale:viewport.scale, startWidth:sw, startHeight:sh})
+        ? ensureNodeResizeSessionFactory()({start:{x:e.clientX, y:e.clientY}, scale:viewport.scale, startWidth:sw, startHeight:sh})
         : null;
     resizeNode = {node, sx:e.clientX, sy:e.clientY, sw, sh, resizeSession};
     document.body.classList.add('canvas-node-resize');
