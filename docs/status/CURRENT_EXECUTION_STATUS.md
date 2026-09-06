@@ -560,6 +560,26 @@ versioned group and deletion tests. Focused regression: PASS (behavioral
 `mountGroupCard` test + both-adapters cutover contract test); full
 regression: PASS at 334 tests.
 
+R4 media rendering cutover (card R4-11, 2026-09-06T21:05+08:00): media-state
+projection for runtime-mounted cards moved from the page render sweeps into
+the Unified RenderRuntime. `WorkbenchRenderRuntime.create` accepts
+`mediaState` capture/restore callbacks (both adapters inject wrappers over
+`WorkbenchCanvasMediaPlaybackState`); `unmount` captures playback state from
+the outgoing shell element before destroy and `mount` restores it into the
+fresh card, so remounts keep playback continuity without page bookkeeping.
+`MediaRenderer` stamps `dataset.url` on every created element, making
+renderer-created media visible to the shared state signature;
+`captureAll`/`restoreAll` gained an `exclude` selector, and both page-level
+sweeps exclude `.node-shell-mounted` cards — the pages now project only the
+flags-off fallback DOM while the runtime owns mounted media state. On the
+default path the primary media DOM is MediaRenderer's (mounted inside
+NodeShell via the runtime); the adapter media markup remains only as the
+bounded flags-off fallback for non-mounted cards. Load/error/select/reload
+paths are unchanged (preview fallback, high-res, and versioned media tests
+pass as-is). Focused regression: PASS (3 new tests: exclude selector, runtime
+remount projection, renderer signature URL); full regression: PASS at 337
+tests.
+
 ## Unified Canvas verified ledger
 
 | Stage | Status | Evidence summary |
@@ -721,13 +741,17 @@ Result: PASS after R4-10 Group rendering cutover — 334 tests in 3.5 seconds,
 Python 3.14.7 (2026-09-06). The +2 tests are the `mountGroupCard` behavioral
 test and the both-adapters cutover contract test.
 
-Agent regression gate (cards R4-01…R4-10):
+Result: PASS after R4-11 media rendering cutover — 337 tests in 3.8 seconds,
+Python 3.14.7 (2026-09-06). The +3 tests cover the projection exclude selector,
+the runtime remount projection, and the renderer signature URL.
+
+Agent regression gate (cards R4-01…R4-11):
 
 ```text
 ./scripts/agent-verify.sh
 ```
 
-Result: PASS — AGENT VERIFY: PASS (334 unit tests, Python AST parse of 73 files,
+Result: PASS — AGENT VERIFY: PASS (337 unit tests, Python AST parse of 73 files,
 `node --check` of 64 JavaScript files, 4 architecture-guard tests,
 `git diff --check`; Node v24.20.0). The gate script was fixed during R4-01 to
 prefer `.venv/bin/python` over PATH `python3`, which lacks project dependencies

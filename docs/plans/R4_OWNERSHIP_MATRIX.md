@@ -357,6 +357,23 @@ delete behavior is unchanged (resize/member-sync/delete paths untouched; the
 runtime destroys handles on delete and canvas loads). Focused regression: PASS
 (behavioral `mountGroupCard` test + both-adapters cutover contract test); full
 regression: PASS (334 tests).
+
+2026-09-06 media rendering cutover (R4-11): media-state projection for
+runtime-mounted cards moved from the page render sweeps into the Unified
+RenderRuntime. `WorkbenchRenderRuntime.create` accepts `mediaState`
+capture/restore callbacks (both adapters inject wrappers over
+`WorkbenchCanvasMediaPlaybackState`); `unmount` captures playback state from
+the outgoing shell element before destroy and `mount` restores it into the
+fresh card, so remounts keep playback continuity without page bookkeeping.
+`MediaRenderer` now stamps `dataset.url` on every created element, making
+renderer-created media visible to the shared signature; `captureAll`/
+`restoreAll` gained an `exclude` selector and both page-level sweeps exclude
+`.node-shell-mounted`, so the pages project only the flags-off fallback DOM
+while the runtime owns mounted media state. Load/error/select/reload paths
+are unchanged (preview fallback, high-res, and versioned media tests pass
+as-is). Focused regression: PASS (3 new tests: exclude selector, runtime
+remount projection, renderer signature URL); full regression: PASS (337
+tests).
 ```
 
 ## Rendering ownership map (R4-08 characterization, 2026-09-06)
@@ -387,8 +404,8 @@ keeping DOM alive.
 |---|---|---|---|---|---|---|---|
 | Group (Classic `group`/`promptGroup`) | `addGroupNode` C2679 / promptGroup C15344; versioned C2631 | full render; group branch delegates to `mountCanvasGroupShell` C6438 | omission + `deleteNode` C13558 (versioned empty C13826) | body drag/dblclick C6637; shell intents once mounted | member images → runtime-built record | adapter HTML + RenderRuntime group mount (R4-10) | Unified RenderRuntime (card builder + lifecycle); adapter product controls compat |
 | Group (Smart `smart-group`) | `createSmartGroupNode` S6844; versioned S1643/S1682 | full render; batch delegates to `mountGroupCard` S1559 | `deleteNode` S10595 (versioned S10784) | dblclick/toolbar S10269/S10327; shell owns ports/resize | member media → runtime-built record | adapter HTML + RenderRuntime group mount (R4-10) | Unified RenderRuntime; Smart group actions compat |
-| Image (Classic) | `addImageNode` C2604; versioned C2527 | full render / `refreshNodes` | content-clear C13568 → versioned C13736 / `deleteNode` | body C6522; img guards C6553 | shared media-kind/preview-url/fallback/high-res; adapter video activation C84 | shared media primitives + adapter HTML | Unified RenderRuntime; adapter video activation compat |
-| Image (Smart `smart-image`) | `createNode` S6749; versioned S1764/S1802 | full render + `measureSmartNodeImages` S9136 | media-clear S10618 → versioned S10761 / `deleteNode` | thumbs/play/drag S10354–10533 | shared primitives; inline-video memory S8988 | adapter HTML + MediaRenderer | Unified RenderRuntime; Smart media tools compat |
+| Image (Classic) | `addImageNode` C2604; versioned C2527 | full render / `refreshNodes` | content-clear C13568 → versioned C13736 / `deleteNode` | body C6522; img guards C6553 | shared primitives; media state projected by the runtime (R4-11) | MediaRenderer DOM + runtime state projection; adapter HTML is flags-off fallback | Unified RenderRuntime; adapter video activation compat |
+| Image (Smart `smart-image`) | `createNode` S6749; versioned S1764/S1802 | full render + `measureSmartNodeImages` S9136 | media-clear S10618 → versioned S10761 / `deleteNode` | thumbs/play/drag S10354–10533 | shared primitives; media state projected by the runtime (R4-11) | MediaRenderer DOM + runtime state projection; adapter HTML is flags-off fallback | Unified RenderRuntime; Smart media tools compat |
 | Prompt (Classic) | `addPromptNode` C2608; versioned C2554 | render + counter C6600 | versioned C13760 / `deleteNode` | textarea/template C6605 | n/a | adapter | Unified RenderRuntime lifecycle |
 | Prompt (Smart) | `createPromptNode` S6761; versioned S1613/S1723 | full render + `bindPromptNodeControls` S9241 | versioned S10820 / `deleteNode` | controls S9242 | n/a | adapter | Unified RenderRuntime lifecycle |
 | Loop (Classic) | `addLoopNode` C2612; versioned C2579 | `renderLoopBody` C8127 | versioned C13782 / `deleteNode` | controls C8185 | none owned | adapter | Unified RenderRuntime lifecycle |
@@ -449,6 +466,15 @@ rollback semantics), mount execution and lifecycle entry, the resolved shell
 view on the result, and an `mountEmptyState` hook. Classic's group branch
 (`mountCanvasGroupShell`) and Smart's group batch both delegate; pages retain
 only flag gates, member-media extraction, intents, and control selectors.
+
+Extended by R4-11 (2026-09-06, media cutover): the runtime also owns media
+state projection for its mounted cards — `mediaState` capture/restore
+callbacks wrap the shared playback-state module, `unmount` captures from the
+outgoing shell element before destroy, and `mount` restores into the fresh
+card. `MediaRenderer` stamps `dataset.url` on its created elements so the
+shared signature recognizes renderer-created media, and the page-level
+world sweeps exclude `.node-shell-mounted` cards, removing duplicate
+projection ownership for mounted media.
 
 # Save/merge machinery characterization (U7 blocker analysis, 2026-09-06)
 

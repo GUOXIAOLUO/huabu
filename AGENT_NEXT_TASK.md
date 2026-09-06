@@ -5,16 +5,23 @@
 
 ## Active Task
 
-- Task ID: `R4-11`
+- Task ID: `R4-12`
 - Round: `R4`
 - Priority: `P0`
 - Status: `READY`
-- Task Card: `docs/tasks/backlog/R4-11-media-rendering.md`
+- Task Card: `docs/tasks/backlog/R4-12-generic-rendering.md`
 
 ## Completed Tasks
 
+- `R4-11` — `DONE` 2026-09-06T21:05+08:00. Card:
+  `docs/tasks/active/R4-11-media-rendering.md`. Evidence: runtime-owned
+  media-state projection (`mediaState` capture on unmount / restore on mount),
+  MediaRenderer elements carry the signature URL, page sweeps exclude
+  shell-mounted cards; behavioral tests for all three; regression 337 tests
+  PASS.
+
 - `R4-10` — `DONE` 2026-09-06T20:25+08:00. Card:
-  `docs/tasks/active/R4-10-group-rendering.md`. Evidence:
+  `docs/tasks/done/R4-10-group-rendering.md`. Evidence:
   `WorkbenchRenderRuntime.mountGroupCard` owns the Group mount contract
   (record assembly, media/legacy decision with `mediaEnabled:false` rollback,
   lifecycle, resolved shell view, empty-state hook); Classic group branch and
@@ -92,7 +99,7 @@
 1. `AGENTS.md`
 2. `.agent/AGENT_CONTRACT.md`
 3. `docs/status/CURRENT_EXECUTION_STATUS.md`
-4. `docs/tasks/backlog/R4-11-media-rendering.md`
+4. `docs/tasks/active/R4-11-media-rendering.md`
 
 Read architecture documents only as required by the card.
 
@@ -114,8 +121,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor if R4-11 passes:
+Expected successor if R4-12 passes:
 
-`R4-12 — Generic Rendering` (`docs/tasks/backlog/R4-12-generic-rendering.md`)
+`R4-13 — Provider-Shaped Compatibility Renderers` (`docs/tasks/backlog/R4-13-provider-compat-renderers.md`)
 
 Actual successor must still be checked against the repository's current verified state.
