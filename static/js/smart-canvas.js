@@ -1602,6 +1602,17 @@ const smartNodeShellIntentAdapter = window.WorkbenchUnifiedRenderHost.createInte
 });
 function handleSmartNodeShellIntent(intent){ smartNodeShellIntentAdapter(intent); }
 const SMART_NODE_SHELL_LEGACY_CONTROLS = Object.freeze(['.node-port', '.node-resize-handle']);
+let smartCreationController = null;
+function ensureSmartCreationController(){
+    if(!smartCreationController){
+        smartCreationController = window.WorkbenchInteractionController.createCreationController({
+            create: (canvasId, command, clientId) => window.WorkbenchNodeClient.create(canvasId, command, clientId),
+            applyResult: (result, apply) => window.WorkbenchNodeClient.applyCreationResult(result, apply),
+            requestId: () => `${smartClientId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        });
+    }
+    return smartCreationController;
+}
 let smartNodeDragSessionFactory = null;
 function ensureSmartNodeDragSessionFactory(){
     if(!smartNodeDragSessionFactory){
@@ -1703,11 +1714,16 @@ async function createVersionedBlankSmartPrompt(x, y){
     const config = {text:'', promptResult:'', promptResultOutdated:false, promptSeparator:';', promptSplitEnabled:false, llmEnabled:false, llmProvider:providerId, llmModel:resolveChatModel('', providerId), llmSystemEnabled:false, llmSystemPrompt:'You are a helpful prompt assistant.', llmInstruction:'', promptSkillEnabled:true, promptSkillPack:'MiniMax H3 Skills', promptSkillDefinition:'3D动画短片生成器', promptOutputMode:'text', promptAttachments:[]};
     const undoSnapshot = snapshotForUndo();
     try {
-        const result = await window.WorkbenchNodeClient.create(canvas.id, {request_id:`${smartClientId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, project_id:canvas.project, source:'context_menu', definition_ref:{type:'legacy', id:'smart-prompt', version:'0'}, position:{x,y}, expected_revision:Number(canvas.updated_at || 0), title:'3D动画短片生成器', initial_config:config}, smartClientId);
-        const node = window.WorkbenchNodeClient.applyCreationResult(result, {
-            nodes, undoStack, undoSnapshot, undoLimit:UNDO_LIMIT, canvas,
-            projectNode:created => ({id:created.id, type:'smart-prompt', x, y, w:340, h:286, title:created.title || '3D动画短片生成器', ...config, created_at:Date.now()}),
-            onSelected:created => { selectedId = created.id; },
+        const node = await ensureSmartCreationController().createNode({
+            projectId:canvas.project, clientId:smartClientId,
+            definitionRef:{type:'legacy', id:'smart-prompt', version:'0'},
+            position:{x,y}, expectedRevision:Number(canvas.updated_at || 0),
+            title:'3D动画短片生成器', initialConfig:config,
+            apply:{
+                nodes, undoStack, undoSnapshot, undoLimit:UNDO_LIMIT, canvas,
+                projectNode:created => ({id:created.id, type:'smart-prompt', x, y, w:340, h:286, title:created.title || '3D动画短片生成器', ...config, created_at:Date.now()}),
+                onSelected:created => { selectedId = created.id; },
+            },
         });
         render();
         return node;
@@ -1717,11 +1733,16 @@ async function createVersionedBlankSmartLoop(x, y){
     if(!canUseVersionedSmartImageCreation()) return null;
     const undoSnapshot = snapshotForUndo();
     try {
-        const result = await window.WorkbenchNodeClient.create(canvas.id, {request_id:`${smartClientId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, project_id:canvas.project, source:'context_menu', definition_ref:{type:'legacy', id:'smart-loop', version:'0'}, position:{x,y}, expected_revision:Number(canvas.updated_at || 0), title:'Loop'}, smartClientId);
-        const node = window.WorkbenchNodeClient.applyCreationResult(result, {
-            nodes, undoStack, undoSnapshot, undoLimit:UNDO_LIMIT, canvas,
-            projectNode:created => ({id:created.id, type:'smart-loop', x, y, w:340, h:168, title:created.title || 'Loop', count:1, mode:'serial', showPrompt:false, imageInput:false, loopStart:1, imageBatchSize:1, variablePrompt:'', created_at:Date.now()}),
-            onSelected:created => { selectedId = created.id; },
+        const node = await ensureSmartCreationController().createNode({
+            projectId:canvas.project, clientId:smartClientId,
+            definitionRef:{type:'legacy', id:'smart-loop', version:'0'},
+            position:{x,y}, expectedRevision:Number(canvas.updated_at || 0),
+            title:'Loop',
+            apply:{
+                nodes, undoStack, undoSnapshot, undoLimit:UNDO_LIMIT, canvas,
+                projectNode:created => ({id:created.id, type:'smart-loop', x, y, w:340, h:168, title:created.title || 'Loop', count:1, mode:'serial', showPrompt:false, imageInput:false, loopStart:1, imageBatchSize:1, variablePrompt:'', created_at:Date.now()}),
+                onSelected:created => { selectedId = created.id; },
+            },
         });
         render();
         return node;
@@ -1731,11 +1752,16 @@ async function createVersionedBlankSmartGroup(x, y){
     if(!canUseVersionedSmartImageCreation()) return null;
     const undoSnapshot = snapshotForUndo();
     try {
-        const result = await window.WorkbenchNodeClient.create(canvas.id, {request_id:`${smartClientId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, project_id:canvas.project, source:'context_menu', definition_ref:{type:'legacy', id:'smart-group', version:'0'}, position:{x,y}, expected_revision:Number(canvas.updated_at || 0), title:'智能分组'}, smartClientId);
-        const node = window.WorkbenchNodeClient.applyCreationResult(result, {
-            nodes, undoStack, undoSnapshot, undoLimit:UNDO_LIMIT, canvas,
-            projectNode:created => ({id:created.id, type:'smart-group', x, y, w:SMART_GROUP_DEFAULT_WIDTH, h:SMART_GROUP_DEFAULT_HEIGHT, title:created.title || '智能分组', items:[], created_at:Date.now()}),
-            onSelected:created => { selectedId = created.id; },
+        const node = await ensureSmartCreationController().createNode({
+            projectId:canvas.project, clientId:smartClientId,
+            definitionRef:{type:'legacy', id:'smart-group', version:'0'},
+            position:{x,y}, expectedRevision:Number(canvas.updated_at || 0),
+            title:'智能分组',
+            apply:{
+                nodes, undoStack, undoSnapshot, undoLimit:UNDO_LIMIT, canvas,
+                projectNode:created => ({id:created.id, type:'smart-group', x, y, w:SMART_GROUP_DEFAULT_WIDTH, h:SMART_GROUP_DEFAULT_HEIGHT, title:created.title || '智能分组', items:[], created_at:Date.now()}),
+                onSelected:created => { selectedId = created.id; },
+            },
         });
         render();
         return node;
@@ -1748,19 +1774,20 @@ async function createVersionedBlankSmartMinimax(point){
     const duration = 8;
     const undoSnapshot = snapshotForUndo();
     try {
-        const result = await window.WorkbenchNodeClient.create(canvas.id, {
-            request_id:`${smartClientId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-            project_id:canvas.project, source:'context_menu', definition_ref:{type:'legacy', id:'smart-minimax', version:'0'},
-            position:{x,y}, expected_revision:Number(canvas.updated_at || 0), title:'MiniMax H3',
-        }, smartClientId);
-        const node = window.WorkbenchNodeClient.applyCreationResult(result, {
-            nodes, undoStack, undoSnapshot, undoLimit:UNDO_LIMIT, canvas,
-            projectNode:created => {
-                const projected = {id:created.id, type:'smart-minimax', x, y, w:1040, h:640, title:created.title || 'MiniMax H3', workflow:'MiniMax_H3.json', minimaxEngine:SMART_MINIMAX_DEFAULT_ENGINE, minimaxRunningHubWorkflowId:'', duration, aspectRatio:'16:9 (Widescreen)', megapixels:0.4, promptDraftText:'', refs:{image:[], video:[], audio:[]}, materials:[], segments:[{id:uid('seg'), start:0, duration, prompt:'', refs:{image:[], video:[], audio:[]}, refItems:[], trimIn:0, trimOut:duration, result:null, results:[]}], selectedSegmentId:'', playhead:0, timelineZoom:1, minimaxPreviewH:190, minimaxVideoTrackH:70, minimaxRefLaneH:42, minimaxMuted:false, timelinePlaying:false, running:false, created_at:Date.now()};
-                smartMinimaxEnsureSegment(projected);
-                return projected;
+        const node = await ensureSmartCreationController().createNode({
+            projectId:canvas.project, clientId:smartClientId,
+            definitionRef:{type:'legacy', id:'smart-minimax', version:'0'},
+            position:{x,y}, expectedRevision:Number(canvas.updated_at || 0),
+            title:'MiniMax H3',
+            apply:{
+                nodes, undoStack, undoSnapshot, undoLimit:UNDO_LIMIT, canvas,
+                projectNode:created => {
+                    const projected = {id:created.id, type:'smart-minimax', x, y, w:1040, h:640, title:created.title || 'MiniMax H3', workflow:'MiniMax_H3.json', minimaxEngine:SMART_MINIMAX_DEFAULT_ENGINE, minimaxRunningHubWorkflowId:'', duration, aspectRatio:'16:9 (Widescreen)', megapixels:0.4, promptDraftText:'', refs:{image:[], video:[], audio:[]}, materials:[], segments:[{id:uid('seg'), start:0, duration, prompt:'', refs:{image:[], video:[], audio:[]}, refItems:[], trimIn:0, trimOut:duration, result:null, results:[]}], selectedSegmentId:'', playhead:0, timelineZoom:1, minimaxPreviewH:190, minimaxVideoTrackH:70, minimaxRefLaneH:42, minimaxMuted:false, timelinePlaying:false, running:false, created_at:Date.now()};
+                    smartMinimaxEnsureSegment(projected);
+                    return projected;
+                },
+                onSelected:created => { selectedId = created.id; },
             },
-            onSelected:created => { selectedId = created.id; },
         });
         render();
         return node;
@@ -1893,21 +1920,20 @@ async function createVersionedBlankSmartImageAt(point){
     const y = (point?.y || 0) - Math.round(layout.height / 2);
     const undoSnapshot = snapshotForUndo();
     try {
-        const result = await window.WorkbenchNodeClient.create(canvas.id, {
-            request_id:`${smartClientId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-            project_id:canvas.project,
-            source:'context_menu',
-            definition_ref:{type:'legacy', id:'image', version:'0'},
-            position:{x, y}, expected_revision:Number(canvas.updated_at || 0), title:tr('smart.createImportNode'),
-        }, smartClientId);
-        const node = window.WorkbenchNodeClient.applyCreationResult(result, {
-            nodes, undoStack, undoSnapshot, undoLimit:UNDO_LIMIT, canvas,
-            projectNode:created => {
-                const projected = {id:created.id, type:'smart-image', x, y, title:created.title, images:[], created_at:Date.now()};
-                projected.scale = mediaNodeDefaultScale(projected);
-                return projected;
+        const node = await ensureSmartCreationController().createNode({
+            projectId:canvas.project, clientId:smartClientId,
+            definitionRef:{type:'legacy', id:'image', version:'0'},
+            position:{x, y}, expectedRevision:Number(canvas.updated_at || 0),
+            title:tr('smart.createImportNode'),
+            apply:{
+                nodes, undoStack, undoSnapshot, undoLimit:UNDO_LIMIT, canvas,
+                projectNode:created => {
+                    const projected = {id:created.id, type:'smart-image', x, y, title:created.title, images:[], created_at:Date.now()};
+                    projected.scale = mediaNodeDefaultScale(projected);
+                    return projected;
+                },
+                onSelected:created => { selectedId = created.id; selectedIds = []; },
             },
-            onSelected:created => { selectedId = created.id; selectedIds = []; },
         });
         render();
         return node;

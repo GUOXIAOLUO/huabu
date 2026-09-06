@@ -318,5 +318,40 @@
         return Object.freeze({beginGesture, cancel, isActive: () => Boolean(gesture)});
     }
 
-    global.WorkbenchInteractionController = Object.freeze({create, createSelectionStore, createViewportController, createMinimapController, createNodeDragSessionFactory, createNodeResizeSessionFactory, createKeyboardRuntime, createConnectionGestureController});
+    // Creation controller: one owner for the normal node-creation entry
+    // envelope. It normalizes the versioned command (request id, project,
+    // source, definition ref, position, revision) and delegates the service
+    // call and result application (undo/revision/selection projection) to the
+    // injected NodeCreationService client and the page's apply options. It
+    // never touches persistence or the DOM itself.
+    function createCreationController(options) {
+        const settings = options || {};
+        if (typeof settings.create !== 'function') throw new TypeError('CreationController requires create');
+        if (typeof settings.applyResult !== 'function') throw new TypeError('CreationController requires applyResult');
+        if (typeof settings.requestId !== 'function') throw new TypeError('CreationController requires requestId');
+
+        async function createNode(request) {
+            const entry = request || {};
+            if (!entry.canvasId) throw new TypeError('CreationController requires canvasId');
+            if (!entry.definitionRef) throw new TypeError('CreationController requires definitionRef');
+            if (!entry.position) throw new TypeError('CreationController requires position');
+            if (!entry.apply || typeof entry.apply !== 'object') throw new TypeError('CreationController requires apply options');
+            const command = {
+                request_id: settings.requestId(),
+                project_id: entry.projectId || 'default',
+                source: entry.source || 'context_menu',
+                definition_ref: entry.definitionRef,
+                position: entry.position,
+                expected_revision: entry.expectedRevision,
+                ...(entry.title !== undefined ? {title: entry.title} : {}),
+                ...(entry.initialConfig ? {initial_config: entry.initialConfig} : {}),
+            };
+            const result = await settings.create(entry.canvasId, command, entry.clientId);
+            return settings.applyResult(result, entry.apply);
+        }
+
+        return Object.freeze({createNode});
+    }
+
+    global.WorkbenchInteractionController = Object.freeze({create, createSelectionStore, createViewportController, createMinimapController, createNodeDragSessionFactory, createNodeResizeSessionFactory, createKeyboardRuntime, createConnectionGestureController, createCreationController});
 }(window));

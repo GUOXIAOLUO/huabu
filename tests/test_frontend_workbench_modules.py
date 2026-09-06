@@ -1836,6 +1836,65 @@ console.log(JSON.stringify({moves: events.moves, drops: events.drops, noTargets:
         self.assertIn("drop: (gesture, result, e2) => finishSmartPortDrag(gesture, e2),", smart)
         self.assertIn("noTarget: (gesture, e2) => finishSmartPortDrag(gesture, e2),", smart)
 
+    def test_creation_controller_normalizes_the_versioned_envelope(self):
+        controller_module = ROOT / "static" / "js" / "workbench" / "canvas" / "interaction-controller.js"
+        script = """
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {window: {}};
+vm.runInNewContext(fs.readFileSync(__MODULE__, 'utf8'), sandbox);
+const commands = [];
+const applied = [];
+let seq = 0;
+(async () => {
+const controller = sandbox.window.WorkbenchInteractionController.createCreationController({
+  create: async (canvasId, command, clientId) => {
+    commands.push({canvasId, command, clientId});
+    return {node: {id: 'n1'}, canvas_revision: 7};
+  },
+  applyResult: (result, apply) => { applied.push(apply); return {projected: true, ...result.node}; },
+  requestId: () => `req-${++seq}`,
+});
+const node = await controller.createNode({
+  canvasId: 'c1', projectId: 'p1', clientId: 'editor-1',
+  definitionRef: {type: 'legacy', id: 'image', version: '0'},
+  position: {x: 5, y: 6}, expectedRevision: 3, title: 'Blank',
+  apply: {nodes: [], projectNode: () => ({})},
+});
+const minimal = await controller.createNode({
+  canvasId: 'c1', definitionRef: {type: 'legacy', id: 'loop', version: '0'},
+  position: {x: 0, y: 0}, expectedRevision: 1, initialConfig: {count: 2},
+  apply: {nodes: [], projectNode: () => ({})},
+});
+let invalid = 'no-throw';
+try { await controller.createNode({position: {x: 0, y: 0}}); } catch (error) { invalid = 'throws'; }
+console.log(JSON.stringify({node, commands, appliedCount: applied.length, invalid}));
+})();""".replace("__MODULE__", json.dumps(str(controller_module)))
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        # Envelope: request id from the injected factory, service call verbatim,
+        # result application delegated with the page's apply options.
+        self.assertEqual(payload["commands"][0]["command"]["request_id"], "req-1")
+        self.assertEqual(payload["commands"][0]["command"]["source"], "context_menu")
+        self.assertEqual(payload["commands"][0]["command"]["definition_ref"], {"type": "legacy", "id": "image", "version": "0"})
+        self.assertEqual(payload["commands"][0]["command"]["title"], "Blank")
+        self.assertNotIn("initial_config", payload["commands"][0]["command"])
+        self.assertEqual(payload["commands"][1]["command"]["initial_config"], {"count": 2})
+        self.assertNotIn("title", payload["commands"][1]["command"])
+        self.assertEqual(payload["commands"][0]["clientId"], "editor-1")
+        self.assertEqual(payload["appliedCount"], 2)
+        self.assertEqual(payload["invalid"], "throws")
+
+    def test_blank_creation_entry_points_route_through_the_creation_controller(self):
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
+        for adapter, factory in ((classic, "ensureCreationController"), (smart, "ensureSmartCreationController")):
+            self.assertEqual(adapter.count("WorkbenchInteractionController.createCreationController"), 1)
+            self.assertIn("create: (canvasId, command, clientId) => window.WorkbenchNodeClient.create(canvasId, command, clientId)", adapter)
+            self.assertIn("applyResult: (result, apply) => window.WorkbenchNodeClient.applyCreationResult(result, apply)", adapter)
+        # No page calls the versioned client create directly for blank entries anymore.
+        self.assertNotIn("WorkbenchNodeClient.create(canvas.id", classic)
+        self.assertNotIn("WorkbenchNodeClient.create(canvas.id", smart)
+
     def test_minimap_projection_scaling_stays_linear_at_100_and_300_nodes(self):
         # DoD: minimap performance remains acceptable at 100/300 nodes — the
         # projection/rect math the minimap rebuild performs per frame must stay
@@ -2470,8 +2529,12 @@ console.log(JSON.stringify({{node, nodes, undo, revision, selected, canvas, grap
         })
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
         smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        self.assertGreaterEqual(classic.count("WorkbenchNodeClient.applyCreationResult(result"), 5)
-        self.assertGreaterEqual(smart.count("WorkbenchNodeClient.applyCreationResult(result"), 5)
+        # Since R4-21 the blank-create envelope flows through the creation
+        # controller; the client's apply stays injected in the page singletons.
+        self.assertGreaterEqual(classic.count("ensureCreationController().createNode({"), 5)
+        self.assertGreaterEqual(smart.count("ensureSmartCreationController().createNode({"), 5)
+        self.assertEqual(classic.count("WorkbenchInteractionController.createCreationController"), 1)
+        self.assertEqual(smart.count("WorkbenchInteractionController.createCreationController"), 1)
         self.assertGreaterEqual(classic.count("WorkbenchNodeClient.applyGraphCreationResult(result"), 2)
         self.assertIn("WorkbenchNodeClient.applyGraphCreationResult(result", smart)
 
@@ -2998,7 +3061,7 @@ console.log(JSON.stringify({{
         self.assertIn("creationCatalogFor('smart')", smart)
         self.assertIn("const classicVersionedBlankNodeCreators = Object.freeze({", classic)
         self.assertIn("output: addVersionedBlankOutputNode", classic)
-        self.assertIn("definition_ref:{type:'legacy', id:'output', version:'0'}", classic)
+        self.assertIn("definitionRef:{type:'legacy', id:'output', version:'0'}", classic)
         self.assertIn("function createClassicMenuNode(command, point){", classic)
         self.assertIn("usesVersionedBlankCreation(command, 'classic')", classic)
         self.assertIn("const classicVersionedConnectedNodeCreators = Object.freeze({", classic)

@@ -2522,19 +2522,18 @@ async function addVersionedBlankImageNode(point){
     const p = point || defaultPoint(-120, 0);
     const undoSnapshot = {nodes:JSON.parse(JSON.stringify(serializableCanvasNodes())), connections:JSON.parse(JSON.stringify(connections))};
     try {
-        const result = await window.WorkbenchNodeClient.create(canvas.id, {
-            request_id:`${CLIENT_ID}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-            project_id:canvas.project,
+        const node = await ensureCreationController().createNode({
+            projectId:canvas.project, clientId:CLIENT_ID,
             source:'context_menu',
-            definition_ref:{type:'legacy', id:'image', version:'0'},
+            definitionRef:{type:'legacy', id:'image', version:'0'},
             position:{x:p.x, y:p.y},
-            expected_revision:Number(lastCanvasUpdatedAt || canvas.updated_at || 0),
+            expectedRevision:Number(lastCanvasUpdatedAt || canvas.updated_at || 0),
             title:'空白图片',
-        }, CLIENT_ID);
-        const node = window.WorkbenchNodeClient.applyCreationResult(result, {
-            nodes, undoStack, undoSnapshot, undoLimit:UNDO_MAX, canvas,
-            projectNode:created => ({id:created.id, type:'image', x:p.x, y:p.y, url:'', name:created.title || '空白图片'}),
-            onRevision:revision => { lastCanvasUpdatedAt = window.WorkbenchCanvasPersistence.adoptRevision(canvas, revision); },
+            apply: {
+                nodes, undoStack, undoSnapshot, undoLimit:UNDO_MAX, canvas,
+                projectNode:created => ({id:created.id, type:'image', x:p.x, y:p.y, url:'', name:created.title || '空白图片'}),
+                onRevision:revision => { lastCanvasUpdatedAt = window.WorkbenchCanvasPersistence.adoptRevision(canvas, revision); },
+            },
         });
         render();
         return node;
@@ -2549,17 +2548,16 @@ async function addVersionedBlankPromptNode(point){
     const p = point || defaultPoint(0, 0);
     const undoSnapshot = {nodes:JSON.parse(JSON.stringify(serializableCanvasNodes())), connections:JSON.parse(JSON.stringify(connections))};
     try {
-        const result = await window.WorkbenchNodeClient.create(canvas.id, {
-            request_id:`${CLIENT_ID}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-            project_id:canvas.project, source:'context_menu',
-            definition_ref:{type:'legacy', id:'prompt', version:'0'},
-            position:{x:p.x, y:p.y}, expected_revision:Number(lastCanvasUpdatedAt || canvas.updated_at || 0),
-            initial_config:{text:''}, title:'Prompt',
-        }, CLIENT_ID);
-        const node = window.WorkbenchNodeClient.applyCreationResult(result, {
-            nodes, undoStack, undoSnapshot, undoLimit:UNDO_MAX, canvas,
-            projectNode:created => ({id:created.id, type:'prompt', x:p.x, y:p.y, text:''}),
-            onRevision:revision => { lastCanvasUpdatedAt = window.WorkbenchCanvasPersistence.adoptRevision(canvas, revision); },
+        const node = await ensureCreationController().createNode({
+            projectId:canvas.project, clientId:CLIENT_ID, source:'context_menu',
+            definitionRef:{type:'legacy', id:'prompt', version:'0'},
+            position:{x:p.x, y:p.y}, expectedRevision:Number(lastCanvasUpdatedAt || canvas.updated_at || 0),
+            initialConfig:{text:''}, title:'Prompt',
+            apply: {
+                nodes, undoStack, undoSnapshot, undoLimit:UNDO_MAX, canvas,
+                projectNode:created => ({id:created.id, type:'prompt', x:p.x, y:p.y, text:''}),
+                onRevision:revision => { lastCanvasUpdatedAt = window.WorkbenchCanvasPersistence.adoptRevision(canvas, revision); },
+            },
         });
         render();
         return node;
@@ -2574,17 +2572,16 @@ async function addVersionedBlankLoopNode(point){
     const p = point || defaultPoint(40, 0);
     const undoSnapshot = {nodes:JSON.parse(JSON.stringify(serializableCanvasNodes())), connections:JSON.parse(JSON.stringify(connections))};
     try {
-        const result = await window.WorkbenchNodeClient.create(canvas.id, {
-            request_id:`${CLIENT_ID}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-            project_id:canvas.project, source:'context_menu',
-            definition_ref:{type:'legacy', id:'loop', version:'0'},
-            position:{x:p.x, y:p.y}, expected_revision:Number(lastCanvasUpdatedAt || canvas.updated_at || 0),
-            initial_config:{count:3}, title:'Loop',
-        }, CLIENT_ID);
-        const node = window.WorkbenchNodeClient.applyCreationResult(result, {
-            nodes, undoStack, undoSnapshot, undoLimit:UNDO_MAX, canvas,
-            projectNode:created => ({id:created.id, type:'loop', x:p.x, y:p.y, count:3, mode:'serial', showPrompt:false, imageInput:false, videoInput:false, loopStart:1, imageBatchSize:1, videoBatchSize:1, variablePrompt:'', fixedPrompt:''}),
-            onRevision:revision => { lastCanvasUpdatedAt = window.WorkbenchCanvasPersistence.adoptRevision(canvas, revision); },
+        const node = await ensureCreationController().createNode({
+            projectId:canvas.project, clientId:CLIENT_ID, source:'context_menu',
+            definitionRef:{type:'legacy', id:'loop', version:'0'},
+            position:{x:p.x, y:p.y}, expectedRevision:Number(lastCanvasUpdatedAt || canvas.updated_at || 0),
+            initialConfig:{count:3}, title:'Loop',
+            apply: {
+                nodes, undoStack, undoSnapshot, undoLimit:UNDO_MAX, canvas,
+                projectNode:created => ({id:created.id, type:'loop', x:p.x, y:p.y, count:3, mode:'serial', showPrompt:false, imageInput:false, videoInput:false, loopStart:1, imageBatchSize:1, videoBatchSize:1, variablePrompt:'', fixedPrompt:''}),
+                onRevision:revision => { lastCanvasUpdatedAt = window.WorkbenchCanvasPersistence.adoptRevision(canvas, revision); },
+            },
         });
         render();
         return node;
@@ -2626,16 +2623,15 @@ async function addVersionedBlankGroupNode(point){
     const p = point || defaultPoint(40, 0);
     const undoSnapshot = {nodes:JSON.parse(JSON.stringify(serializableCanvasNodes())), connections:JSON.parse(JSON.stringify(connections))};
     try {
-        const result = await window.WorkbenchNodeClient.create(canvas.id, {
-            request_id:`${CLIENT_ID}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-            project_id:canvas.project, source:'context_menu',
-            definition_ref:{type:'legacy', id:'group', version:'0'},
-            position:{x:p.x, y:p.y}, expected_revision:Number(lastCanvasUpdatedAt || canvas.updated_at || 0), title:'Group',
-        }, CLIENT_ID);
-        const node = window.WorkbenchNodeClient.applyCreationResult(result, {
-            nodes, undoStack, undoSnapshot, undoLimit:UNDO_MAX, canvas,
-            projectNode:created => ({id:created.id, type:'group', x:p.x, y:p.y, w:300, h:220, items:[]}),
-            onRevision:revision => { lastCanvasUpdatedAt = window.WorkbenchCanvasPersistence.adoptRevision(canvas, revision); },
+        const node = await ensureCreationController().createNode({
+            projectId:canvas.project, clientId:CLIENT_ID, source:'context_menu',
+            definitionRef:{type:'legacy', id:'group', version:'0'},
+            position:{x:p.x, y:p.y}, expectedRevision:Number(lastCanvasUpdatedAt || canvas.updated_at || 0), title:'Group',
+            apply: {
+                nodes, undoStack, undoSnapshot, undoLimit:UNDO_MAX, canvas,
+                projectNode:created => ({id:created.id, type:'group', x:p.x, y:p.y, w:300, h:220, items:[]}),
+                onRevision:revision => { lastCanvasUpdatedAt = window.WorkbenchCanvasPersistence.adoptRevision(canvas, revision); },
+            },
         });
         render();
         return node;
@@ -2650,16 +2646,15 @@ async function addVersionedBlankOutputNode(point){
     const p = point || defaultPoint(260, 0);
     const undoSnapshot = {nodes:JSON.parse(JSON.stringify(serializableCanvasNodes())), connections:JSON.parse(JSON.stringify(connections))};
     try {
-        const result = await window.WorkbenchNodeClient.create(canvas.id, {
-            request_id:`${CLIENT_ID}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-            project_id:canvas.project, source:'context_menu',
-            definition_ref:{type:'legacy', id:'output', version:'0'},
-            position:{x:p.x, y:p.y}, expected_revision:Number(lastCanvasUpdatedAt || canvas.updated_at || 0), title:'Output',
-        }, CLIENT_ID);
-        const node = window.WorkbenchNodeClient.applyCreationResult(result, {
-            nodes, undoStack, undoSnapshot, undoLimit:UNDO_MAX, canvas,
-            projectNode:created => ({id:created.id, type:'output', x:p.x, y:p.y, images:[]}),
-            onRevision:revision => { lastCanvasUpdatedAt = window.WorkbenchCanvasPersistence.adoptRevision(canvas, revision); },
+        const node = await ensureCreationController().createNode({
+            projectId:canvas.project, clientId:CLIENT_ID, source:'context_menu',
+            definitionRef:{type:'legacy', id:'output', version:'0'},
+            position:{x:p.x, y:p.y}, expectedRevision:Number(lastCanvasUpdatedAt || canvas.updated_at || 0), title:'Output',
+            apply: {
+                nodes, undoStack, undoSnapshot, undoLimit:UNDO_MAX, canvas,
+                projectNode:created => ({id:created.id, type:'output', x:p.x, y:p.y, images:[]}),
+                onRevision:revision => { lastCanvasUpdatedAt = window.WorkbenchCanvasPersistence.adoptRevision(canvas, revision); },
+            },
         });
         render();
         return node;
@@ -6419,6 +6414,17 @@ function ensureInteractionController(){
         interactionController = window.WorkbenchInteractionController.create({windowRef: window});
     }
     return interactionController;
+}
+let creationController = null;
+function ensureCreationController(){
+    if(!creationController){
+        creationController = window.WorkbenchInteractionController.createCreationController({
+            create: (canvasId, command, clientId) => window.WorkbenchNodeClient.create(canvasId, command, clientId),
+            applyResult: (result, apply) => window.WorkbenchNodeClient.applyCreationResult(result, apply),
+            requestId: () => `${CLIENT_ID}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        });
+    }
+    return creationController;
 }
 let nodeDragSessionFactory = null;
 function ensureNodeDragSessionFactory(){
