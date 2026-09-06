@@ -327,6 +327,80 @@ versioned write interleaved with canonical saves can cost one self-healing
 event contract); full regression: PASS (329 tests).
 ```
 
+## Rendering ownership map (R4-08 characterization, 2026-09-06)
+
+Pipeline facts (no behavior changed by this card). Both adapters are
+throwaway-DOM renderers: every state change rebuilds node cards from HTML
+strings, and continuity is preserved by state capture/transplant, not by
+keeping DOM alive.
+
+- Classic full reflow `render()` (`canvas.js:6084`): capture output scrolls and
+  playback states, remove `.node` children except live-media nodes, rebuild via
+  `renderNode` (`canvas.js:6100`), transplant live media (`canvas.js:6047`),
+  restore states, rebind preview fallbacks and high-res sync, apply semantic
+  zoom. Targeted path: `refreshNodes()` (`canvas.js:6123`, `replaceWith` per
+  node) plus the keyed Output diff `refreshOutputNodeContent`
+  (`canvas.js:6809`) — the only real targeted DOM updater.
+- Smart has one full `render()` (`smart-canvas.js:8998`, one HTML string) plus
+  style-only updaters: `updateNodeElementDuringResize` (`smart-canvas.js:7136`),
+  `smartMinimaxSyncPlayerDom` (`smart-canvas.js:8128`), `refreshRunTimerPills`
+  (`smart-canvas.js:8974`).
+- DOM destruction is omission from the next render sweep in both adapters
+  (Classic `canvas.js:6093`, Smart `smart-canvas.js:9063`); neither adapter ever
+  invokes the mounted-card `destroy()` handle (zero `.destroy()` call sites in
+  `canvas.js`/`smart-canvas.js`). Only the Classic LTX timeline editor has
+  explicit teardown (`destroyLTXEditor`, `canvas.js:6277`).
+
+| Family | Create | Update | Destroy | Listeners | Media state | Current owner | Target owner |
+|---|---|---|---|---|---|---|---|
+| Group (Classic `group`/`promptGroup`) | `addGroupNode` C2679 / promptGroup C15344; versioned C2631 | full render; shell via `mountCanvasNodeShellForMedia` C6420 | omission + `deleteNode` C13558 (versioned empty C13826) | body drag/dblclick C6637; shell intents once mounted | member images → MediaRenderer record C6409 | adapter HTML + NodeShell chrome | Unified RenderRuntime (card builder + lifecycle); adapter product controls compat |
+| Group (Smart `smart-group`) | `createSmartGroupNode` S6844; versioned S1643/S1682 | full render; batch mount S1549 | `deleteNode` S10595 (versioned S10784) | dblclick/toolbar S10269/S10327; shell owns ports/resize | group media record S1437 → MediaRenderer | adapter HTML + shell batch mount | Unified RenderRuntime; Smart group actions compat |
+| Image (Classic) | `addImageNode` C2604; versioned C2527 | full render / `refreshNodes` | content-clear C13568 → versioned C13736 / `deleteNode` | body C6522; img guards C6553 | shared media-kind/preview-url/fallback/high-res; adapter video activation C84 | shared media primitives + adapter HTML | Unified RenderRuntime; adapter video activation compat |
+| Image (Smart `smart-image`) | `createNode` S6749; versioned S1764/S1802 | full render + `measureSmartNodeImages` S9136 | media-clear S10618 → versioned S10761 / `deleteNode` | thumbs/play/drag S10354–10533 | shared primitives; inline-video memory S8988 | adapter HTML + MediaRenderer | Unified RenderRuntime; Smart media tools compat |
+| Prompt (Classic) | `addPromptNode` C2608; versioned C2554 | render + counter C6600 | versioned C13760 / `deleteNode` | textarea/template C6605 | n/a | adapter | Unified RenderRuntime lifecycle |
+| Prompt (Smart) | `createPromptNode` S6761; versioned S1613/S1723 | full render + `bindPromptNodeControls` S9241 | versioned S10820 / `deleteNode` | controls S9242 | n/a | adapter | Unified RenderRuntime lifecycle |
+| Loop (Classic) | `addLoopNode` C2612; versioned C2579 | `renderLoopBody` C8127 | versioned C13782 / `deleteNode` | controls C8185 | none owned | adapter | Unified RenderRuntime lifecycle |
+| Loop (Smart) | `createLoopNode` S6796; versioned S1629/S1741 | `smartLoopBodyHtml` + bind S9374 | versioned S10806 / `deleteNode` | S9374+ | none owned | adapter | Unified RenderRuntime lifecycle |
+| Output (Classic only) | `addOutputNode` C3357; versioned C2655 | keyed grid diff `refreshOutputNodeContent` C6809 / full C14417 | content-clear C13580 → versioned C13804 / `deleteNode` | `bindOutputWrap` C6708 | preview video/audio C14397; scroll capture C6240 | adapter (only targeted DOM diff) | Unified RenderRuntime (diff moves into runtime); item actions compat |
+| MiniMax (Classic) | `addMiniMaxNode` C2778 | `renderMiniMaxBody` C9434 | `deleteNode` | in-body | incidental shared playback-state | adapter | Unified RenderRuntime lifecycle |
+| MiniMax (Smart) | `createMinimaxNode` S6805; versioned S1657 | in-place `smartMinimaxSyncPlayerDom` S8128 | `deleteNode` S10595 | `bindMinimaxNodeControls` S9522 | adapter player model (playhead/mute/volume) + stage transplant S7379 | adapter player state machine | Unified RenderRuntime lifecycle; player model Smart compat |
+| Provider-shaped (Classic llm/generator/midjourney/msgen/video/comfy/rh/ltxDirector) | `addNode` C2516 via menu C3855 | full render per setting; run status `refreshRunNodes` C6155 | `deleteNode` C13558 (+LTX C13561) | per-body; `isNodeControl` C6274 | input refs via shared media-references C3929 | adapter bodies; shell adopts via `mountCanvasNodeShellForLegacy` C6446 | shell/registry shared; bodies stay provider compat |
+| Smart legacy skill nodes | composer/creation flows | full render + per-family binders | `deleteNode` S10595 | per-family binders | n/a | adapter bodies adopted losslessly S1589 | Unified RenderRuntime lifecycle; bodies compat |
+
+Legacy DOM adoption paths (all funnel through `UnifiedRenderHost`):
+1. Classic Image/Group media cards: `mountCanvasNodeShellForMedia` (C6420) →
+   `mountAdapterCard` (C6426); MediaRenderer when `canRender`, else adopted
+   legacy content preserved or empty-group placeholder.
+2. Classic Prompt/Loop/Output/LLM/Generator/MJ/MsGen/Video/Comfy/RH/LTX/
+   MiniMax/PromptGroup: `mountCanvasNodeShellForLegacy` (C6446) with
+   `preserveLegacyContent`; adapter head/ports/resize stripped post-mount
+   (`CANVAS_NODE_SHELL_LEGACY_CONTROLS` C6416).
+3. Classic media-without-shell (`node_shell=0`): `mountCanvasMediaRenderer`
+   (C6459) → `mountAdapterContent`.
+4. Smart Group batch: `mountNodeShellForSmartGroups` (S1549) — port/resize
+   controls removed BEFORE mount so adapter handlers go dead first.
+5. Smart Image batch: `mountNodeShellForSmartImages` (S1570).
+6. Smart legacy skill nodes: `mountNodeShellForSmartLegacyNodes` (S1589) with
+   `preserveLegacyContent` — listeners and form state stay adapter-owned.
+
+Shared seams (load-order stable on both pages): renderer-registry (media
+priority 100 > source-payload 0), renderer-admission (Classic type list C6321 /
+Smart excludes image/group S1431 — per-family policy lives in the adapters
+while the registry stays family-blind; note `LegacyRenderer.canRender` is
+satisfied by every projected node, `records.js:40`), node-shell chrome and
+intents, unified-render-host adoption/boundary stripping, media-kind /
+media-url / preview-fallback / high-res / playback-state primitives,
+semantic-zoom policy+apply, versioned node CRUD.
+
+**Next migration unit (selected for R4-09): the mounted-card lifecycle.** All
+six adoption paths above already go through `UnifiedRenderHost`, but adapters
+never call the returned handle's `destroy()` — cards die by omission and
+listeners die with the element. Making targeted refresh/delete route through
+the host handle (destroy on delete, destroy+remount on targeted refresh),
+starting from the three Smart batch mounts and the two Classic mounts, gives
+the Unified RenderRuntime lifecycle ownership with the smallest possible seam
+before family card builders move.
+
 # Save/merge machinery characterization (U7 blocker analysis, 2026-09-06)
 
 This table characterizes the two adapter save state machines that block the polling, normal-connect,

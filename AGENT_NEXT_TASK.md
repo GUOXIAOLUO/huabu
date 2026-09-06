@@ -5,16 +5,23 @@
 
 ## Active Task
 
-- Task ID: `R4-08`
+- Task ID: `R4-09`
 - Round: `R4`
 - Priority: `P0`
 - Status: `READY`
-- Task Card: `docs/tasks/backlog/R4-08-render-ownership-map.md`
+- Task Card: `docs/tasks/backlog/R4-09-render-runtime.md`
 
 ## Completed Tasks
 
+- `R4-08` — `DONE` 2026-09-06T19:20+08:00. Card:
+  `docs/tasks/active/R4-08-render-ownership-map.md`. Evidence: rendering
+  ownership map in `docs/plans/R4_OWNERSHIP_MATRIX.md` (per-family
+  create/update/destroy/listener/media-state owners with file:line evidence,
+  six adoption paths, next migration unit = mounted-card lifecycle); anchored
+  by a source-contract test; regression 330 tests PASS.
+
 - `R4-07` — `DONE` 2026-09-06T19:00+08:00. Card:
-  `docs/tasks/active/R4-07-remote-sync-revision.md`. Evidence: canonical meta
+  `docs/tasks/done/R4-07-remote-sync-revision.md`. Evidence: canonical meta
   probe + revision-bearing canvas_updated broadcast; remote-sync coordinator
   and update-message filter order by revision (timestamp fallback); adapters
   feed revisionOf() baselines; regression 329 tests PASS. Ownership matrix
@@ -91,8 +98,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor if R4-08 passes:
+Expected successor if R4-09 passes:
 
-`R4-09 — Render Runtime` (`docs/tasks/backlog/R4-09-render-runtime.md`)
+`R4-10 — Group Rendering` (`docs/tasks/backlog/R4-10-group-rendering.md`)
 
 Actual successor must still be checked against the repository's current verified state.

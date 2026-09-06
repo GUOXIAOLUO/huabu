@@ -995,6 +995,32 @@ const options = {{canvasId:'c1', clientId:'self', currentUpdatedAt:4000, current
         self.assertIsNone(payload["revisionlessStale"])
         self.assertIsNone(payload["ownClientId"])
 
+    def test_rendering_ownership_map_shared_seams_are_load_order_stable_and_mounted_once(self):
+        # R4-08 characterization: the shared render pipeline loads before both
+        # adapters, the registry prefers media over source-payload, both adapters
+        # mount through the unified host, and neither adapter ever tears a mounted
+        # card down (DOM dies by omission from the next render sweep).
+        order = [
+            "renderer-registry.js", "renderer-admission.js", "node-shell.js",
+            "legacy-renderer.js", "media-renderer.js", "node-card-host.js",
+            "unified-render-host.js",
+        ]
+        for page, adapter in (("canvas.html", "js/canvas.js"), ("smart-canvas.html", "js/smart-canvas.js")):
+            text = (ROOT / "static" / page).read_text(encoding="utf-8")
+            positions = [text.index(f"workbench/canvas/{name}") for name in order]
+            self.assertEqual(positions, sorted(positions), page)
+            self.assertLess(positions[-1], text.index(adapter), page)
+        host = (ROOT / "static" / "js" / "workbench" / "canvas" / "node-card-host.js").read_text(encoding="utf-8")
+        self.assertLess(host.index("id: 'media'"), host.index("id: 'source-payload'"))
+        self.assertIn("priority: 100", host[:host.index("id: 'source-payload'")])
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
+        self.assertIn("WorkbenchUnifiedRenderHost.mountAdapterCard", classic)
+        self.assertIn("WorkbenchUnifiedRenderHost.mountAdapterCards", smart)
+        for adapter_source in (classic, smart):
+            self.assertIn("WorkbenchCanvasMediaPlaybackState.capture", adapter_source)
+            self.assertNotIn(".destroy()", adapter_source)
+
     def test_versioned_writes_adopt_revisions_through_one_shared_owner(self):
         client = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-persistence-client.js"
         script = f"""

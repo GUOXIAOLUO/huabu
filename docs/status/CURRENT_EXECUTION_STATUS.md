@@ -497,6 +497,28 @@ canonical saves can cost one self-healing 409; unification is deferred.
 Focused regression: PASS (6 new tests + updated event contract); full
 regression: PASS at 329 tests.
 
+R4 rendering ownership characterization (card R4-08, 2026-09-06T19:20+08:00):
+a precise rendering ownership map now lives in
+`docs/plans/R4_OWNERSHIP_MATRIX.md` ("Rendering ownership map"), built from a
+line-referenced inventory of both adapters and the shared render modules. Key
+characterizations: both adapters are throwaway-DOM renderers (rebuild from
+HTML strings; continuity via capture/transplant — Classic `render()` C6084
+with the targeted `refreshNodes`/Output-diff paths, Smart single `render()`
+S8998 with style-only updaters); DOM destruction is omission from the next
+render sweep and neither adapter ever calls the mounted-card `destroy()`
+handle (only the Classic LTX editor has explicit teardown); all six legacy DOM
+adoption paths funnel through `UnifiedRenderHost` (media/legacy mounts on both
+adapters) with the renderer registry preferring media (priority 100) over
+source-payload (0) while per-family admission policy stays in the adapters;
+every retained node family (Group, Image, Prompt, Loop, Output, MiniMax,
+provider-shaped) now has current and target owners for
+create/update/destroy/listeners/media-state. The selected next migration unit
+is the mounted-card lifecycle (destroy on delete/refresh through the host
+handle) as R4-09's first unit. A source-contract test pins the map's core
+claims (load-order stability, registry priority, adapter mount paths, shared
+playback-state capture, zero adapter teardown). No product behavior changed.
+Focused regression: PASS (1 new test); full regression: PASS at 330 tests.
+
 ## Unified Canvas verified ledger
 
 | Stage | Status | Evidence summary |
@@ -645,13 +667,17 @@ revision-bearing broadcast, metadata peek semantics, revision-ordered polling,
 and revision-ordered update messages with timestamp fallback; the event
 contract gained the additive revision field.
 
-Agent regression gate (cards R4-01…R4-07):
+Result: PASS after R4-08 rendering ownership characterization — 330 tests in
+3.1 seconds, Python 3.14.7 (2026-09-06). The +1 test is the source-contract
+test anchoring the rendering ownership map; no product behavior changed.
+
+Agent regression gate (cards R4-01…R4-08):
 
 ```text
 ./scripts/agent-verify.sh
 ```
 
-Result: PASS — AGENT VERIFY: PASS (329 unit tests, Python AST parse of 73 files,
+Result: PASS — AGENT VERIFY: PASS (330 unit tests, Python AST parse of 73 files,
 `node --check` of 63 JavaScript files, 4 architecture-guard tests,
 `git diff --check`; Node v24.20.0). The gate script was fixed during R4-01 to
 prefer `.venv/bin/python` over PATH `python3`, which lacks project dependencies
