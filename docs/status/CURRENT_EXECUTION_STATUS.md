@@ -5,14 +5,18 @@ status_schema: workbench.execution-status/2
 ## Repository
 
 repository: local worktree (remote repository out of scope)
-verified_head: a6a44502504f33fd2acd8eb4210a8e83d698f601
-verified_commit: "feat: enforce backend node mutation shape boundary"
+verified_head: f764ce134e9496ba753fcb60943a0bbbbc2c2558
+verified_commit: "docs: add local-first R4 coordination guides"
 branch: main
 remote_state: not checked; GitHub/remote synchronization is out of scope for this local task
-verified_at: 2026-09-06T09:25:00+08:00
-verification_source: current local worktree
+verified_at: 2026-09-06T17:07:00+08:00
+verification_source: current local worktree (R4-01 local-truth re-verification)
 worktree_before_R0: clean
-worktree_after_R4_partial: dirty_only_by_R0_R1_R2_R3_and_R4_changes
+worktree_at_R4_01: tracked files clean at f764ce1; the only untracked working-tree
+content is the local-first coordination scaffolding (`AGENT_NEXT_TASK.md`,
+`CODEX_USAGE.md`, `INSTALL_CHECKLIST.md`, `README_AGENT_DEVELOPMENT.md`,
+`ZCODE_GLM_USAGE.md`, `docs/tasks/`, `scripts/`), preserved untouched; the single
+tracked pending change is this status-document update itself
 
 ## Product contract
 
@@ -329,6 +333,39 @@ trash cleanup, plus project-delete Canvas reassignment. Media cleanup intentiona
 retains its conservative Legacy unreadable-source scan until an equivalent canonical
 diagnostic exists.
 
+R4 local-truth re-verification (card R4-01, 2026-09-06T17:07+08:00): the recorded
+verified head had fallen behind the repository. The previously recorded `a6a4450`
+("feat: enforce backend node mutation shape boundary") was confirmed an ancestor of
+the actual HEAD `f764ce1` ("docs: add local-first R4 coordination guides"), which is
+31 commits ahead. The narrative evidence for those commits (save-coordinator unit 4
+shared remote-apply scheduling, semantic-zoom DOM application sharing, shared
+node-drag and node-resize sessions, unified-runtime reset on canvas state swaps,
+clipboard/subgraph parity with the smart-group paste fix, automated architecture
+guards, and the Gate-K listener/timer/DOM/memory inspection) is recorded in
+`docs/plans/R4_OWNERSHIP_MATRIX.md` rather than in this file; no product state was
+found uncommitted. At HEAD the tracked working tree is clean and the only untracked
+content is the local-first coordination scaffolding listed in the Repository header,
+preserved untouched. The full baseline passes at 294 tests (up from the previously
+recorded 285; the +9 are the committed architecture-guard tests and the shared
+interaction-session/clipboard module tests from those cards — no test delta comes
+from R4-01, which changes no product behavior). The new `scripts/agent-verify.sh`
+gate initially failed only because it invoked PATH `python3` without project
+dependencies; it now prefers `.venv/bin/python` and reports AGENT VERIFY: PASS.
+R4-01 follow-up repair (same day): the referenced-but-missing `.agent/`
+scaffolding was created — `.agent/AGENT_CONTRACT.md` (the shared agent process
+contract: authority reading order, local-first boundary, one-card rule,
+execution loop, ownership evidence, verification, completion bookkeeping, and
+review discipline) plus `.agent/prompts/run-current-task.md`,
+`.agent/prompts/zcode-run-current-task.md`, and
+`.agent/prompts/review-current-task.md`. Every file referenced by
+`scripts/agent-run-codex.sh`, `scripts/agent-status.sh`, the Codex review flow,
+and the ZCode guide now exists; all `scripts/agent-*.sh` are executable, and a
+read-only `agent-status.sh` check reports every required file OK. The
+deterministic payload benchmark was re-reproduced (100 nodes = 9,622 bytes,
+300 nodes = 29,132 bytes). Committing the untracked coordination scaffolding
+remains a deliberate user decision per the scaffolding's own safety rules.
+R4 remains the active round.
+
 ## Unified Canvas verified ledger
 
 | Stage | Status | Evidence summary |
@@ -440,10 +477,24 @@ Command:
 PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m unittest discover -s tests -q
 ```
 
-Result: PASS after current R4 work — 283 tests in 2.2 seconds, Python 3.14.7
-(2026-09-06, including the backend blank-shape mutation boundary, its route
-rejection contract, and equivalent boundary coverage through the SQLite
-compatibility repository).
+Result: PASS after R4-01 local-truth re-verification at `f764ce1` — 294 tests in
+2.7 seconds, Python 3.14.7 (2026-09-06). Relative to the previously recorded 285,
+the +9 tests are the committed architecture-guard tests and the shared
+interaction-session/clipboard module tests recorded in
+`docs/plans/R4_OWNERSHIP_MATRIX.md`; R4-01 itself adds no tests and no product
+change.
+
+Agent regression gate (card R4-01):
+
+```text
+./scripts/agent-verify.sh
+```
+
+Result: PASS — AGENT VERIFY: PASS (294 unit tests, Python AST parse of 66 files,
+`node --check` of 63 JavaScript files, 4 architecture-guard tests,
+`git diff --check`; Node v24.20.0). The gate script was fixed to prefer
+`.venv/bin/python` over PATH `python3`, which lacks project dependencies
+(`pydantic`); verification tooling only, no product behavior change.
 
 R4 canonical-routing local acceptance:
 
@@ -700,6 +751,12 @@ git diff --check
 PASS
 ```
 
+R4-01 re-verification (2026-09-06): the agent gate's full-tree sweeps parsed 66
+Python files (all non-venv `*.py` under the repository) and syntax-checked 63
+JavaScript files under `static/js`; both PASS. Counts grew from the previously
+recorded 33/42 through the committed shared interaction/clipboard modules and the
+architecture-guard tests.
+
 No repository-supported Ruff, mypy, ESLint, or bundled frontend build configuration
 was found; none is claimed as run.
 
@@ -725,6 +782,10 @@ node tools/benchmark-canvas-payload.mjs
 Result: PASS/reproduced for current R4 worktree — 100 nodes = 9,622 bytes (0.108 ms serialization);
 300 nodes = 29,132 bytes (0.096 ms serialization). This is deterministic payload
 construction, not a browser interaction budget.
+
+R4-01 re-run (2026-09-06): reproduced — 100 nodes = 9,622 bytes (0.086 ms
+serialization), 300 nodes = 29,132 bytes (0.093 ms serialization); byte-identical
+to the recorded baseline.
 
 Latest available browser record:
 `docs/benchmarks/canvas-node-shell-baseline-2026-09-04.md`. Visible 300-node Safari
