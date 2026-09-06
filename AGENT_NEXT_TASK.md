@@ -5,16 +5,24 @@
 
 ## Active Task
 
-- Task ID: `R4-19`
+- Task ID: `R4-20`
 - Round: `R4`
 - Priority: `P1`
 - Status: `READY`
-- Task Card: `docs/tasks/backlog/R4-19-keyboard-runtime.md`
+- Task Card: `docs/tasks/backlog/R4-20-connection-interaction.md`
 
 ## Completed Tasks
 
+- `R4-19` — `DONE` 2026-09-06T23:58+08:00. Card:
+  `docs/tasks/active/R4-19-keyboard-runtime.md`. Evidence:
+  `createKeyboardRuntime` owns the window keyboard listener pair (one per
+  adapter) with ordered dispatch and short-circuit; Classic main
+  keydown/keyup and Smart main keydown register with it; direct listener
+  blocks removed; undo/redo and shortcut handlers unchanged; behavioral +
+  wiring contract tests; regression 354 tests PASS.
+
 - `R4-18` — `DONE` 2026-09-06T23:43+08:00. Card:
-  `docs/tasks/active/R4-18-drag-resize.md`. Evidence: drag/resize session
+  `docs/tasks/done/R4-18-drag-resize.md`. Independent review: PASS. Evidence: drag/resize session
   factories on the InteractionController own session construction over the
   kernel; all five page session-creation sites (Classic drag/resize, Smart
   drag/thumb-drag/resize) cut over; behavioral + wiring contract tests;

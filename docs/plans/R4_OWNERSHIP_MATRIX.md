@@ -509,6 +509,23 @@ error (message-matched, vm-realm safe); wiring contracts pin one factory per
 adapter and the absence of direct kernel session calls. Focused regression:
 PASS (2 new tests; four shared-session contract assertions updated to the
 factory calls); full regression: PASS (352 tests).
+
+
+2026-09-06 keyboard runtime cutover (R4-19): the window keyboard listener
+moved under the InteractionController. `createKeyboardRuntime({windowRef})`
+installs one keydown/keyup listener pair for the page's lifetime and
+dispatches to registered handlers in order until one returns true
+(short-circuit); handlers can be unregistered, and destroy() removes the
+listeners. The Classic main keydown/keyup pair and the Smart main keydown
+handler now register with the keyboard runtime instead of adding their own
+window listeners; the composed delete/copy/paste/group/undo-redo shortcut
+handlers are unchanged, preserving undo/redo compatibility as characterized.
+The Smart Escape-only dispatcher and inspector-scoped listeners remain
+scoped/complementary. Behavioral test pins dispatch order, short-circuit on
+true, handler unregistration, and the persistent listener pair; wiring
+contracts pin one runtime per adapter, the registered main handlers, and the
+removed direct window listener blocks. Focused regression: PASS (2 new
+tests); full regression: PASS (354 tests).
 ```
 
 ## Rendering ownership map (R4-08 characterization, 2026-09-06)

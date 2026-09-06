@@ -775,6 +775,23 @@ adapter and the absence of direct kernel session calls. Focused regression:
 PASS (2 new tests; four shared-session contract assertions updated to the
 factory calls); full regression: PASS at 352 tests.
 
+R4 keyboard runtime cutover (card R4-19, 2026-09-06T23:58+08:00): the window
+keyboard listener moved under the InteractionController.
+`createKeyboardRuntime({windowRef})` installs one keydown/keyup listener pair
+for the page's lifetime and dispatches to registered handlers in order until
+one returns true (short-circuit); handlers can be unregistered, and destroy()
+removes the listeners. The Classic main keydown/keyup pair and the Smart main
+keydown handler now register with the keyboard runtime instead of adding
+their own window listeners; the composed delete/copy/paste/group/undo-redo
+shortcut handlers are unchanged, preserving undo/redo compatibility as
+characterized (duplicate-listener removal verified: one keyboard runtime per
+adapter). The Smart Escape-only dispatcher and inspector-scoped listeners
+remain scoped/complementary. Behavioral test pins dispatch order,
+short-circuit on true, handler unregistration, and the persistent listener
+pair; wiring contracts pin one runtime per adapter, the registered main
+handlers, and the removed direct window listener blocks. Focused regression:
+PASS (2 new tests); full regression: PASS at 354 tests.
+
 ## Unified Canvas verified ledger
 
 | Stage | Status | Evidence summary |
@@ -972,13 +989,17 @@ Python 3.14.7 (2026-09-06). The +2 tests are the session-factory behavioral
 test and the both-adapters wiring contract; four shared-session contract
 assertions moved to the factory calls.
 
-Agent regression gate (cards R4-01…R4-18):
+Result: PASS after R4-19 keyboard runtime cutover — 354 tests in 3.4 seconds,
+Python 3.14.7 (2026-09-06). The +2 tests are the keyboard dispatch behavioral
+test and the both-adapters wiring contract.
+
+Agent regression gate (cards R4-01…R4-19):
 
 ```text
 ./scripts/agent-verify.sh
 ```
 
-Result: PASS — AGENT VERIFY: PASS (352 unit tests, Python AST parse of 73 files,
+Result: PASS — AGENT VERIFY: PASS (354 unit tests, Python AST parse of 73 files,
 `node --check` of 67 JavaScript files, 4 architecture-guard tests,
 `git diff --check`; Node v24.20.0). The gate script was fixed during R4-01 to
 prefer `.venv/bin/python` over PATH `python3`, which lacks project dependencies
