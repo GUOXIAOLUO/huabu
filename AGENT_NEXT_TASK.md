@@ -5,16 +5,23 @@
 
 ## Active Task
 
-- Task ID: `R4-18`
+- Task ID: `R4-19`
 - Round: `R4`
 - Priority: `P1`
 - Status: `READY`
-- Task Card: `docs/tasks/backlog/R4-18-drag-resize.md`
+- Task Card: `docs/tasks/backlog/R4-19-keyboard-runtime.md`
 
 ## Completed Tasks
 
+- `R4-18` — `DONE` 2026-09-06T23:43+08:00. Card:
+  `docs/tasks/active/R4-18-drag-resize.md`. Evidence: drag/resize session
+  factories on the InteractionController own session construction over the
+  kernel; all five page session-creation sites (Classic drag/resize, Smart
+  drag/thumb-drag/resize) cut over; behavioral + wiring contract tests;
+  regression 352 tests PASS.
+
 - `R4-17` — `DONE` 2026-09-06T23:29+08:00. Card:
-  `docs/tasks/active/R4-17-minimap-cutover.md`. Evidence:
+  `docs/tasks/done/R4-17-minimap-cutover.md`. Independent review: PASS. Evidence:
   `createMinimapController` owns the minimap drag interaction (gated capture,
   project/apply callbacks, detach-on-mouseup); direct window-slot assignment
   removed; 100/300-node projection characterization test; regression 350

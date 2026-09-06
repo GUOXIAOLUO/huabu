@@ -757,6 +757,24 @@ are no-ops), and the veto path; wiring contract pins the singleton, the
 callback wiring, and the removed direct window-slot assignment. Focused
 regression: PASS (3 new tests); full regression: PASS at 350 tests.
 
+R4 drag / resize cutover (card R4-18, 2026-09-06T23:43+08:00): node drag and
+resize session creation moved under the InteractionController.
+`WorkbenchInteractionController.createNodeDragSessionFactory({runtime})` and
+`createNodeResizeSessionFactory({runtime})` own session construction over the
+runtime-state kernel (injected kernel reference, explicit validation when the
+kernel is missing). All five page session-creation sites — Classic node drag
+and node resize, Smart node drag, Smart connected thumb-drag, and Smart node
+resize — now call controller factory singletons instead of invoking
+`WorkbenchCanvasRuntime` kernel methods directly; no page wires kernel
+session creation anymore. Session math, multi-selection/group membership,
+thumb-detach behavior, DOM application, persistence and reload are unchanged
+(the shared drag/resize projection tests pass with updated identifiers).
+Behavioral test pins verbatim options delegation and the kernel-validation
+error (message-matched, vm-realm safe); wiring contracts pin one factory per
+adapter and the absence of direct kernel session calls. Focused regression:
+PASS (2 new tests; four shared-session contract assertions updated to the
+factory calls); full regression: PASS at 352 tests.
+
 ## Unified Canvas verified ledger
 
 | Stage | Status | Evidence summary |
@@ -949,13 +967,18 @@ Result: PASS after R4-17 minimap cutover — 350 tests in 3.3 seconds, Python
 the Classic wiring contract, and the 100/300-node projection scaling
 characterization.
 
-Agent regression gate (cards R4-01…R4-17):
+Result: PASS after R4-18 drag / resize cutover — 352 tests in 3.4 seconds,
+Python 3.14.7 (2026-09-06). The +2 tests are the session-factory behavioral
+test and the both-adapters wiring contract; four shared-session contract
+assertions moved to the factory calls.
+
+Agent regression gate (cards R4-01…R4-18):
 
 ```text
 ./scripts/agent-verify.sh
 ```
 
-Result: PASS — AGENT VERIFY: PASS (350 unit tests, Python AST parse of 73 files,
+Result: PASS — AGENT VERIFY: PASS (352 unit tests, Python AST parse of 73 files,
 `node --check` of 67 JavaScript files, 4 architecture-guard tests,
 `git diff --check`; Node v24.20.0). The gate script was fixed during R4-01 to
 prefer `.venv/bin/python` over PATH `python3`, which lacks project dependencies

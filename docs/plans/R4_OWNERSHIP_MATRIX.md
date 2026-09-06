@@ -31,7 +31,7 @@ REMOVE       = 可删除/待删除
 | semantic zoom | adapter enablement/iteration; shared DOM application on default path | adapter enablement/iteration; shared DOM application on default path | shared policy plus `WorkbenchSemanticZoomApply` indicator/presentation apply+reset owner | PARTIAL | Unified | Move remaining enablement/call timing with renderer ownership. | `semantic-zoom.js`; `semantic-zoom-apply.js` |
 | selection | Classic `selected` state is the InteractionController selection store (R4-15); box/single/multi flow through it | page state machine, except NodeShell/box completion, media-thumbnail, upload-target and group-menu selection | runtime command primitive plus migrated completion transitions | PARTIAL | Unified | Migrate Smart's dual-variable selection onto the store. | `interaction-controller.js`; NodeShell/box/media-thumbnail/upload-target/group-menu contracts |
 | multi-selection | page state machine | page state machine | runtime command primitive | PARTIAL | Unified | Migrate selection lifecycle. | same |
-| drag | adapter collection/product semantics; pointer-session wiring via InteractionController (R4-14, Classic); shared drag session on default path | adapter collection/product semantics; shared drag session on default path | NodeShell intent plus `createNodeDragSession` position projection | PARTIAL | Unified | Migrate Smart dispatcher and remaining drag commit/DOM lifecycle. | `runtime-state.js`; `interaction-controller.js`; drag-session contract |
+| drag | adapter collection/product semantics; pointer-session wiring via InteractionController (R4-14, Classic); session creation via controller factory (R4-18); shared drag session on default path | adapter collection/product semantics; session creation via controller factory (R4-18); shared drag session on default path | NodeShell intent plus `createNodeDragSession` position projection | PARTIAL | Unified | Migrate Smart dispatcher and remaining drag commit/DOM lifecycle. | `runtime-state.js`; `interaction-controller.js`; drag-session contract |
 | resize | adapter clamps/product branches; shared resize proposal on default path | adapter clamps/product branches; shared resize proposal on default path | NodeShell intent plus `createNodeResizeSession` size proposal | PARTIAL | Unified | Migrate remaining resize commit/size-mutation lifecycle. | `runtime-state.js`; NodeShell intent adapters; resize-session contract |
 | keyboard handling | page handlers | page handlers | editable-target helper | PARTIAL | Unified | Migrate key command lifecycle. | `interaction-targets.js` |
 | connection start | page port drag | page port drag | shared command/geometry | PARTIAL | Unified | Migrate port-drag lifecycle. | `graph-interaction.js` |
@@ -490,6 +490,25 @@ nodes (<50 ms budget), and `updateMinimapViewport` remains the viewport-only
 fast path — consistent with the recorded 300-node minimap samples (visible
 15 ms, offscreen 149 ms P2 follow-up unchanged). Focused regression: PASS
 (3 new tests); full regression: PASS (350 tests).
+
+
+2026-09-06 drag / resize cutover (R4-18): node drag and resize session
+creation moved under the InteractionController.
+`WorkbenchInteractionController.createNodeDragSessionFactory({runtime})` and
+`createNodeResizeSessionFactory({runtime})` own session construction over the
+runtime-state kernel (injected kernel reference, explicit validation when the
+kernel is missing). All five page session-creation sites — Classic node drag
+and node resize, Smart node drag, Smart connected thumb-drag, and Smart node
+resize — now call controller factory singletons instead of invoking
+`WorkbenchCanvasRuntime` kernel methods directly; no page wires kernel
+session creation anymore. Session math, multi-selection/group membership,
+thumb-detach behavior, DOM application, persistence and reload are unchanged
+(the shared drag/resize projection tests pass with updated identifiers).
+Behavioral test pins verbatim options delegation and the kernel-validation
+error (message-matched, vm-realm safe); wiring contracts pin one factory per
+adapter and the absence of direct kernel session calls. Focused regression:
+PASS (2 new tests; four shared-session contract assertions updated to the
+factory calls); full regression: PASS (352 tests).
 ```
 
 ## Rendering ownership map (R4-08 characterization, 2026-09-06)
