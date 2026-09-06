@@ -2,7 +2,8 @@
 
 - Round: R4
 - Priority: P1
-- Status: BACKLOG
+- Status: ACTIVE
+- Activated: 2026-09-06T19:38+08:00
 - Depends on: R4-09
 
 ## Goal

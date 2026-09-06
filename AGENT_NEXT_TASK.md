@@ -9,12 +9,12 @@
 - Round: `R4`
 - Priority: `P0`
 - Status: `READY`
-- Task Card: `docs/tasks/backlog/R4-10-group-rendering.md`
+- Task Card: `docs/tasks/active/R4-10-group-rendering.md`
 
 ## Completed Tasks
 
 - `R4-09` — `DONE` 2026-09-06T19:33+08:00. Card:
-  `docs/tasks/active/R4-09-render-runtime.md`. Evidence:
+  `docs/tasks/done/R4-09-render-runtime.md`. Evidence:
   `WorkbenchRenderRuntime` owns the mounted-card lifecycle (keyed registry,
   ordered destroy on remount/unmount, batch mounting, canvas-load reset); both
   adapters inject the host mount once and route all five adoption mounts +
