@@ -5,16 +5,24 @@
 
 ## Active Task
 
-- Task ID: `R4-09`
+- Task ID: `R4-10`
 - Round: `R4`
 - Priority: `P0`
 - Status: `READY`
-- Task Card: `docs/tasks/backlog/R4-09-render-runtime.md`
+- Task Card: `docs/tasks/backlog/R4-10-group-rendering.md`
 
 ## Completed Tasks
 
+- `R4-09` — `DONE` 2026-09-06T19:33+08:00. Card:
+  `docs/tasks/active/R4-09-render-runtime.md`. Evidence:
+  `WorkbenchRenderRuntime` owns the mounted-card lifecycle (keyed registry,
+  ordered destroy on remount/unmount, batch mounting, canvas-load reset); both
+  adapters inject the host mount once and route all five adoption mounts +
+  delete flows through it; behavioral + wiring contract tests; regression 332
+  tests PASS.
+
 - `R4-08` — `DONE` 2026-09-06T19:20+08:00. Card:
-  `docs/tasks/active/R4-08-render-ownership-map.md`. Evidence: rendering
+  `docs/tasks/done/R4-08-render-ownership-map.md`. Evidence: rendering
   ownership map in `docs/plans/R4_OWNERSHIP_MATRIX.md` (per-family
   create/update/destroy/listener/media-state owners with file:line evidence,
   six adoption paths, next migration unit = mounted-card lifecycle); anchored
@@ -98,8 +106,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor if R4-09 passes:
+Expected successor if R4-10 passes:
 
-`R4-10 — Group Rendering` (`docs/tasks/backlog/R4-10-group-rendering.md`)
+`R4-11 — Image / Media Rendering Cutover` (`docs/tasks/backlog/R4-11-media-rendering.md`)
 
 Actual successor must still be checked against the repository's current verified state.

@@ -325,6 +325,21 @@ node-API revision space still uses the compat updated_at cursor, so a
 versioned write interleaved with canonical saves can cost one self-healing
 409; unification is deferred. Focused regression: PASS (6 new tests + updated
 event contract); full regression: PASS (329 tests).
+
+2026-09-06 Unified RenderRuntime mounted-card lifecycle (R4-09): the render
+runtime is now a real lifecycle owner rather than a facade —
+`WorkbenchRenderRuntime.create({mount})` holds the per-node-id mounted-handle
+registry, destroys the previous handle on same-id remount, destroys and
+forgets on unmount, supports ordered batch mounting, and offers unmountAll.
+Both adapters inject their existing `UnifiedRenderHost.mountAdapterCard` once
+and route every card mount through the runtime; Classic deleteNode unmounts
+the deleted node, Smart deleteNode unmounts every removed id (including
+history groups), and both canvas loads unmountAll. Wiring contract test pins
+one injected host mount per adapter, no remaining direct
+`mountAdapterCards(entries)` calls, and script load order
+(unified-render-host -> render-runtime -> adapter). Focused regression: PASS
+(2 new tests; three mount-wiring assertions updated to the runtime contract);
+full regression: PASS (332 tests).
 ```
 
 ## Rendering ownership map (R4-08 characterization, 2026-09-06)
@@ -400,6 +415,15 @@ the host handle (destroy on delete, destroy+remount on targeted refresh),
 starting from the three Smart batch mounts and the two Classic mounts, gives
 the Unified RenderRuntime lifecycle ownership with the smallest possible seam
 before family card builders move.
+
+Completed by R4-09 (2026-09-06): `WorkbenchRenderRuntime`
+(`static/js/workbench/canvas/render-runtime.js`) now owns the mounted-card
+lifecycle — keyed mount bookkeeping, ordered destroy on
+unmount/remount/batch, `unmountAll` on canvas load. All five adoption mounts
+(two Classic, three Smart batch) plus both delete flows and both canvas-load
+resets route through it; each adapter keeps exactly one injected
+`UnifiedRenderHost.mountAdapterCard` (pinned by test), so page-side card
+mount/destruction ownership is removed.
 
 # Save/merge machinery characterization (U7 blocker analysis, 2026-09-06)
 

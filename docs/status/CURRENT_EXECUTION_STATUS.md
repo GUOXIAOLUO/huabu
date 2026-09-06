@@ -519,6 +519,28 @@ claims (load-order stability, registry priority, adapter mount paths, shared
 playback-state capture, zero adapter teardown). No product behavior changed.
 Focused regression: PASS (1 new test); full regression: PASS at 330 tests.
 
+R4 Unified RenderRuntime lifecycle (card R4-09, 2026-09-06T19:33+08:00): the
+mounted-card lifecycle slice selected by the R4-08 map is now owned by a real
+runtime — `static/js/workbench/canvas/render-runtime.js`
+(`WorkbenchRenderRuntime.create({mount})`) keeps a per-node-id
+mounted-handle registry, destroys the previous handle on same-id remount,
+destroys and forgets on `unmount`, supports ordered `mountAll` batches, and
+exposes `unmountAll`. Both adapters inject their existing
+`UnifiedRenderHost.mountAdapterCard` exactly once and route all five adoption
+mounts through the runtime; Classic `deleteNode` unmounts the deleted node,
+Smart `deleteNode` unmounts every removed id (including history groups), and
+both canvas loads (`openCanvas`/`loadCanvas`) `unmountAll`. A behavioral
+sandbox test proves the lifecycle ordering (remount destroys the old handle,
+unmount destroys and forgets, batch and validation), and a wiring contract
+test pins one injected host mount per adapter, no remaining direct
+`mountAdapterCards(entries)` calls, and the
+unified-render-host → render-runtime → adapter load order. Former page
+ownership removed: per-page direct card mounting and implicit handle
+discard. The mount/update/unmount contract is runtime-owned for the mounted
+slice; family card builders remain adapter-owned pending later units.
+Focused regression: PASS (2 new tests; three mount-wiring assertions updated
+to the runtime contract); full regression: PASS at 332 tests.
+
 ## Unified Canvas verified ledger
 
 | Stage | Status | Evidence summary |
@@ -671,14 +693,19 @@ Result: PASS after R4-08 rendering ownership characterization — 330 tests in
 3.1 seconds, Python 3.14.7 (2026-09-06). The +1 test is the source-contract
 test anchoring the rendering ownership map; no product behavior changed.
 
-Agent regression gate (cards R4-01…R4-08):
+Result: PASS after R4-09 Unified RenderRuntime lifecycle — 332 tests in 3.1
+seconds, Python 3.14.7 (2026-09-06). The +2 tests are the runtime lifecycle
+sandbox and the wiring contract; three mount-wiring assertions moved to the
+runtime contract.
+
+Agent regression gate (cards R4-01…R4-09):
 
 ```text
 ./scripts/agent-verify.sh
 ```
 
-Result: PASS — AGENT VERIFY: PASS (330 unit tests, Python AST parse of 73 files,
-`node --check` of 63 JavaScript files, 4 architecture-guard tests,
+Result: PASS — AGENT VERIFY: PASS (332 unit tests, Python AST parse of 73 files,
+`node --check` of 64 JavaScript files, 4 architecture-guard tests,
 `git diff --check`; Node v24.20.0). The gate script was fixed during R4-01 to
 prefer `.venv/bin/python` over PATH `python3`, which lacks project dependencies
 (`pydantic`); verification tooling only, no product behavior change.
