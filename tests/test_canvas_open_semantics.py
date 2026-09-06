@@ -14,12 +14,15 @@ class CanvasOpenSemanticsTests(unittest.TestCase):
         self.canvas_dir.mkdir(parents=True)
         self.canvas_patch = patch.object(main, "CANVAS_DIR", str(self.canvas_dir))
         self.routing_patch = patch.object(main, "WORKBENCH_CANONICAL_CANVAS_ROUTING_ENABLED", False)
+        self.database_patch = patch.object(main, "WORKBENCH_DATABASE_PATH", str(Path(self.temp.name) / "workbench.sqlite3"))
         self.canvas_patch.start()
         self.routing_patch.start()
+        self.database_patch.start()
 
     def tearDown(self):
         self.routing_patch.stop()
         self.canvas_patch.stop()
+        self.database_patch.stop()
         self.temp.cleanup()
 
     def test_legacy_touch_route_does_not_change_canvas_revision(self):

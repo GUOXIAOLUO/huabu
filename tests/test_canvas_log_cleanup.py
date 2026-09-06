@@ -35,6 +35,7 @@ class CanvasLogCleanupTests(unittest.IsolatedAsyncioTestCase):
             patch.object(main, "DATA_DIR", str(self.data)),
             patch.object(main, "CANVAS_DIR", str(self.canvases)),
             patch.object(main, "WORKBENCH_CANONICAL_CANVAS_ROUTING_ENABLED", False),
+            patch.object(main, "WORKBENCH_DATABASE_PATH", str(self.data / "workbench.sqlite3")),
             patch.object(main, "CONVERSATION_DIR", str(self.conversations)),
             patch.object(main, "MEDIA_PREVIEW_DIR", str(self.previews)),
             patch.object(main, "HISTORY_FILE", str(self.history)),

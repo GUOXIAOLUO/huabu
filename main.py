@@ -47,6 +47,12 @@ from workbench.repositories.canvas_repository import (
 from workbench.repositories.legacy_json_canvas_repository import LegacyJsonCanvasRepository
 from workbench.repositories.sqlite_canvas_compatibility_repository import SqliteCanvasCompatibilityRepository
 from workbench.repositories.sqlite_project_canvas_repository import LOCAL_WORKSPACE_ACTOR_ID, SqliteProjectCanvasRepository
+from workbench.application.canvas_authority_policy import (
+    CanvasAuthoritySplitBrainError,
+    read_canvas_authority_state,
+    resolve_canvas_authority,
+    split_brain_error,
+)
 from workbench.application.project_canvas_migration import ProjectCanvasMigrationService
 from workbench.api.canvas_nodes import create_canvas_nodes_router
 from workbench.application.legacy_definitions import LegacyDefinitionRegistry, LegacyImageModelCompatibilityPolicy
@@ -237,6 +243,8 @@ APP_VERSION = "2026.06.03"
 async def startup_event():
     global GLOBAL_LOOP
     GLOBAL_LOOP = asyncio.get_running_loop()
+    # R4 split-brain guard: SQLite authority must never be served from writable Legacy JSON.
+    enforce_canvas_authority_policy()
     # 启动时整理资产库：给所有图片分组（含默认角色/场景）建好文件夹，并把根目录里的旧素材归整进去。
     try:
         await asyncio.to_thread(migrate_asset_library_into_dirs)
@@ -2654,12 +2662,26 @@ def canvas_path(canvas_id):
         raise HTTPException(status_code=400, detail="无效的画布 ID")
     return os.path.join(CANVAS_DIR, f"{cleaned}.json")
 
+def canvas_authority_decision():
+    """One shared routing decision from the explicit R4 authority policy."""
+    return resolve_canvas_authority(
+        authority_state=read_canvas_authority_state(WORKBENCH_DATABASE_PATH),
+        canonical_routing_enabled=WORKBENCH_CANONICAL_CANVAS_ROUTING_ENABLED,
+    )
+
+def enforce_canvas_authority_policy():
+    """R4 split-brain guard: fail fast instead of silently forking the dataset."""
+    decision = canvas_authority_decision()
+    if decision.split_brain_forbidden:
+        raise split_brain_error(decision)
+
 def canvas_repository():
-    """Use canonical SQLite after authority activation, otherwise the bounded Legacy adapter."""
-    if WORKBENCH_CANONICAL_CANVAS_ROUTING_ENABLED:
-        canonical = canonical_project_canvas_repository()
-        if canonical.canvas_authority() == "sqlite":
-            return SqliteCanvasCompatibilityRepository(canonical, actor_id=LOCAL_WORKSPACE_ACTOR_ID, clock_ms=now_ms)
+    """Route through the explicit authority policy; writable Legacy requires inactive SQLite authority."""
+    decision = canvas_authority_decision()
+    if decision.use_sqlite:
+        return SqliteCanvasCompatibilityRepository(canonical_project_canvas_repository(), actor_id=LOCAL_WORKSPACE_ACTOR_ID, clock_ms=now_ms)
+    if decision.split_brain_forbidden:
+        raise split_brain_error(decision)
     return LegacyJsonCanvasRepository(CANVAS_DIR, clock_ms=now_ms, lock=CANVAS_LOCK)
 
 def canonical_project_canvas_repository():
@@ -18375,11 +18397,17 @@ def run_workflow(name: str, payload: WorkflowRunRequest):
 
 
 if WORKBENCH_NODE_API_ENABLED:
+    try:
+        _node_lookup = local_node_lookup()
+    except CanvasAuthoritySplitBrainError as exc:
+        # R4 split-brain guard fires during import-time wiring: refuse cleanly.
+        print(f"ERROR: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
     app.include_router(create_canvas_nodes_router(
         service_for_actor=local_node_creation_service,
         mutation_service_for_actor=local_node_mutation_service,
         graph_service_for_actor=local_graph_mutation_service,
-        node_lookup=local_node_lookup(),
+        node_lookup=_node_lookup,
     ))
 
 if __name__ == "__main__":
@@ -18391,5 +18419,10 @@ if __name__ == "__main__":
         print("WARNING: LAN mode is enabled without authentication. Restrict access to a trusted network.")
     else:
         print(f"AI Workbench is listening locally at http://127.0.0.1:{WORKBENCH_PORT}")
+    try:
+        enforce_canvas_authority_policy()
+    except CanvasAuthoritySplitBrainError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        raise SystemExit(1)
     uvicorn.run(app, host=WORKBENCH_HOST, port=WORKBENCH_PORT,
                 ws_ping_interval=None, ws_ping_timeout=None)
