@@ -1,0 +1,273 @@
+{
+  "canvas_authority": "sqlite",
+  "comparisons": [
+    {
+      "canvas_id": "0dfb12678d0b446c989707820711d2f9",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "207b8d94d29846cebf53dc56c0919444",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "218861577c5c4c3ea153b2b12cacf3f4",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "2af32886ddcd43beaaa33a0acdfb8f33",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "321bdedb172b461c81fd5fe19e886a8a",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "41b7a46e4bd84d7e9900320066e4336b",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "5698a9e0d5344336adde8a2afb928f28",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "59459dfb82ef41ac8bf1d0b0b6fb2925",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "7846630ca9924834b7282d1aee9fdcc6",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "7dae4d0554d144388c827c12ec50d2f6",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "7ed83bf56f234d77a9e67ae1f6496577",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "891954f256e34c44ac0fc8615f22f295",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "9c8f3ceb50004e59b61c953b029d64c4",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "a4b4170105c0444abf9d2fb988e52452",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "af965411cc2146958f8f16bf9edd63dd",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "b4404b60254547668d52535e66928eb6",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "b489247eabbc411cb8433d6fb39b06bd",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "bf43426d46e648e2b069f4a2313f4aab",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "c29d2daf364a4c7fa5b5632f60e9903d",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "ca914662f0dc4923bd5b60b29eb55b68",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "e3db310252584cba9cc28b9bf84094ce",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "ee27891fd77f4d9bbc5e6647200b8dde",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    },
+    {
+      "canvas_id": "f80bf3c7ba43443a9bda2b834e102601",
+      "connection_differences": {
+        "legacy_only": [],
+        "sqlite_only": []
+      },
+      "matches": true,
+      "node_position_differences": [],
+      "payload_key_differences": [],
+      "trash_state_mismatch": null
+    }
+  ],
+  "converged": true,
+  "legacy": {
+    "duplicate_ids": [],
+    "file_count": 23,
+    "id_count": 23,
+    "legacy_only_ids": []
+  },
+  "schema_version": "workbench.canvas-authority-reconciliation-report/1",
+  "sqlite": {
+    "active_count": 17,
+    "deleted_count": 6,
+    "row_count": 23,
+    "sqlite_only_ids": []
+  },
+  "unexpected_rows": []
+}

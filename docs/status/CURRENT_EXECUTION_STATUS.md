@@ -5,18 +5,19 @@ status_schema: workbench.execution-status/2
 ## Repository
 
 repository: local worktree (remote repository out of scope)
-verified_head: f764ce134e9496ba753fcb60943a0bbbbc2c2558
-verified_commit: "docs: add local-first R4 coordination guides"
+verified_head: b088d6d945fc64b5c475566bd00e75699ed47a2b
+verified_commit: "docs: record R4-01 local-truth verification and agent scaffolding repair"
 branch: main
 remote_state: not checked; GitHub/remote synchronization is out of scope for this local task
-verified_at: 2026-09-06T17:07:00+08:00
-verification_source: current local worktree (R4-01 local-truth re-verification)
+verified_at: 2026-09-06T17:37:00+08:00
+verification_source: current local worktree (R4-02 SQLite/Legacy reconciliation)
 worktree_before_R0: clean
-worktree_at_R4_01: tracked files clean at f764ce1; the only untracked working-tree
-content is the local-first coordination scaffolding (`AGENT_NEXT_TASK.md`,
-`CODEX_USAGE.md`, `INSTALL_CHECKLIST.md`, `README_AGENT_DEVELOPMENT.md`,
-`ZCODE_GLM_USAGE.md`, `docs/tasks/`, `scripts/`), preserved untouched; the single
-tracked pending change is this status-document update itself
+worktree_at_R4_02: HEAD b088d6d plus the R4-02 card's own pending additions only —
+the activated R4-02 card, the R4-01 card archived to `docs/tasks/done/`,
+`tools/reconcile_canvas_authority.py`,
+`tests/test_canvas_authority_reconciliation.py`, the
+`data/r4-canvas-reconciliation-report.json` evidence file, and status/selector
+document updates; no product runtime behavior changed
 
 ## Product contract
 
@@ -366,6 +367,25 @@ deterministic payload benchmark was re-reproduced (100 nodes = 9,622 bytes,
 remains a deliberate user decision per the scaffolding's own safety rules.
 R4 remains the active round.
 
+R4 SQLite/Legacy reconciliation (card R4-02, 2026-09-06T17:37+08:00): a strictly
+read-only reconciler, `tools/reconcile_canvas_authority.py`, now compares the
+Legacy `data/canvases/*.json` set against the SQLite `canvases` rows through a
+SQLite `mode=ro` URI connection and therefore cannot write. The live run against
+`data/workbench.sqlite3` reported: Legacy 23 files / 23 unique ids (9 classic,
+14 smart, 6 trashed), SQLite 23 rows (17 active, 6 deleted), 0 legacy-only ids,
+0 sqlite-only ids, 23/23 payload comparisons matched with zero payload-key,
+node-position, connection, or trash-state differences, and 0 unexpected rows
+(no duplicate ids, no payload-id or title-column mismatches, no legacy project
+mismatches against `data/projects.json`). The recorded authority state is
+`sqlite` (updated 2026-09-05T00:06:45Z), consistent with default canonical
+routing. The database SHA-256 (`3cca0054…`) was byte-identical before and after
+the run, so no data was overwritten and no destructive repair occurred.
+Behavioral tests (`tests/test_canvas_authority_reconciliation.py`) cover the
+converged case with authority reporting, itemized legacy node-position drift,
+sqlite-only and legacy-only row detection, trash-state mismatch, and
+byte-identical no-write behavior; the full regression passes at 297 tests.
+Evidence report: `data/r4-canvas-reconciliation-report.json`.
+
 ## Unified Canvas verified ledger
 
 | Stage | Status | Evidence summary |
@@ -484,16 +504,20 @@ interaction-session/clipboard module tests recorded in
 `docs/plans/R4_OWNERSHIP_MATRIX.md`; R4-01 itself adds no tests and no product
 change.
 
-Agent regression gate (card R4-01):
+Result: PASS after R4-02 reconciliation at `b088d6d` — 297 tests in 2.8 seconds,
+Python 3.14.7 (2026-09-06). The +3 tests are the new reconciliation behavioral
+tests; no product behavior changed.
+
+Agent regression gate (cards R4-01/R4-02):
 
 ```text
 ./scripts/agent-verify.sh
 ```
 
-Result: PASS — AGENT VERIFY: PASS (294 unit tests, Python AST parse of 66 files,
+Result: PASS — AGENT VERIFY: PASS (297 unit tests, Python AST parse of 68 files,
 `node --check` of 63 JavaScript files, 4 architecture-guard tests,
-`git diff --check`; Node v24.20.0). The gate script was fixed to prefer
-`.venv/bin/python` over PATH `python3`, which lacks project dependencies
+`git diff --check`; Node v24.20.0). The gate script was fixed during R4-01 to
+prefer `.venv/bin/python` over PATH `python3`, which lacks project dependencies
 (`pydantic`); verification tooling only, no product behavior change.
 
 R4 canonical-routing local acceptance:
@@ -756,6 +780,9 @@ Python files (all non-venv `*.py` under the repository) and syntax-checked 63
 JavaScript files under `static/js`; both PASS. Counts grew from the previously
 recorded 33/42 through the committed shared interaction/clipboard modules and the
 architecture-guard tests.
+
+R4-02 re-verification (2026-09-06): 68 Python files (adding the reconciliation
+tool and its tests) and 63 JavaScript files; PASS.
 
 No repository-supported Ruff, mypy, ESLint, or bundled frontend build configuration
 was found; none is claimed as run.
