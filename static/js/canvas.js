@@ -6058,10 +6058,10 @@ function transplantNodeMediaElement(oldNodeEl, newNodeEl){
     requestAnimationFrame(() => restoreMediaPlaybackState(oldMedia, state));
 }
 function captureMediaPlaybackStates(){
-    return WorkbenchCanvasMediaPlaybackState.captureAll(nodesEl);
+    return WorkbenchCanvasMediaPlaybackState.captureAll(nodesEl, {exclude:'.node-shell-mounted'});
 }
 function restoreMediaPlaybackStates(states){
-    WorkbenchCanvasMediaPlaybackState.restoreAll(nodesEl, states);
+    WorkbenchCanvasMediaPlaybackState.restoreAll(nodesEl, states, {exclude:'.node-shell-mounted'});
 }
 function measureCanvasOriginalImageNodes(root=nodesEl){
     root.querySelectorAll?.('.image-node img[data-original-src]').forEach(imgEl => {
@@ -6423,6 +6423,10 @@ function ensureRenderRuntime(){
     if(!renderRuntime){
         renderRuntime = window.WorkbenchRenderRuntime.create({
             mount: request => window.WorkbenchUnifiedRenderHost.mountAdapterCard(request),
+            mediaState: {
+                capture: element => window.WorkbenchCanvasMediaPlaybackState.captureAll(element),
+                restore: (element, states) => window.WorkbenchCanvasMediaPlaybackState.restoreAll(element, states),
+            },
         });
     }
     return renderRuntime;

@@ -8,7 +8,12 @@
     function create(options) {
         const settings = options || {};
         if (typeof settings.mount !== 'function') throw new TypeError('RenderRuntime requires a mount callback');
+        const mediaState = settings.mediaState || null;
+        if (mediaState && (typeof mediaState.capture !== 'function' || typeof mediaState.restore !== 'function')) {
+            throw new TypeError('RenderRuntime mediaState requires capture and restore callbacks');
+        }
         const mounted = new Map();
+        const pendingMediaStates = new Map();
 
         function mount(request) {
             const entry = request || {};
@@ -17,6 +22,14 @@
             unmount(nodeId);
             const handle = settings.mount(entry);
             mounted.set(nodeId, handle);
+            // Media-state projection: state captured at unmount is restored into
+            // the freshly mounted card, so remounts keep playback continuity
+            // without page-owned bookkeeping.
+            const stored = pendingMediaStates.get(nodeId);
+            if (mediaState && stored && entry.card) {
+                pendingMediaStates.delete(nodeId);
+                mediaState.restore(entry.card, stored);
+            }
             return handle;
         }
 
@@ -29,6 +42,10 @@
             const key = String(nodeId || '');
             const handle = mounted.get(key);
             if (!handle) return false;
+            if (mediaState && handle.element) {
+                const states = mediaState.capture(handle.element);
+                if (states && states.size) pendingMediaStates.set(key, states);
+            }
             mounted.delete(key);
             if (typeof handle.destroy === 'function') handle.destroy();
             return true;
@@ -39,6 +56,7 @@
                 if (typeof handle.destroy === 'function') handle.destroy();
             }
             mounted.clear();
+            pendingMediaStates.clear();
         }
 
         function isMounted(nodeId) {

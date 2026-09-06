@@ -1091,6 +1091,112 @@ console.log(JSON.stringify({{invalid}}));
         self.assertIn("renderRuntime?.unmount(id)", classic)
         self.assertIn("smartRenderRuntime?.unmount(deleteId)", smart)
 
+    def test_media_playback_state_projection_can_exclude_runtime_mounted_cards(self):
+        client = ROOT / "static" / "js" / "workbench" / "canvas" / "media-playback-state.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm'); const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaPlaybackState;
+const makeMedia = (url, mounted) => ({{
+  tagName:'VIDEO', dataset:{{url}}, currentTime:5, paused:true, playbackRate:1, muted:false, volume:1, readyState:1,
+  getAttribute:key => key === 'src' ? url : '', closest:selector => mounted ? {{matches:true}} : null,
+}});
+const pageMedia = makeMedia('/output/page.mp4', false);
+const runtimeMedia = makeMedia('/output/runtime.mp4', true);
+const root = {{querySelectorAll:() => [pageMedia, runtimeMedia]}};
+const unfiltered = api.captureAll(root);
+const filtered = api.captureAll(root, {{exclude:'.node-shell-mounted'}});
+api.restoreAll(root, filtered, {{exclude:'.node-shell-mounted'}});
+console.log(JSON.stringify({{unfiltered:unfiltered.size, filtered:filtered.has('video:/output/page.mp4'), runtimeExcluded:filtered.has('video:/output/runtime.mp4')}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["unfiltered"], 2)
+        self.assertTrue(payload["filtered"])
+        self.assertFalse(payload["runtimeExcluded"])
+
+    def test_render_runtime_projects_media_state_across_remounts(self):
+        runtime_module = ROOT / "static" / "js" / "workbench" / "canvas" / "render-runtime.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(runtime_module))}, 'utf8'), sandbox);
+const captures = [];
+const restores = [];
+const runtime = sandbox.window.WorkbenchRenderRuntime.create({{
+  mount: request => {{
+    const handle = {{element: {{id: 'shell-' + request.node.id}}, shell: {{}}, destroy: () => {{}}}};
+    return handle;
+  }},
+  mediaState: {{
+    capture: element => {{
+      captures.push(element.id);
+      const states = new Map();
+      states.set('video:/output/a.mp4', {{currentTime: 12}});
+      return states;
+    }},
+    restore: (element, states) => restores.push([element.id, states.get('video:/output/a.mp4').currentTime]),
+  }},
+}});
+runtime.mount({{node: {{id: 'm1'}}, card: {{id: 'card-1'}}}});
+runtime.mount({{node: {{id: 'm1'}}, card: {{id: 'card-2'}}}});
+const removed = runtime.unmount('m1');
+runtime.unmountAll();
+const plain = sandbox.window.WorkbenchRenderRuntime.create({{mount: () => ({{element: {{id: 'x'}}, destroy: () => {{}}}})}});
+plain.mount({{node: {{id: 'p1'}}, card: 'card-3'}});
+plain.mount({{node: {{id: 'p1'}}, card: 'card-4'}});
+console.log(JSON.stringify({{captures, restores, removed}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        # Remount: the runtime captured from the outgoing shell and restored into
+        # the fresh card; the page no longer projects state for mounted cards.
+        # Remount captures from the outgoing shell and restores into the fresh
+        # card; the explicit unmount captures again (terminal for that node).
+        self.assertEqual(payload["captures"], ["shell-m1", "shell-m1"])
+        self.assertEqual(payload["restores"], [["card-2", 12]])
+        self.assertTrue(payload["removed"])
+
+    def test_media_renderer_elements_carry_the_state_signature_url(self):
+        renderer = ROOT / "static" / "js" / "workbench" / "canvas" / "media-renderer.js"
+        script = """
+const fs = require('fs'); const vm = require('vm');
+const created = [];
+const fakeDocument = {
+  createElement: tag => {
+    const element = {tagName: tag.toUpperCase(), className: '', dataset: {}, src: '', alt: '',
+      loading: '', controls: false, preload: '', playsInline: false, children: [],
+      classList: {toggle() {}, add() {}, remove() {}},
+      append(child) { this.children.push(child); },
+      addEventListener() {}};
+    created.push(element);
+    return element;
+  },
+};
+const sandbox = {
+  window: {
+    WorkbenchCanvasMediaKind: {kindForItem: item => item.url.endsWith('.mp4') ? 'video' : 'image'},
+  },
+};
+vm.runInNewContext(fs.readFileSync(__MODULE__, 'utf8'), sandbox);
+const node = {
+  id: 'img-1', title: 'Clip', kind: 'asset',
+  extensions: {legacy: {payload: {url: '/output/clip.mp4'}}},
+};
+const mounted = sandbox.window.WorkbenchMediaRenderer.mountInto(
+  {ownerDocument: fakeDocument, replaceChildren() {}}, node, {document: fakeDocument});
+const video = created.find(element => element.tagName === 'VIDEO');
+console.log(JSON.stringify({src: video.src, signatureUrl: video.dataset.url, controls: video.controls, root: Boolean(mounted.element)}));
+""".replace("__MODULE__", json.dumps(str(renderer)))
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["src"], "/output/clip.mp4")
+        # The signature URL lets the shared playback-state projection and the
+        # render runtime recognize the renderer-created media element.
+        self.assertEqual(payload["signatureUrl"], "/output/clip.mp4")
+        self.assertTrue(payload["controls"])
+        self.assertTrue(payload["root"])
+
     def test_render_runtime_group_mount_owns_record_decision_and_lifecycle(self):
         runtime_module = ROOT / "static" / "js" / "workbench" / "canvas" / "render-runtime.js"
         script = """

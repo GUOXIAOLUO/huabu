@@ -1551,6 +1551,10 @@ function ensureSmartRenderRuntime(){
     if(!smartRenderRuntime){
         smartRenderRuntime = window.WorkbenchRenderRuntime.create({
             mount: request => window.WorkbenchUnifiedRenderHost.mountAdapterCard(request),
+            mediaState: {
+                capture: element => window.WorkbenchCanvasMediaPlaybackState.captureAll(element),
+                restore: (element, states) => window.WorkbenchCanvasMediaPlaybackState.restoreAll(element, states),
+            },
         });
     }
     return smartRenderRuntime;
@@ -7428,10 +7432,10 @@ function transplantSmartMediaElements(oldNodeEl, newNodeEl){
     });
 }
 function captureMediaPlaybackStates(){
-    return WorkbenchCanvasMediaPlaybackState.captureAll(world);
+    return WorkbenchCanvasMediaPlaybackState.captureAll(world, {exclude:'.node-shell-mounted'});
 }
 function restoreMediaPlaybackStates(states){
-    WorkbenchCanvasMediaPlaybackState.restoreAll(world, states);
+    WorkbenchCanvasMediaPlaybackState.restoreAll(world, states, {exclude:'.node-shell-mounted'});
 }
 function smartRunTaskLabel(run){
     const s = run?.settings || {};

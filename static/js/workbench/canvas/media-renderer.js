@@ -67,6 +67,7 @@
                 const media = documentRef.createElement(isVideo(item) ? 'video' : 'img');
                 media.className = 'workbench-media-renderer__item';
                 media.src = item.url;
+                media.dataset.url = item.url;
                 media.alt = item.label || node.title || 'Media';
                 media.loading = 'lazy';
                 if (media.tagName === 'VIDEO') {

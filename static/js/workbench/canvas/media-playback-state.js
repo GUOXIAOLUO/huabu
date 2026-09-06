@@ -40,9 +40,15 @@
         return tag && url ? `${tag}:${url}` : '';
     }
 
+    function matchingMedia(root, options = {}) {
+        const media = root?.querySelectorAll?.(options.selector || DEFAULT_SELECTOR) || [];
+        if (!options.exclude) return [...media];
+        return [...media].filter(item => !item.closest?.(options.exclude));
+    }
+
     function captureAll(root, options = {}) {
         const states = new Map();
-        root?.querySelectorAll?.(options.selector || DEFAULT_SELECTOR).forEach(media => {
+        matchingMedia(root, options).forEach(media => {
             const key = signature(media);
             if (key) states.set(key, capture(media));
         });
@@ -51,7 +57,7 @@
 
     function restoreAll(root, states, options = {}) {
         if (!states?.size) return;
-        root?.querySelectorAll?.(options.selector || DEFAULT_SELECTOR).forEach(media => restore(media, states.get(signature(media))));
+        matchingMedia(root, options).forEach(media => restore(media, states.get(signature(media))));
     }
 
     global.WorkbenchCanvasMediaPlaybackState = Object.freeze({capture, restore, signature, captureAll, restoreAll});
