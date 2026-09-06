@@ -9,15 +9,13 @@ verified_head: b088d6d945fc64b5c475566bd00e75699ed47a2b
 verified_commit: "docs: record R4-01 local-truth verification and agent scaffolding repair"
 branch: main
 remote_state: not checked; GitHub/remote synchronization is out of scope for this local task
-verified_at: 2026-09-06T17:37:00+08:00
-verification_source: current local worktree (R4-02 SQLite/Legacy reconciliation)
+verified_at: 2026-09-06T17:59:00+08:00
+verification_source: current local worktree (R4-03 authority split-brain guard)
 worktree_before_R0: clean
-worktree_at_R4_02: HEAD b088d6d plus the R4-02 card's own pending additions only —
-the activated R4-02 card, the R4-01 card archived to `docs/tasks/done/`,
-`tools/reconcile_canvas_authority.py`,
-`tests/test_canvas_authority_reconciliation.py`, the
-`data/r4-canvas-reconciliation-report.json` evidence file, and status/selector
-document updates; no product runtime behavior changed
+worktree_at_R4_03: HEAD a1195c9 plus the R4-03 card's own pending additions only —
+the authority policy seam, the main.py guard wiring, focused policy/wiring tests,
+the isolated legacy-routed test-fixture database patches, and status/ownership
+document updates; Legacy recovery semantics unchanged
 
 ## Product contract
 
@@ -44,8 +42,9 @@ audit/outbox, and migration-report command are tested. The live Legacy report at
 differences. R4 now has a tested SQLite compatibility repository with true SQL
 compare-and-swap. SQLite authority was activated locally after the validated
 backup/compare (22 payloads), and canonical routing is now the default runtime when
-that authority state is `sqlite`; an explicit false value is a bounded rollback
-control while U7 remains in progress. Isolated API, browser read, browser write,
+that authority state is `sqlite`; an explicit false value was originally a bounded
+rollback control and is now (R4-03) refused at startup while authority is `sqlite`,
+remaining valid only when authority is inactive. Isolated API, browser read, browser write,
 restart, stale-conflict, and rollback-export acceptance passed. The retained
 Classic/Smart editor adapters now share the neutral CanvasRecord load/save/metadata
 client, version-poll coordinator, and transport-neutral update-message filter;
@@ -386,6 +385,34 @@ sqlite-only and legacy-only row detection, trash-state mismatch, and
 byte-identical no-write behavior; the full regression passes at 297 tests.
 Evidence report: `data/r4-canvas-reconciliation-report.json`.
 
+R4 authority split-brain guard (card R4-03, 2026-09-06T17:59+08:00): Canvas
+repository selection moved from the bare routing-flag branch to one explicit
+authority policy seam — `workbench/application/canvas_authority_policy.py`
+(`resolve_canvas_authority` plus a tolerant read-only `authority_state` reader
+that treats a missing or unreadable database as "unavailable" so recovery keeps
+working). `main.canvas_repository()` consults the policy on every call, and
+startup now fails fast with `CanvasAuthoritySplitBrainError` (clean message,
+exit 1) at three layers — the module-level node-API wiring, `startup_event`,
+and the `__main__` entry — when SQLite authority is active while canonical
+routing is disabled. This closes the exact legacy-routed hazard that produced
+the 2026-09-06 morning split-brain: `WORKBENCH_CANONICAL_CANVAS_ROUTING_ENABLED=false`
+can no longer silently select writable Legacy JSON while `authority_state=sqlite`;
+it remains a valid recovery control only when authority is `legacy_json` or
+unavailable. Explicit recovery paths are untouched: `project_canvas_migration_service()`,
+`tools/migrate_project_canvas.py`, and the tested lossless rollback export.
+Five legacy-routed test fixtures (`test_repository_baseline`,
+`test_canvas_legacy_fixtures`, `test_canvas_open_semantics`,
+`test_canvas_nodes_runtime`, `test_canvas_log_cleanup`) gained a
+temporary-database patch so simulated legacy routing no longer implies the real
+authority state. Live checks against the real database: default routing returns
+`SqliteCanvasCompatibilityRepository` over 23 payloads with decision
+`sqlite_authority_with_canonical_routing`; the disabled-flag run prints the
+explicit error and exits 1 with the database byte-identical
+(sha256 `3cca0054…`). Focused regression: PASS (11 new tests: policy resolver
+matrix, tolerant reader, wiring refusal, mid-flight authority activation
+detection, recovery availability, startup wiring). Full regression: PASS at
+308 tests.
+
 ## Unified Canvas verified ledger
 
 | Stage | Status | Evidence summary |
@@ -454,7 +481,7 @@ handoff: not_implemented
 | `WORKBENCH_ALLOWED_ORIGINS` | loopback origins on selected port | Explicit comma list allowed; wildcard rejected |
 | `WORKBENCH_LAN_ENABLED` | false | Derived from wildcard bind host |
 | `WORKBENCH_NODE_API_ENABLED` | true on default loopback | `/api/v1` router registered only for loopback host values |
-| `WORKBENCH_CANONICAL_CANVAS_ROUTING_ENABLED` | true | Selects SQLite compatibility persistence when SQLite authority state is `sqlite`; explicit false is the bounded U7 rollback control, and inactive authority does not initialize/switch data |
+| `WORKBENCH_CANONICAL_CANVAS_ROUTING_ENABLED` | true | Selects SQLite compatibility persistence when SQLite authority state is `sqlite`. Since R4-03 an explicit false value is refused at startup (exit 1, `CanvasAuthoritySplitBrainError`) while authority is `sqlite` — it no longer silently selects writable Legacy; it remains a valid recovery control only when authority is `legacy_json` or unavailable, and inactive authority still does not initialize/switch data |
 | `unified_canvas=0` | default-on | Shared state adapter is enabled whenever its module is present; explicit `0` is the bounded U7 rollback control pending complete page/runtime replacement |
 | `node_shell=0` | default-on | Enables NodeShell base on loopback; explicit `0` is the bounded U7 rollback control pending complete page/runtime replacement |
 | `legacy_renderer=0` | default-on | Uses source-payload rendering inside NodeShell; explicit `0` is the bounded U7 rollback control pending complete page/runtime replacement |
@@ -508,13 +535,18 @@ Result: PASS after R4-02 reconciliation at `b088d6d` — 297 tests in 2.8 second
 Python 3.14.7 (2026-09-06). The +3 tests are the new reconciliation behavioral
 tests; no product behavior changed.
 
-Agent regression gate (cards R4-01/R4-02):
+Result: PASS after R4-03 split-brain guard at `a1195c9` — 308 tests in 3.0
+seconds, Python 3.14.7 (2026-09-06). The +11 tests are the authority policy
+resolver/reader tests and the wiring guard tests; five legacy-routed fixtures
+gained temporary-database isolation patches.
+
+Agent regression gate (cards R4-01/R4-02/R4-03):
 
 ```text
 ./scripts/agent-verify.sh
 ```
 
-Result: PASS — AGENT VERIFY: PASS (297 unit tests, Python AST parse of 68 files,
+Result: PASS — AGENT VERIFY: PASS (308 unit tests, Python AST parse of 70 files,
 `node --check` of 63 JavaScript files, 4 architecture-guard tests,
 `git diff --check`; Node v24.20.0). The gate script was fixed during R4-01 to
 prefer `.venv/bin/python` over PATH `python3`, which lacks project dependencies
@@ -783,6 +815,9 @@ architecture-guard tests.
 
 R4-02 re-verification (2026-09-06): 68 Python files (adding the reconciliation
 tool and its tests) and 63 JavaScript files; PASS.
+
+R4-03 re-verification (2026-09-06): 70 Python files (adding the authority policy
+seam and its tests) and 63 JavaScript files; PASS.
 
 No repository-supported Ruff, mypy, ESLint, or bundled frontend build configuration
 was found; none is claimed as run.

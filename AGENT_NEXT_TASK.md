@@ -5,13 +5,21 @@
 
 ## Active Task
 
-- Task ID: `R4-03`
+- Task ID: `R4-04`
 - Round: `R4`
 - Priority: `P0`
 - Status: `READY`
-- Task Card: `docs/tasks/active/R4-03-split-brain-guard.md`
+- Task Card: `docs/tasks/backlog/R4-04-split-brain-regression.md`
 
 ## Completed Tasks
+
+- `R4-03` — `DONE` 2026-09-06T17:59+08:00. Card:
+  `docs/tasks/active/R4-03-split-brain-guard.md`. Evidence: explicit authority
+  policy seam (`canvas_authority_policy.py`) + three-layer startup guard; live
+  refusal of `WORKBENCH_CANONICAL_CANVAS_ROUTING_ENABLED=false` under
+  `authority_state=sqlite` with exit 1 and byte-identical database
+  (sha256 `3cca0054…`); recovery paths verified available; regression 308
+  tests PASS. Ownership matrix Canvas-persistence row updated.
 
 - `R4-02` — `DONE` 2026-09-06T17:37+08:00. Card:
   `docs/tasks/done/R4-02-sqlite-legacy-reconcile.md`. Evidence: read-only
@@ -32,9 +40,11 @@
 1. `AGENTS.md`
 2. `.agent/AGENT_CONTRACT.md`
 3. `docs/status/CURRENT_EXECUTION_STATUS.md`
-4. `docs/tasks/active/R4-03-split-brain-guard.md`
+4. `docs/tasks/backlog/R4-04-split-brain-regression.md`
 
-Read architecture documents only as required by the card.## Execution Rule
+Read architecture documents only as required by the card.
+
+## Execution Rule
 
 Execute **exactly this one card**.
 
@@ -52,8 +62,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor if R4-03 passes:
+Expected successor if R4-04 passes:
 
-`R4-04 — Split-Brain Regression` (`docs/tasks/backlog/R4-04-split-brain-regression.md`)
+`R4-05 — Canonical Canvas API` (`docs/tasks/backlog/R4-05-canonical-canvas-api.md`)
 
 Actual successor must still be checked against the repository's current verified state.

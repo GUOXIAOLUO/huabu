@@ -22,7 +22,7 @@ REMOVE       = 可删除/待删除
 | Responsibility | Classic | Smart | Unified | Status | Final owner | Required action | Evidence |
 |---|---|---|---|---|---|---|---|
 | Canvas entry | compatibility handoff | compatibility page | `canvas.html` | PARTIAL | Unified | Remove retained Smart deep-link handoff after Smart record rendering is native. | `canvas-entry-compatibility.js`; status U6 |
-| Canvas persistence | adapter client | adapter client | SQLite `CanvasRecord` | UNIFIED | Unified | Keep Legacy JSON only as import/rollback. | status R3/R4 acceptance |
+| Canvas persistence | adapter client | adapter client | SQLite `CanvasRecord` | UNIFIED | Unified | Keep Legacy JSON only as import/rollback; repository selection goes only through the explicit authority policy seam. | status R3/R4 acceptance; R4-03 split-brain guard |
 | revision/CAS | none | none | API/application service | UNIFIED | Unified | Maintain conflict coverage. | `tests/test_canvas_nodes_runtime.py` |
 | remote/version polling | interval/merge policy | interval/merge policy | transport-neutral coordinator only | PARTIAL | Unified | Move polling policy/state into the product runtime. | `canvas-remote-sync.js`; save/merge characterization below |
 | viewport state | page load/swap adopt through one seam; interaction commits and mirror read from runtime | page load/swap adopt through one seam; interaction commits and mirror read from runtime | `CanvasRuntime` viewport authority with adapter adopt/reset seam | PARTIAL | Unified | Migrate remaining pan/zoom/minimap DOM and persistence lifecycle on top of the authoritative state. | `canvas.js`, `smart-canvas.js`, `runtime-state.js`; canvas-state-swap contract |
@@ -256,6 +256,22 @@ apply actions (replace vs merge), which are the same adapter-owned conflict/appl
 unit (4) and depend on the viewport/selection state rows. No bounded migration remains in the polling
 row until those state rows move; no ownership was reduced by these assessments; they are recorded to
 prevent re-deriving the same blockers.
+
+2026-09-06 canvas authority split-brain guard (R4-03): Canvas repository selection moved from the
+bare routing-flag branch to one explicit authority policy seam — `workbench/application/
+canvas_authority_policy.py` (`resolve_canvas_authority` plus a tolerant read-only `authority_state`
+reader). `main.canvas_repository()` now consults the policy on every call, and startup
+(`startup_event`, the module-level node-API wiring, and the `__main__` entry) fails fast with
+`CanvasAuthoritySplitBrainError` when SQLite authority is active while canonical routing is
+disabled, instead of silently routing writable traffic to Legacy JSON — the exact legacy-routed
+hazard behind the morning split-brain. Recovery remains explicit: legacy routing still works when
+authority is `legacy_json` or unavailable (missing/temporary database), and the migration
+import/compare tool plus the tested lossless rollback export are untouched. Five legacy-routed test
+fixtures gained a temporary-database patch so simulated legacy routing no longer implies the real
+authority state. Live check: default routing returns `SqliteCanvasCompatibilityRepository` over 23
+payloads; with `WORKBENCH_CANONICAL_CANVAS_ROUTING_ENABLED=false` the process refuses with exit 1
+and the database stays byte-identical (sha256 `3cca0054…`). Focused regression: PASS (11 new
+tests); full regression: PASS (308 tests).
 ```
 
 # Save/merge machinery characterization (U7 blocker analysis, 2026-09-06)
