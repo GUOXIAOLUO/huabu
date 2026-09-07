@@ -5,10 +5,32 @@
 
 ## Active Task
 
-- `None` — no active card. R4-34 closed 2026-09-07T14:40+08:00. Recommended
-  successor `R4-35` (see "Recommended Successor" below), not yet activated.
+- `None` — no active card. R4-35 closed 2026-09-07T14:54+08:00. Recommended
+  successor `R4-36` (see "Recommended Successor" below), not yet activated.
 
 ## Completed Tasks
+
+- `R4-35` — `DONE` 2026-09-07T14:54+08:00. Card:
+  `docs/tasks/active/R4-35-remove-smart-handoff.md`. Implementer evidence
+  (independent review pending): the Smart product-page handoff surface is
+  retired from `WorkbenchCanvasEntryCompatibility`. `requiresLegacySmartHandoff`
+  and `legacySmartCanvasUrl` (plus the only `/static/smart-canvas.html` URL
+  string) are removed from `static/js/workbench/canvas/canvas-entry-compatibility.js`;
+  the module keeps the four-function normal surface (`normalCanvasUrl`,
+  `rememberCanvasListProject`, `rememberedCanvasListProject`,
+  `canvasListUrl`) used by `canvas.js`, `canvas-list.js`, `asset-manager.js`
+  and `smart-canvas.js`. The `smart-canvas.html` / `smart-canvas.js` product
+  page stays on disk (out of scope: `R4-36` retires it). A static-JS audit
+  finds zero hits for the routable `/static/smart-canvas.html` string
+  across `static/js/**/*.js` and `static/js/*.js` — the DoD "No Smart
+  product page routing remains" is satisfied at the source level. Two
+  pre-existing contracts in `tests/test_canvas_entry.py` updated
+  (`test_entry_compatibility_keeps_one_normal_entry_and_scopes_smart_handoff`
+  → `..._with_no_handoff_surface`; `test_product_openers_confine_smart_page_urls_..._boundary`
+  → `test_no_smart_product_page_routing_remains_in_static_js`); net test
+  delta +0 (R4-35 strengthens/renames existing contracts rather than
+  adding new redundant ones). Ownership matrix `Smart handoff` row
+  retired. `./scripts/agent-verify.sh` PASS at 412 tests (unchanged).
 
 - `R4-34` — `DONE` 2026-09-07T14:40+08:00. Card:
   `docs/tasks/active/R4-34-smart-native-canvas.md`. Implementer evidence
@@ -507,8 +529,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor after R4-34 close (not activated, not executed):
+Expected successor after R4-35 close (not activated, not executed):
 
-`R4-35 — Remove Smart Handoff` (`docs/tasks/backlog/R4-35-remove-smart-handoff.md`)
+`R4-36 — Remove Smart Page` (`docs/tasks/backlog/R4-36-remove-smart-page.md`)
 
 Actual successor must still be checked against the repository's current verified state.

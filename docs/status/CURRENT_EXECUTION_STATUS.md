@@ -1352,6 +1352,41 @@ unit tests (baseline 410; +2), PASS Python AST parse, PASS JavaScript
 syntax, PASS Architecture guards (4), PASS `git diff --check`.
 `AGENT VERIFY: PASS`.
 
+R4 Smart handoff removal (card R4-35, 2026-09-07T14:49+08:00, Owner
+authorization via in-conversation "提交并开发下一任务"; implementer evidence,
+independent review pending): the Smart product-page handoff surface is
+retired from `WorkbenchCanvasEntryCompatibility`. After R4-34 stopped
+consuming the handoff, the two helpers were dead surface — no JS code
+constructed a navigation to `smart-canvas.html` — so this card removes
+`requiresLegacySmartHandoff(canvas)` and `legacySmartCanvasUrl(canvasId, search)`
+plus the only `/static/smart-canvas.html` URL string from
+`static/js/workbench/canvas/canvas-entry-compatibility.js`. The module
+keeps the four-function normal surface (`normalCanvasUrl`,
+`rememberCanvasListProject`, `rememberedCanvasListProject`,
+`canvasListUrl`) used by `canvas.js`, `canvas-list.js`, `asset-manager.js`
+and `smart-canvas.js`. The `smart-canvas.html` / `smart-canvas.js`
+product page stays on disk (out of scope: `R4-36` retires the page after
+the Smart-capability migration is verified). After this card, a static-JS
+audit finds zero hits for the routable `/static/smart-canvas.html` string
+across `static/js/**/*.js` and `static/js/*.js` — the DoD "No Smart
+product page routing remains" is satisfied at the source level. The
+`tests/test_canvas_entry.py` handoff contracts are updated:
+`test_entry_compatibility_keeps_one_normal_entry_and_scopes_smart_handoff`
+→ `test_entry_compatibility_keeps_one_normal_entry_with_no_handoff_surface`
+(vm-sandbox + source-contract: the module's frozen export is exactly the
+four non-handoff keys; the handoff function names and the
+`/static/smart-canvas.html` string are gone), and
+`test_product_openers_confine_smart_page_urls_to_the_compatibility_boundary`
+→ `test_no_smart_product_page_routing_remains_in_static_js` (the
+compatibility boundary itself no longer carries the URL — the routable
+string is absent from every scanned JS file, including the entry module).
+Ownership matrix `Smart handoff` row retired. Regression:
+`./scripts/agent-verify.sh` PASS at 412 Python unit tests (baseline 412;
++0 — R4-35 strengthens/renames existing contracts rather than adding
+new redundant ones, since the handoff helpers had no other consumers),
+PASS Python AST parse, PASS JavaScript syntax, PASS Architecture
+guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
+
 R4 clipboard unified creation (card R4-23, 2026-09-07): single-node,
 connection-free clipboard paste of the losslessly persistable Legacy shapes —
 Classic `image` (url/name/mediaKind) and `prompt` (text), Smart `smart-prompt`

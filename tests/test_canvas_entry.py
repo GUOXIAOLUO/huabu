@@ -44,31 +44,41 @@ class CanvasEntryTests(unittest.TestCase):
         self.assertNotIn("智能画布", source)
         self.assertNotIn("普通画布", source)
 
-    def test_entry_compatibility_keeps_one_normal_entry_and_scopes_smart_handoff(self):
+    def test_entry_compatibility_keeps_one_normal_entry_with_no_handoff_surface(self):
+        # R4-35: the Smart handoff surface is retired. The module only exports
+        # the normal entry URL + the list-project helpers; the handoff helpers
+        # (requiresLegacySmartHandoff / legacySmartCanvasUrl) and the
+        # /static/smart-canvas.html URL string are gone.
         source = ENTRY_COMPATIBILITY.read_text(encoding="utf-8")
         self.assertNotIn("fetch(", source)
         self.assertNotIn("localStorage", source)
+        self.assertNotIn("requiresLegacySmartHandoff", source)
+        self.assertNotIn("legacySmartCanvasUrl", source)
+        self.assertNotIn("/static/smart-canvas.html", source)
         result = subprocess.run(["node", "-e", f"""
 const fs=require('fs'), vm=require('vm'); const sandbox={{window:{{}}, URLSearchParams}};
 vm.runInNewContext(fs.readFileSync({json.dumps(str(ENTRY_COMPATIBILITY))}, 'utf8'), sandbox);
 const E=sandbox.window.WorkbenchCanvasEntryCompatibility;
+const keys = Object.keys(E).sort();
+const hasHandoff = (typeof E.requiresLegacySmartHandoff !== 'undefined') || (typeof E.legacySmartCanvasUrl !== 'undefined');
+const remembered = E.rememberedCanvasListProject({{storage:{{getItem:() => 'pX'}}, defaultProject:'p1'}});
+const listUrl = E.canvasListUrl('p1');
 console.log(JSON.stringify({{
-  normal:E.normalCanvasUrl('canvas / 1', 'project / 1'),
-  smart:E.legacySmartCanvasUrl('canvas / 1'),
-  retained:E.legacySmartCanvasUrl('canvas / 1', '?id=obsolete&unified_canvas=0&node_shell=0'),
-  historical:E.requiresLegacySmartHandoff({{kind:'smart'}}),
-  normalRecord:E.requiresLegacySmartHandoff({{kind:'classic'}}),
-  missingKind:E.requiresLegacySmartHandoff({{}}),
+  keys,
+  hasHandoff,
+  normal: E.normalCanvasUrl('canvas / 1', 'project / 1'),
+  remembered,
+  listUrl,
 }}));
 """], check=True, text=True, capture_output=True)
-        self.assertEqual(json.loads(result.stdout), {
-            "normal": "/static/canvas.html?id=canvas%20%2F%201&project=project%20%2F%201",
-            "smart": "/static/smart-canvas.html?id=canvas%20%2F%201",
-            "retained": "/static/smart-canvas.html?id=canvas%20%2F%201&unified_canvas=0&node_shell=0",
-            "historical": True,
-            "normalRecord": False,
-            "missingKind": False,
-        })
+        out = json.loads(result.stdout)
+        self.assertEqual(out["keys"], [
+            "canvasListUrl", "normalCanvasUrl", "rememberCanvasListProject", "rememberedCanvasListProject",
+        ])
+        self.assertFalse(out["hasHandoff"])
+        self.assertEqual(out["normal"], "/static/canvas.html?id=canvas%20%2F%201&project=project%20%2F%201")
+        self.assertEqual(out["remembered"], "pX")
+        self.assertTrue(out["listUrl"].startswith("/static/canvas-list.html?"))
 
     def test_canvas_editor_opens_every_record_without_the_smart_handoff(self):
         # R4-34: openCanvas no longer contains the Smart handoff redirect;
@@ -85,12 +95,15 @@ console.log(JSON.stringify({{
         # The new-canvas gate routes Smart-kind creations to canvas.html.
         self.assertIn("WorkbenchCanvasEntryCompatibility.normalCanvasUrl(", source)
 
-    def test_product_openers_confine_smart_page_urls_to_the_compatibility_boundary(self):
-        compatibility = ENTRY_COMPATIBILITY.read_text(encoding="utf-8")
-        self.assertIn("/static/smart-canvas.html", compatibility)
-        for name in ("canvas-list.js", "asset-manager.js", "canvas.js"):
-            source = (ROOT / "static" / "js" / name).read_text(encoding="utf-8")
-            self.assertNotIn("/static/smart-canvas.html", source)
+    def test_no_smart_product_page_routing_remains_in_static_js(self):
+        # R4-35: with the handoff helpers removed from the compatibility
+        # module, no JS file constructs a navigation to smart-canvas.html.
+        # The smart-canvas.html product page still exists on disk and is
+        # reachable only by direct navigation (R4-36 retires it after the
+        # Smart-capability migration is verified).
+        for name in ("canvas-entry-compatibility.js", "canvas-list.js", "asset-manager.js", "canvas.js", "smart-canvas.js"):
+            source = (ROOT / "static" / "js" / "workbench" / "canvas" / name).read_text(encoding="utf-8") if name == "canvas-entry-compatibility.js" else (ROOT / "static" / "js" / name).read_text(encoding="utf-8")
+            self.assertNotIn("/static/smart-canvas.html", source, f"{name} must not construct a smart-canvas.html URL (R4-35)")
 
     def test_canvas_editor_routes_every_record_through_the_unified_open_path(self):
         # R4-34: the editor no longer branches on kind. Every record — Classic

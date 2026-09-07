@@ -2,7 +2,9 @@
 
 - Round: R4
 - Priority: P0
-- Status: BACKLOG
+- Status: DONE
+- Activated: 2026-09-07T14:49+08:00
+- Closed: 2026-09-07T14:54+08:00
 - Depends on: R4-34
 
 ## Goal
@@ -52,7 +54,7 @@ Run:
 
 ## Definition of Done
 
-- [ ] No Smart product page routing remains.
+- [x] No Smart product page routing remains.
 
 ## Documentation
 
@@ -66,9 +68,24 @@ Update `AGENT_NEXT_TASK.md` after the card is actually verified.
 
 Before:
 
+`WorkbenchCanvasEntryCompatibility` exported the four non-handoff helpers
+plus `requiresLegacySmartHandoff` and `legacySmartCanvasUrl`; the
+`/static/smart-canvas.html` URL string lived in `legacySmartCanvasUrl`.
+
 After:
 
+`WorkbenchCanvasEntryCompatibility` exports only the four non-handoff
+helpers (`normalCanvasUrl`, `rememberCanvasListProject`,
+`rememberedCanvasListProject`, `canvasListUrl`). A static-JS audit finds
+zero hits for `/static/smart-canvas.html` anywhere under `static/js/`.
+The `smart-canvas.html` / `smart-canvas.js` product page stays on disk
+(`R4-36` retires it after capability verification).
+
 Duplicate owner removed:
+
+the Smart product-page handoff routing (the page-switch capability that
+this card retires; the unified `canvas.html` + the shared
+`normalCanvasUrl` entry helper is now the sole entry path).
 
 ## Next Recommended Card
 

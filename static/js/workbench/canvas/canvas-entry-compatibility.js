@@ -1,5 +1,7 @@
-/* One normal Canvas URL plus explicit compatibility routing for historical
- * Smart records. This module does not load, persist, or reinterpret Canvas data. */
+/* One normal Canvas URL plus list-page navigation helpers. This module does
+ * not load, persist, or reinterpret Canvas data. Smart product-page routing
+ * was retired by card R4-35: the unified canvas.html is the single entry,
+ * and no JS constructs a navigation to smart-canvas.html. */
 (function exposeWorkbenchCanvasEntryCompatibility(global) {
     'use strict';
 
@@ -11,17 +13,6 @@
 
     function normalCanvasUrl(canvasId, projectId) {
         return `/static/canvas.html?id=${encodeURIComponent(requiredId(canvasId, 'canvasId'))}&project=${encodeURIComponent(requiredId(projectId, 'projectId'))}`;
-    }
-
-    function requiresLegacySmartHandoff(canvas) {
-        return String(canvas?.kind || 'classic').trim() === 'smart';
-    }
-
-    function legacySmartCanvasUrl(canvasId, search) {
-        const params = new URLSearchParams(String(search || '').replace(/^\?/, ''));
-        params.delete('id');
-        const suffix = params.toString();
-        return `/static/smart-canvas.html?id=${encodeURIComponent(requiredId(canvasId, 'canvasId'))}${suffix ? `&${suffix}` : ''}`;
     }
 
     function rememberCanvasListProject(projectId, options = {}) {
@@ -39,5 +30,5 @@
         return `/static/canvas-list.html?project=${encodeURIComponent(project)}`;
     }
 
-    global.WorkbenchCanvasEntryCompatibility = Object.freeze({normalCanvasUrl, requiresLegacySmartHandoff, legacySmartCanvasUrl, rememberCanvasListProject, rememberedCanvasListProject, canvasListUrl});
+    global.WorkbenchCanvasEntryCompatibility = Object.freeze({normalCanvasUrl, rememberCanvasListProject, rememberedCanvasListProject, canvasListUrl});
 }(window));
