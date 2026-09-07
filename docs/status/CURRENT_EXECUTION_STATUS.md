@@ -1139,6 +1139,40 @@ rendering. Regression: `./scripts/agent-verify.sh` PASS at 394 Python unit
 tests (baseline 392; +2), PASS Python AST parse, PASS JavaScript syntax, PASS
 Architecture guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
 
+R4 Smart media tools extraction (card R4-29, 2026-09-07T11:30+08:00, Owner
+authorization via in-conversation "提交并开发下一任务"; implementer evidence,
+independent review pending): the retained Smart crop/draw/grid/resize tool
+geometry is now a mountable compatibility capability rather than
+Smart-page-owned. New `static/js/workbench/canvas/media-tools.js` exposes
+`window.WorkbenchCanvasMediaTools` (a frozen namespace of pure, stateless
+functions): `clampResizeScale` (resize-scale clamp to [0.05,1]),
+`circledNumber` (1..20 → ①..⑳), `canvasPoint` (client→canvas pointer
+mapping), `gridSplitRects` / `gridSplitRectsCustom` (uniform / custom-line
+grid split rectangles with interior gap), `parseCropRatio` ('free'/'source'/
+'w:h' → ratio), and `fitCropRectToAspect` (aspect-fit + bounds clamp, centered).
+Loaded by `static/smart-canvas.html` ahead of `smart-canvas.js`; Smart now
+delegates `clampImageResizeScale`, `circledNumber`, `editDrawPoint`,
+`gridSplitRects`/`gridSplitRectsCustom`, `cropRatioFromPreset` and
+`fitCropRectToAspect` to a `mediaTools` handle while keeping the editor modal,
+canvas 2D rendering, mode/state machine and node mutation page-side (per "do
+not build the future Media Package yet"). The module is product-neutral —
+zero Smart leak (no `imageEditModal`/`cropImage`/`editDrawCanvas`/
+`panoramaState`/`gridJoinLayout`/`cropState`/`selectedNode`/`replaceEditedImage`
+/`scheduleSave`/`gridCustomLines`), and the page no longer owns the raw
+geometry bodies (the old resize-clamp, circled-number, uniform grid-split,
+aspect-fit and point-mapping bodies are removed). Panorama (Three.js) stays
+Smart-owned compatibility, out of R4-29 scope. Tests (both in
+`tests/test_frontend_workbench_modules.py`):
+`test_media_tools_module_owns_crop_grid_draw_math` (vm-sandbox behavioral:
+clamp, circled labels, point mapping, uniform/custom grid split rects with and
+without gap, ratio parsing, aspect-fit/clamp) and
+`test_media_tools_is_loaded_before_the_smart_page_and_owned` (module loads
+before the editor script; page delegates all seven functions; no residual raw
+math bodies; module zero Smart leak). Ownership matrix gains a "Media edit
+tools" row. Regression: `./scripts/agent-verify.sh` PASS at 396 Python unit
+tests (baseline 394; +2), PASS Python AST parse, PASS JavaScript syntax, PASS
+Architecture guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
+
 R4 clipboard unified creation (card R4-23, 2026-09-07): single-node,
 connection-free clipboard paste of the losslessly persistable Legacy shapes —
 Classic `image` (url/name/mediaKind) and `prompt` (text), Smart `smart-prompt`

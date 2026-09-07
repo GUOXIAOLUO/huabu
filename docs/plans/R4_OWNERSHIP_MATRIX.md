@@ -89,6 +89,7 @@ REMOVE       = 可删除/待删除
 | upload | Migrate | Unified creation/mutation runtime | Smart direct `createNode()` remains page-owned |
 | video workflow | Compat | Legacy renderer/execution seam | R8 owns runtime replacement |
 | Smart media layout | Migrate | Unified media renderer lifecycle | layout math is shared; DOM lifecycle remains Smart-owned |
+| Media edit tools (crop/draw/grid/resize geometry) | Migrate | mountable `WorkbenchCanvasMediaTools` compatibility capability (pure geometry) + Smart editor modal/canvas/state | crop/draw/grid/resize math now owned by `media-tools.js` (R4-29); editor modal, canvas 2D rendering and mode/state remain Smart-owned |
 | MiniMax compatibility | Compat | Legacy renderer/execution seam | must remain readable; not an R8 implementation |
 
 Full granular Smart-only capability inventory (R4-27): see

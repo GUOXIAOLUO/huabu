@@ -9,6 +9,10 @@ const composer = document.getElementById('composer');
 // schedule) is owned by the shared module; subject resolution + rendering stay
 // page-side (R4-28).
 const composerLifecycle = window.WorkbenchCanvasComposer.create({ container: composer });
+// Media-tool geometry (crop/draw/grid/resize math) is owned by the shared
+// module; the editor modal, canvas 2D rendering, mode/state and node mutation
+// stay page-side (R4-29).
+const mediaTools = window.WorkbenchCanvasMediaTools;
 const createMenu = document.getElementById('createMenu');
 const promptInput = document.getElementById('promptInput');
 const mentionPicker = document.getElementById('mentionPicker');
@@ -12470,7 +12474,7 @@ function syncBrushToolButtons(){
 function editDrawPoint(event){
     const canvasEl = editDrawCanvas();
     const rect = canvasEl.getBoundingClientRect();
-    return {x:(event.clientX - rect.left) * canvasEl.width / Math.max(1, rect.width), y:(event.clientY - rect.top) * canvasEl.height / Math.max(1, rect.height)};
+    return mediaTools.canvasPoint(event.clientX, event.clientY, rect.left, rect.top, rect.width, rect.height, canvasEl.width, canvasEl.height);
 }
 function gridCustomLineHit(point){
     const canvasEl = editDrawCanvas();
@@ -12542,7 +12546,7 @@ function strokeFreeDrawPoint(point){
     editDrawState.x = point.x;
     editDrawState.y = point.y;
 }
-function circledNumber(n){ return n >= 1 && n <= 20 ? String.fromCharCode(0x2460 + n - 1) : String(n); }
+function circledNumber(n){ return mediaTools.circledNumber(n); }
 function drawBrushShape(ctx, start, end){
     setupDrawStyle(ctx);
     const x = Math.min(start.x, end.x), y = Math.min(start.y, end.y), w = Math.abs(end.x - start.x), h = Math.abs(end.y - start.y);
@@ -12870,30 +12874,13 @@ function syncGridOperationControls(){
 function gridSplitRects(width, height){
     if(gridCustomMode) return gridSplitRectsCustom(width, height);
     const {rows, cols, gap} = gridSplitSettings();
-    const halfGap = gap / 2, rects = [];
-    for(let row = 0; row < rows; row++){
-        const topLine = row * height / rows, bottomLine = (row + 1) * height / rows;
-        const y1 = Math.round(row === 0 ? 0 : topLine + halfGap), y2 = Math.round(row === rows - 1 ? height : bottomLine - halfGap);
-        for(let col = 0; col < cols; col++){
-            const leftLine = col * width / cols, rightLine = (col + 1) * width / cols;
-            const x1 = Math.round(col === 0 ? 0 : leftLine + halfGap), x2 = Math.round(col === cols - 1 ? width : rightLine - halfGap);
-            if(x2 > x1 && y2 > y1) rects.push({row, col, x:x1, y:y1, w:x2 - x1, h:y2 - y1});
-        }
-    }
-    return rects;
+    return mediaTools.gridSplitRects(width, height, rows, cols, gap);
 }
 function gridSplitRectsCustom(width, height){
     const gap = Math.max(0, Math.min(240, Number(document.getElementById('gridGapSize')?.value || 0)));
-    const halfGap = gap / 2;
     const rawH = [...new Set(gridCustomLines.filter(l => l.type === 'h').map(l => l.pos * height))].sort((a, b) => a - b);
     const rawV = [...new Set(gridCustomLines.filter(l => l.type === 'v').map(l => l.pos * width))].sort((a, b) => a - b);
-    const hCuts = [0, ...rawH, height], vCuts = [0, ...rawV, width], rects = [];
-    for(let row = 0; row < hCuts.length - 1; row++) for(let col = 0; col < vCuts.length - 1; col++){
-        const y1 = Math.round(row === 0 ? hCuts[row] : hCuts[row] + halfGap), y2 = Math.round(row === hCuts.length - 2 ? hCuts[row + 1] : hCuts[row + 1] - halfGap);
-        const x1 = Math.round(col === 0 ? vCuts[col] : vCuts[col] + halfGap), x2 = Math.round(col === vCuts.length - 2 ? vCuts[col + 1] : vCuts[col + 1] - halfGap);
-        if(x2 > x1 && y2 > y1) rects.push({row, col, x:x1, y:y1, w:x2 - x1, h:y2 - y1});
-    }
-    return rects;
+    return mediaTools.gridSplitRectsCustom(width, height, [0, ...rawH, height], [0, ...rawV, width], gap);
 }
 function gridLayoutFromRects(rects){
     return {type:'grid-split', groupId:uid('grid'), rows:Math.max(1, ...rects.map(r => Number(r.row || 0) + 1)), cols:Math.max(1, ...rects.map(r => Number(r.col || 0) + 1))};
@@ -12945,9 +12932,7 @@ function syncGridCustomUndoBtn(){
     btn.style.opacity = gridCustomHistory.length === 0 ? '0.4' : '1';
 }
 function clampImageResizeScale(value){
-    const num = Number(value);
-    if(!Number.isFinite(num)) return 0.5;
-    return Math.max(0.05, Math.min(1, Math.round(num * 100) / 100));
+    return mediaTools.clampResizeScale(value);
 }
 function imageResizeDimensions(){
     const img = document.getElementById('cropImage');
@@ -13259,13 +13244,11 @@ function resetOutpaintBox(){
     renderCropBox();
 }
 function cropRatioFromPreset(preset){
-    if(!preset || preset === 'free') return null;
     if(preset === 'source'){
         const {w, h} = cropBounds();
-        return w > 0 && h > 0 ? w / h : null;
+        return mediaTools.parseCropRatio(preset, w > 0 && h > 0 ? w / h : 0);
     }
-    const parts = String(preset).split(':').map(v => Math.max(0, Number(v)));
-    return parts.length === 2 && parts[0] > 0 && parts[1] > 0 ? parts[0] / parts[1] : null;
+    return mediaTools.parseCropRatio(preset, 0);
 }
 function syncCropRatioButtons(){
     document.querySelectorAll('[data-crop-ratio]').forEach(btn => {
@@ -13275,24 +13258,8 @@ function syncCropRatioButtons(){
 function fitCropRectToAspect(ratio, sourceRect=null){
     const {w:boundsW, h:boundsH} = cropBounds();
     const rect = sourceRect || cropState || {x:0, y:0, w:boundsW, h:boundsH};
-    const minSize = 24;
-    let nextW = Math.max(minSize, Number(rect.w || boundsW));
-    let nextH = Math.max(minSize, Number(rect.h || boundsH));
-    if(ratio){
-        if(nextW / nextH > ratio) nextW = nextH * ratio;
-        else nextH = nextW / ratio;
-        if(nextW > boundsW){ nextW = boundsW; nextH = nextW / ratio; }
-        if(nextH > boundsH){ nextH = boundsH; nextW = nextH * ratio; }
-    } else {
-        nextW = Math.min(nextW, boundsW);
-        nextH = Math.min(nextH, boundsH);
-    }
-    const cx = Number(rect.x || 0) + Number(rect.w || nextW) / 2;
-    const cy = Number(rect.y || 0) + Number(rect.h || nextH) / 2;
-    cropState.w = Math.round(nextW);
-    cropState.h = Math.round(nextH);
-    cropState.x = Math.round(cx - cropState.w / 2);
-    cropState.y = Math.round(cy - cropState.h / 2);
+    const fitted = mediaTools.fitCropRectToAspect(ratio, boundsW, boundsH, rect);
+    cropState.w = fitted.w; cropState.h = fitted.h; cropState.x = fitted.x; cropState.y = fitted.y;
     clampCrop();
 }
 function setCropAspectPreset(preset='free'){

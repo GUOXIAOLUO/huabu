@@ -2071,6 +2071,98 @@ console.log(JSON.stringify({{opened, closed, positioned, custom, firstCleared, s
         for adapter_detail in ("smart-minimax", "imageInput", "cascadeRunBtn", "selectedNode", "renderDynamicParams", "promptInput"):
             self.assertNotIn(adapter_detail, composer_module)
 
+    def test_media_tools_module_owns_crop_grid_draw_math(self):
+        media_tools_module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{ window: {{}} }};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(media_tools_module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+const out = {{
+  clampDefault: api.clampResizeScale('nope'),
+  clampHigh: api.clampResizeScale(2),
+  clampLow: api.clampResizeScale(0.01),
+  clampRound: api.clampResizeScale(0.377),
+  circled1: api.circledNumber(1),
+  circled20: api.circledNumber(20),
+  circled21: api.circledNumber(21),
+  point: api.canvasPoint(110, 60, 100, 50, 200, 100, 400, 200),
+  uniform: api.gridSplitRects(300, 300, 2, 2, 0),
+  uniformGap: api.gridSplitRects(300, 300, 2, 2, 20),
+  custom: api.gridSplitRectsCustom(300, 300, [0, 150, 300], [0, 150, 300], 0),
+  ratioFree: api.parseCropRatio('free', 0),
+  ratioWide: api.parseCropRatio('16:9', 0),
+  ratioSource: api.parseCropRatio('source', 1.5),
+  ratioSourceInvalid: api.parseCropRatio('source', 0),
+  fitSquare: api.fitCropRectToAspect(1, 300, 200, {{x:0, y:0, w:300, h:200}}),
+  fitClamp: api.fitCropRectToAspect(null, 300, 200, {{x:10, y:20, w:400, h:300}}),
+}};
+console.log(JSON.stringify(out));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        # Resize-scale clamp.
+        self.assertEqual(out["clampDefault"], 0.5)
+        self.assertEqual(out["clampHigh"], 1)
+        self.assertEqual(out["clampLow"], 0.05)
+        self.assertEqual(out["clampRound"], 0.38)
+        # Circled labels.
+        self.assertEqual(out["circled1"], "\u2460")
+        self.assertEqual(out["circled20"], "\u2473")
+        self.assertEqual(out["circled21"], "21")
+        # Pointer → canvas point mapping.
+        self.assertEqual(out["point"], {"x": 20.0, "y": 20.0})
+        # Uniform grid split (no gap): four 150×150 rects.
+        self.assertEqual(out["uniform"], [
+            {"row": 0, "col": 0, "x": 0, "y": 0, "w": 150, "h": 150},
+            {"row": 0, "col": 1, "x": 150, "y": 0, "w": 150, "h": 150},
+            {"row": 1, "col": 0, "x": 0, "y": 150, "w": 150, "h": 150},
+            {"row": 1, "col": 1, "x": 150, "y": 150, "w": 150, "h": 150},
+        ])
+        # Uniform grid split (20px gap): interior inset shrinks each rect.
+        self.assertEqual(out["uniformGap"], [
+            {"row": 0, "col": 0, "x": 0, "y": 0, "w": 140, "h": 140},
+            {"row": 0, "col": 1, "x": 160, "y": 0, "w": 140, "h": 140},
+            {"row": 1, "col": 0, "x": 0, "y": 160, "w": 140, "h": 140},
+            {"row": 1, "col": 1, "x": 160, "y": 160, "w": 140, "h": 140},
+        ])
+        # Custom-line split (single interior cut each way, no gap) == uniform 2×2.
+        self.assertEqual(out["custom"], out["uniform"])
+        # Crop ratio parsing.
+        self.assertIsNone(out["ratioFree"])
+        self.assertAlmostEqual(out["ratioWide"], 16 / 9)
+        self.assertEqual(out["ratioSource"], 1.5)
+        self.assertIsNone(out["ratioSourceInvalid"])
+        # Aspect-fit keeps the rect centered and clamps to bounds.
+        self.assertEqual(out["fitSquare"], {"x": 50, "y": 0, "w": 200, "h": 200})
+        self.assertEqual(out["fitClamp"], {"x": 60, "y": 70, "w": 300, "h": 200})
+
+    def test_media_tools_is_loaded_before_the_smart_page_and_owned(self):
+        page = (ROOT / "static" / "smart-canvas.html").read_text(encoding="utf-8")
+        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
+        media_tools_module = (ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js").read_text(encoding="utf-8")
+        # The module loads ahead of the editor script.
+        self.assertLess(page.index("workbench/canvas/media-tools.js"), page.index("js/smart-canvas.js"))
+        # The page delegates the tool math to the shared module and no longer
+        # owns the raw geometry bodies (no duplicate owner).
+        self.assertIn("const mediaTools = window.WorkbenchCanvasMediaTools;", smart)
+        self.assertIn("mediaTools.clampResizeScale(value)", smart)
+        self.assertIn("mediaTools.circledNumber(n)", smart)
+        self.assertIn("mediaTools.canvasPoint(", smart)
+        self.assertIn("mediaTools.gridSplitRects(width, height, rows, cols, gap)", smart)
+        self.assertIn("mediaTools.gridSplitRectsCustom(width, height, [0, ...rawH, height], [0, ...rawV, width], gap)", smart)
+        self.assertIn("mediaTools.parseCropRatio(", smart)
+        self.assertIn("mediaTools.fitCropRectToAspect(ratio, boundsW, boundsH, rect)", smart)
+        self.assertNotIn("Math.round(num * 100)", smart)          # old resize-clamp body
+        self.assertNotIn("0x2460", smart)                          # old circled-number body
+        self.assertNotIn("topLine + halfGap", smart)              # old uniform grid-split body
+        self.assertNotIn("nextW / nextH > ratio", smart)          # old aspect-fit body
+        # The extracted module is product-neutral: no Smart adapter detail leaks in.
+        for adapter_detail in ("imageEditModal", "cropImage", "editDrawCanvas", "panoramaState",
+                               "gridJoinLayout", "cropState", "selectedNode", "replaceEditedImage",
+                               "scheduleSave", "gridCustomLines"):
+            self.assertNotIn(adapter_detail, media_tools_module)
+
     def test_blank_creation_entry_points_route_through_the_creation_controller(self):
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
         smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")

@@ -5,10 +5,29 @@
 
 ## Active Task
 
-- `None` — no active card. R4-28 closed 2026-09-07T11:40+08:00. Recommended
-  successor `R4-29` (see "Recommended Successor" below), not yet activated.
+- `None` — no active card. R4-29 closed 2026-09-07T12:05+08:00. Recommended
+  successor `R4-30` (see "Recommended Successor" below), not yet activated.
 
 ## Completed Tasks
+
+- `R4-29` — `DONE` 2026-09-07T12:05+08:00. Card:
+  `docs/tasks/active/R4-29-smart-media-tools.md`. Implementer evidence
+  (independent review pending): the retained Smart crop/draw/grid/resize tool
+  geometry is now a mountable compatibility capability. New
+  `static/js/workbench/canvas/media-tools.js` exposes
+  `window.WorkbenchCanvasMediaTools` (a frozen namespace of pure, stateless
+  functions): `clampResizeScale`, `circledNumber`, `canvasPoint`,
+  `gridSplitRects`/`gridSplitRectsCustom`, `parseCropRatio`,
+  `fitCropRectToAspect`. Loaded by `smart-canvas.html` ahead of
+  `smart-canvas.js`; Smart delegates `clampImageResizeScale`, `circledNumber`,
+  `editDrawPoint`, `gridSplitRects`/`gridSplitRectsCustom`,
+  `cropRatioFromPreset` and `fitCropRectToAspect` to a `mediaTools` handle,
+  keeping the editor modal, canvas 2D rendering, mode/state and node mutation
+  page-side (out of scope: build the Media Package; panorama stays Smart-owned).
+  The module is product-neutral (zero Smart leak) and the page no longer owns
+  the raw geometry bodies. Two focused tests (vm-sandbox behavioral + load
+  order/delegation/zero-leak contract). Ownership matrix gains a "Media edit
+  tools" row. `./scripts/agent-verify.sh` PASS at 396 tests (was 394; +2).
 
 - `R4-28` — `DONE` 2026-09-07T11:40+08:00. Card:
   `docs/tasks/active/R4-28-smart-composer.md`. Implementer evidence
@@ -394,8 +413,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor after R4-28 close (not activated, not executed):
+Expected successor after R4-29 close (not activated, not executed):
 
-`R4-29 — Smart Media Tools` (`docs/tasks/backlog/R4-29-smart-media-tools.md`)
+`R4-30 — Smart Execution Compat` (`docs/tasks/backlog/R4-30-smart-execution-compat.md`)
 
 Actual successor must still be checked against the repository's current verified state.
