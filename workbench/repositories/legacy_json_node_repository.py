@@ -10,6 +10,11 @@ from workbench.application.graph_mutation import (
     GraphMutationError,
     GraphMutationPersistence,
 )
+from workbench.application.group_mutation import (
+    GroupMembershipCommand,
+    GroupMembershipPersistence,
+    GroupMutationError,
+)
 from workbench.application.node_mutation import (
     NodeDeleteCommand,
     NodeMutationPersistence,
@@ -432,6 +437,58 @@ class LegacyJsonGraphMutationRepository:
             command.canvas_id, expected_updated_at=command.expected_revision, mutation=mutation,
         )
         return ConnectNodesPersistence(canvas_revision=int(saved.get("updated_at") or 1), edge=edge)
+
+
+class LegacyJsonGroupMembershipRepository:
+    """One-lock Legacy JSON implementation of the group-membership mutation.
+
+    Group membership is the legacy ``items`` list of member node ids on a
+    ``group`` / ``smart-group`` node. This boundary mutates that list
+    atomically under the canvas revision lock and preserves the legacy payload
+    shape, so no page-side raw save performs the durable write. Geometry,
+    connection hand-off, and ``group.images`` grid absorption stay page-side.
+    """
+
+    GROUP_NODE_TYPES = {"group", "smart-group"}
+
+    def __init__(self, repository: LegacyJsonCanvasRepository):
+        self._repository = repository
+
+    def set_group_membership(self, command: GroupMembershipCommand) -> GroupMembershipPersistence:
+        updated_group: dict[str, Any] | None = None
+
+        def mutation(canvas: dict[str, Any]) -> None:
+            nonlocal updated_group
+            group = next(
+                (item for item in canvas.get("nodes") or []
+                 if isinstance(item, dict) and item.get("id") == command.group_id),
+                None,
+            )
+            if group is None or group.get("type") not in self.GROUP_NODE_TYPES:
+                raise GroupMutationError("invalid_graph", "group node not found")
+            if not any(
+                isinstance(item, dict) and item.get("id") == command.member_id
+                for item in canvas.get("nodes") or []
+            ):
+                raise GroupMutationError("invalid_graph", "member node not found")
+            items = [str(item) for item in (group.get("items") or [])]
+            if command.operation == "add":
+                if command.member_id not in items:
+                    items.append(command.member_id)
+            else:
+                items = [item for item in items if item != command.member_id]
+            group["items"] = items
+            updated_group = group
+
+        saved = self._repository.mutate_if_current(
+            command.canvas_id, expected_updated_at=command.expected_revision, mutation=mutation,
+        )
+        if updated_group is None:  # Defensive: mutation either finds the group or raises.
+            raise LookupError("group node not found")
+        return GroupMembershipPersistence(
+            group=LegacyCanvasAdapter.node_to_record(updated_group, canvas=saved),
+            canvas_revision=int(saved.get("updated_at") or 1),
+        )
 
 
 def _smart_minimax_payload(node: NodeRecord) -> dict[str, Any]:

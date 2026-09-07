@@ -100,5 +100,9 @@
             requirePositiveRevision(command);
             return request(`/api/v1/canvases/${encodeURIComponent(canvasId)}/graph/connect-nodes`, 'POST', command, actorId);
         },
+        setGroupMembership: (canvasId, command, actorId) => {
+            requirePositiveRevision(command);
+            return request(`/api/v1/canvases/${encodeURIComponent(canvasId)}/graph/group-membership`, 'POST', command, actorId);
+        },
     });
 }(window));

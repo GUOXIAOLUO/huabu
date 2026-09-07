@@ -1033,6 +1033,48 @@ disposition in this same change:
 
 No later-Round (R4-26) work leaked; `AGENT_NEXT_TASK.md` Active Task is None.
 
+R4 group mutation cutover (card R4-26, 2026-09-07T10:17+08:00, Owner
+authorization via in-conversation "提交并开始下一步"; implementer evidence,
+independent review pending): group membership (the legacy `items` list of
+member node ids on a `group` / `smart-group` node) now has one authoritative
+application mutation boundary. New `workbench/application/group_mutation.py`
+exposes `GroupMembershipService.set_membership(GroupMembershipCommand)`
+(`actor_id`/`project_id`/`canvas_id`/`expected_revision`/`group_id`/
+`member_id`/`operation`∈{add,remove}) with field validation, revision≥1,
+self-membership rejection, `ProjectAuthorizer.can_edit` authorization, and a
+`GroupMembershipChangedAuditEvent` appended to the audit sink before return.
+`workbench/repositories/legacy_json_node_repository.py` gains
+`LegacyJsonGroupMembershipRepository.set_group_membership`, which mutates the
+legacy `items` list atomically under the canvas `mutate_if_current` revision
+lock and returns a `GroupMembershipPersistence` (revision + `NodeRecord`), so
+no page-side raw save performs the durable write. HTTP route
+`POST /api/v1/canvases/{canvas_id}/graph/group-membership` maps
+`GroupMutationError` → 403 (forbidden) / 422 (invalid) and
+`StaleCanvasRevisionError` → 409. `WorkbenchNodeClient.setGroupMembership`
+is the single versioned client entry point (gated on `requirePositiveRevision`).
+Smart page gains `addSmartGroupMemberVersioned(groupId, memberId)`
+(`static/js/smart-canvas.js`) and wires the drag-in single non-image/non-group
+member add through it with a `scheduleSave()` fallback; image absorption,
+group-merge and ungroup stay page-side compatibility, and Classic's
+geometry-driven `updateGroupMembership` remains page-owned (no versioned path
+yet). `group_mutation.py` is industry-neutral — zero `smart-loop` / `imageInput`
+/ `showPrompt` / `syncLatestGeneratedOutput` / `inputNodeIds` references. Tests:
+`tests/test_group_membership.py` (5 service + 4 repository: add/remove
+persist+reload under one revision, idempotent add, stale-revision rejection,
+missing group/member rejection), three HTTP-route tests in
+`tests/test_canvas_nodes_api.py` (delegate+revision, payload validation, error
+mapping), and one wiring contract
+`test_group_membership_routes_through_the_graph_membership_command` in
+`tests/test_frontend_workbench_modules.py` (one client method, one Smart
+versioned helper, drag-gesture wiring, Core zero leak). Two pre-existing
+count/string contracts updated for the new adoptRevision site and the new
+mouseup fallback branch. Ownership matrix `group membership` row updated:
+final owner is `GroupMembershipService` for the Smart member add plus
+`group-membership.js` as the business-neutral membership query. Regression:
+`./scripts/agent-verify.sh` PASS at 386 Python unit tests (baseline 373; +13),
+PASS Python AST parse, PASS JavaScript syntax, PASS Architecture guards (4),
+PASS `git diff --check`. `AGENT VERIFY: PASS`.
+
 R4 clipboard unified creation (card R4-23, 2026-09-07): single-node,
 connection-free clipboard paste of the losslessly persistable Legacy shapes —
 Classic `image` (url/name/mediaKind) and `prompt` (text), Smart `smart-prompt`

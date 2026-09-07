@@ -1974,6 +1974,33 @@ console.log(JSON.stringify({node, commands, appliedCount: applied.length, invali
         for adapter_detail in ("smart-loop", "imageInput", "showPrompt", "syncLatestGeneratedOutput", "group.items"):
             self.assertNotIn(adapter_detail, service)
 
+    def test_group_membership_routes_through_the_graph_membership_command(self):
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
+        client = (ROOT / "static" / "js" / "workbench" / "canvas" / "node-creation-client.js").read_text(encoding="utf-8")
+        # One versioned client method targets the application group-membership route.
+        self.assertEqual(client.count("/graph/group-membership"), 1)
+        self.assertIn("setGroupMembership: (canvasId, command, actorId) => {", client)
+        # Smart: a narrow async helper delegates the durable add through the
+        # versioned membership write; image absorption / group-merge stay page-side.
+        self.assertIn("async function addSmartGroupMemberVersioned(groupId, memberId){", smart)
+        smart_helper = smart[smart.index("async function addSmartGroupMemberVersioned(groupId, memberId){"):]
+        smart_helper = smart_helper[:smart_helper.index("\n}\n")]
+        self.assertIn("window.WorkbenchNodeClient.setGroupMembership(canvas.id", smart_helper)
+        self.assertIn("operation:'add'", smart_helper)
+        # The drag-drop group gesture captures a single non-image/non-group member
+        # and prefers the versioned write with a page save fallback.
+        self.assertIn("let smartMembershipCommit = null;", smart)
+        self.assertIn("void addSmartGroupMemberVersioned(smartMembershipCommit.groupId, smartMembershipCommit.memberId)", smart)
+        # Core group-mutation service stays industry-neutral: no Classic/Smart
+        # side effects leak into the application boundary.
+        service = (ROOT / "workbench" / "application" / "group_mutation.py").read_text(encoding="utf-8")
+        for adapter_detail in ("smart-loop", "imageInput", "showPrompt", "syncLatestGeneratedOutput", "inputNodeIds"):
+            self.assertNotIn(adapter_detail, service)
+        # Classic page keeps its geometry-driven membership on the page-owned path;
+        # it does not yet route through the versioned client.
+        self.assertNotIn("WorkbenchNodeClient.setGroupMembership", classic)
+
     def test_blank_creation_entry_points_route_through_the_creation_controller(self):
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
         smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
@@ -2839,7 +2866,7 @@ console.log(JSON.stringify({{
         self.assertNotIn("canvas.updated_at = Number(result.canvas_revision", smart)
         self.assertEqual(classic.count("WorkbenchCanvasPersistence.adoptRevision(canvas, result.canvas_revision, Date.now())"), 11)
         self.assertEqual(classic.count("WorkbenchCanvasPersistence.adoptRevision(canvas, revision)"), 10)
-        self.assertEqual(smart.count("WorkbenchCanvasPersistence.adoptRevision(canvas, result.canvas_revision, Date.now())"), 5)
+        self.assertEqual(smart.count("WorkbenchCanvasPersistence.adoptRevision(canvas, result.canvas_revision, Date.now())"), 6)
         self.assertEqual(smart.count("WorkbenchCanvasPersistence.adoptRevision(canvas, result.canvas_revision, 0)"), 4)
 
     def test_editor_saves_share_one_scheduler(self):
@@ -4197,7 +4224,8 @@ console.log(JSON.stringify({{
         self.assertIn("node.y = drag.oy;", move_block)
         self.assertIn("isLocalCopy:Boolean(pointer.altKey)", smart)
         self.assertIn("void commitVersionedSmartPosition(versionedPositionCommit)", mouseup)
-        self.assertIn("if(!handled) scheduleSave();", mouseup)
+        self.assertIn("if(!handled) {", mouseup)
+        self.assertIn("void addSmartGroupMemberVersioned(smartMembershipCommit.groupId, smartMembershipCommit.memberId)", mouseup)
 
     def test_smart_standalone_empty_group_uses_the_versioned_mutation_route(self):
         smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")

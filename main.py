@@ -60,6 +60,7 @@ from workbench.application.legacy_definitions import LegacyDefinitionRegistry, L
 from workbench.application.node_creation import NodeCreationService
 from workbench.application.node_mutation import NodeMutationService
 from workbench.application.graph_mutation import GraphMutationService
+from workbench.application.group_mutation import GroupMembershipService
 from workbench.repositories.jsonl_audit_sink import JsonlAuditSink
 from workbench.repositories.legacy_json_node_repository import (
     LegacyCanvasProjectAuthorizer,
@@ -67,6 +68,7 @@ from workbench.repositories.legacy_json_node_repository import (
     LegacyJsonNodeLookup,
     LegacyJsonNodeMutationRepository,
     LegacyJsonGraphMutationRepository,
+    LegacyJsonGroupMembershipRepository,
 )
 
 QUIET_ACCESS_PATHS = {
@@ -2738,6 +2740,14 @@ def local_graph_mutation_service(actor_id: str) -> GraphMutationService:
     return GraphMutationService(
         authorizer=LegacyCanvasProjectAuthorizer(repository, allow_unowned_local=True),
         repository=LegacyJsonGraphMutationRepository(repository),
+        audit_sink=JsonlAuditSink(CANVAS_NODE_AUDIT_PATH, lock=CANVAS_NODE_AUDIT_LOCK),
+    )
+
+def local_group_membership_service(actor_id: str) -> GroupMembershipService:
+    repository = canvas_repository()
+    return GroupMembershipService(
+        authorizer=LegacyCanvasProjectAuthorizer(repository, allow_unowned_local=True),
+        repository=LegacyJsonGroupMembershipRepository(repository),
         audit_sink=JsonlAuditSink(CANVAS_NODE_AUDIT_PATH, lock=CANVAS_NODE_AUDIT_LOCK),
     )
 
@@ -18423,6 +18433,7 @@ if WORKBENCH_NODE_API_ENABLED:
         service_for_actor=local_node_creation_service,
         mutation_service_for_actor=local_node_mutation_service,
         graph_service_for_actor=local_graph_mutation_service,
+        group_service_for_actor=local_group_membership_service,
         node_lookup=_node_lookup,
     ))
 

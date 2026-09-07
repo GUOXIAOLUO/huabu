@@ -18478,6 +18478,29 @@ function addDraggedNodesToSmartGroup(draggedNodes, group){
     selectedImage = {nodeId:'', index:-1};
     return true;
 }
+// 窄路径版本化写：把单个"提示词/循环/其它非图片非分组"节点作为画布成员加入分组。
+// 图片吸收进卡片网格、分组并入另一分组等页面侧兼容逻辑继续由页面持有。
+async function addSmartGroupMemberVersioned(groupId, memberId){
+    if(!canUseVersionedSmartImageCreation()) return false;
+    const group = nodes.find(n => n.id === groupId);
+    const member = nodes.find(n => n.id === memberId);
+    if(!group || !isSmartGroupNode(group) || !member || member.id === group.id) return false;
+    if(isSmartImageNode(member) || isSmartGroupNode(member)) return false;
+    try {
+        const result = await window.WorkbenchNodeClient.setGroupMembership(canvas.id, {
+            project_id:canvas.project,
+            expected_revision:Number(canvas.updated_at || 0),
+            group_id:groupId,
+            member_id:memberId,
+            operation:'add',
+        }, smartClientId);
+        window.WorkbenchCanvasPersistence.adoptRevision(canvas, result.canvas_revision, Date.now());
+        return true;
+    } catch(error) {
+        console.error('Versioned Smart group membership failed', error);
+        return false;
+    }
+}
 function closeCreateMenu(){
     createMenu?.classList.remove('open');
     createMenu?.removeAttribute('data-port-create');
@@ -19086,6 +19109,7 @@ window.onmouseup = e => {
         // 目标分组由主拖动节点的中心命中决定；smartGroupTargetForDraggedNode 已排除正在被拖动的节点/分组。
         const draggedNodes = (dragState.group || []).map(item => nodes.find(n => n.id === item.id)).filter(Boolean);
         const smartGroupTarget = draggedNode ? smartGroupTargetForDraggedNode(draggedNode) : null;
+        let smartMembershipCommit = null;
         if(
             insertHit &&
             insertLoopNodeIntoConnection(draggedNode, insertHit)
@@ -19098,6 +19122,12 @@ window.onmouseup = e => {
         ){
             stateChanged = true;
             render();
+            // 单个非图片非分组节点入组：durable 写入走版本化 group-membership 边界，
+            // 图片吸收/分组并入仍由页面兼容路径持有（下方统一 scheduleSave 兜底）。
+            const joined = draggedNodes.length ? draggedNodes : [draggedNode];
+            if(joined.length === 1 && !isSmartImageNode(joined[0]) && !isSmartGroupNode(joined[0])){
+                smartMembershipCommit = {groupId:smartGroupTarget.id, memberId:joined[0].id};
+            }
         } else if(
             groupTarget &&
             dragState.ctrlGroup &&
@@ -19162,7 +19192,17 @@ window.onmouseup = e => {
         // retains the page-owned compatibility save path.
         if(versionedPositionCommit) {
             void commitVersionedSmartPosition(versionedPositionCommit).then(handled => {
-                if(!handled) scheduleSave();
+                if(!handled) {
+                    if(smartMembershipCommit) {
+                        void addSmartGroupMemberVersioned(smartMembershipCommit.groupId, smartMembershipCommit.memberId).then(written => {
+                            if(!written) scheduleSave();
+                        });
+                    } else scheduleSave();
+                }
+            });
+        } else if(smartMembershipCommit) {
+            void addSmartGroupMemberVersioned(smartMembershipCommit.groupId, smartMembershipCommit.memberId).then(written => {
+                if(!written) scheduleSave();
             });
         } else scheduleSave();
         scheduleConnectionLayerRefresh();

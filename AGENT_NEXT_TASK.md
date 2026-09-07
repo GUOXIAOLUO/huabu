@@ -5,17 +5,38 @@
 
 ## Active Task
 
-- **None** (R4-25 closed 2026-09-07T09:45+08:00; the next card awaits Owner
-  activation — see Recommended Successor below).
-
-> Pre-existing finding from R4-23 (2026-09-07) — RESOLVED by `R4-21.1`. The
-> R4-21 blank-create entry points in both pages now propagate
-> `canvasId: canvas.id` into the controller envelope (5 Classic + 5 Smart
-> helpers). R4-22 (file-drop), R4-23 (clipboard) and connected helpers were
-> never affected; see `docs/tasks/active/R4-21.1-create-canvas-id-rectification.md`
-> and `docs/status/CURRENT_EXECUTION_STATUS.md` (R4-21.1 entry).
+None. R4-26 closed 2026-09-07T10:53+08:00 (see Completed Tasks). Do not
+activate the successor (`R4-27`) without fresh Owner authorization.
 
 ## Completed Tasks
+
+- `R4-26` — `DONE` 2026-09-07T10:53+08:00. Card:
+  `docs/tasks/active/R4-26-group-mutation.md`. Implementer evidence
+  (independent review pending): group membership (the legacy `items` list on
+  a `group` / `smart-group` node) now has one authoritative application
+  mutation boundary. New `workbench/application/group_mutation.py`
+  (`GroupMembershipService.set_membership` + `GroupMembershipCommand` /
+  `GroupMembershipPersistence` / `GroupMembershipChangedAuditEvent`) validates
+  fields, enforces `expected_revision >= 1`, rejects self-membership, checks
+  `authorizer.can_edit`, then delegates to the repository and appends an audit
+  event. `LegacyJsonGroupMembershipRepository.set_group_membership`
+  (`workbench/repositories/legacy_json_node_repository.py`) mutates the legacy
+  `items` list atomically under the canvas `mutate_if_current` lock. HTTP route
+  `POST /api/v1/canvases/{canvas_id}/graph/group-membership` maps
+  `GroupMutationError` → 403/422 and `StaleCanvasRevisionError` → 409.
+  `WorkbenchNodeClient.setGroupMembership(canvasId, command, actorId)` is the
+  single versioned client entry point. Smart
+  `addSmartGroupMemberVersioned(groupId, memberId)` routes the drag-in single
+  non-image/non-group member add through it with a `scheduleSave()` fallback;
+  image absorption, group-merge and ungroup stay page-side compatibility, and
+  Classic `updateGroupMembership` remains page-owned (no versioned path yet).
+  Core is industry-neutral (zero `smart-loop` / `imageInput` / `showPrompt` /
+  `syncLatestGeneratedOutput` / `inputNodeIds` in `group_mutation.py`). Tests:
+  `tests/test_group_membership.py` (5 service + 4 repository), three HTTP-route
+  tests in `tests/test_canvas_nodes_api.py`, and one wiring contract in
+  `tests/test_frontend_workbench_modules.py`. Ownership matrix `group
+  membership` row updated. `./scripts/agent-verify.sh` PASS at 386 tests
+  (was 373; +13).
 
 - `R4-25` — `DONE` 2026-09-07T09:45+08:00. Card:
   `docs/tasks/active/R4-25-legacy-graph-policy.md`. Implementer evidence
@@ -329,8 +350,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor after R4-25 close (not activated, not executed):
+Expected successor after R4-26 close (not activated, not executed):
 
-`R4-26 — Group Mutation` (`docs/tasks/backlog/R4-26-group-mutation.md`)
+`R4-27 — Smart Inventory` (`docs/tasks/backlog/R4-27-smart-inventory.md`)
 
 Actual successor must still be checked against the repository's current verified state.

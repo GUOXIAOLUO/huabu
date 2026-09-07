@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from workbench.application.node_creation import NodeCreateCommand, NodeCreationError, NodeCreationService, NodeCreationSource
 from workbench.application.node_mutation import NodeDeleteCommand, NodeMutationError, NodeMutationService, NodeUpdateCommand
 from workbench.application.graph_mutation import ConnectNodesCommand, CreateNodeAndEdgeFromCreationCommand, GraphMutationError, GraphMutationService
+from workbench.application.group_mutation import GroupMembershipCommand, GroupMembershipService, GroupMutationError
 from workbench.domain.canvas.models import DefinitionRef, ModelBinding, NodeRecord, Position
 from workbench.repositories.canvas_repository import StaleCanvasRevisionError
 
@@ -72,6 +73,16 @@ class ConnectNodesPayload(BaseModel):
     kind: str = Field(default="flow", pattern="^(flow|input)$")
 
 
+class GroupMembershipPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    project_id: str = Field(min_length=1, max_length=255)
+    expected_revision: int = Field(ge=1)
+    group_id: str = Field(min_length=1, max_length=255)
+    member_id: str = Field(min_length=1, max_length=255)
+    operation: str = Field(default="add", pattern="^(add|remove)$")
+
+
 class NodeLookup(Protocol):
     def get(self, *, actor_id: str, project_id: str, canvas_id: str, node_id: str) -> NodeRecord: ...
 
@@ -90,6 +101,7 @@ def create_canvas_nodes_router(
     service_for_actor: Callable[[str], NodeCreationService],
     mutation_service_for_actor: Callable[[str], NodeMutationService],
     graph_service_for_actor: Callable[[str], GraphMutationService],
+    group_service_for_actor: Callable[[str], GroupMembershipService],
     node_lookup: NodeLookup,
 ) -> APIRouter:
     """Build a router only after the host provides real authorization adapters."""
@@ -214,6 +226,22 @@ def create_canvas_nodes_router(
         except StaleCanvasRevisionError as error:
             raise HTTPException(status_code=409, detail={"code": "stale_revision", "canvas": error.current})
         return {"edge": result.edge.model_dump(mode="json", by_alias=True), "canvas_revision": result.canvas_revision}
+
+    @router.post("/{canvas_id}/graph/group-membership")
+    async def set_group_membership(canvas_id: str, payload: GroupMembershipPayload, x_user_id: str = Header(default="")):
+        actor_id = _actor_from_header(x_user_id)
+        try:
+            result = group_service_for_actor(actor_id).set_membership(GroupMembershipCommand(
+                actor_id=actor_id, project_id=payload.project_id, canvas_id=canvas_id,
+                expected_revision=payload.expected_revision, group_id=payload.group_id,
+                member_id=payload.member_id, operation=payload.operation,
+            ))
+        except GroupMutationError as error:
+            status_code = 403 if error.code == "forbidden" else 422
+            raise HTTPException(status_code=status_code, detail={"code": error.code, "message": str(error)})
+        except StaleCanvasRevisionError as error:
+            raise HTTPException(status_code=409, detail={"code": "stale_revision", "canvas": error.current})
+        return {"group": result.group.model_dump(mode="json"), "canvas_revision": result.canvas_revision}
 
     return router
 
