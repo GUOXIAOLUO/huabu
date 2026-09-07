@@ -96,5 +96,9 @@
             requirePositiveRevision(command);
             return request(`/api/v1/canvases/${encodeURIComponent(canvasId)}/graph/create-node-and-edge`, 'POST', command, actorId);
         },
+        connectNodes: (canvasId, command, actorId) => {
+            requirePositiveRevision(command);
+            return request(`/api/v1/canvases/${encodeURIComponent(canvasId)}/graph/connect-nodes`, 'POST', command, actorId);
+        },
     });
 }(window));

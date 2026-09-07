@@ -1865,6 +1865,16 @@ const minimal = await controller.createNode({
   position: {x: 0, y: 0}, expectedRevision: 1, initialConfig: {count: 2},
   apply: {nodes: [], projectNode: () => ({})},
 });
+await controller.createNode({
+  canvasId: 'c1', projectId: 'p1', clientId: 'editor-1', source: 'file_drop',
+  definitionRef: {type: 'legacy', id: 'image', version: '0'}, position: {x: 8, y: 9}, expectedRevision: 7,
+  initialConfig: {url: '/uploads/drop.png', mediaKind: 'image'}, apply: {nodes: [], projectNode: () => ({})},
+});
+await controller.createNode({
+  canvasId: 'c1', projectId: 'p1', clientId: 'editor-1', source: 'clipboard',
+  definitionRef: {type: 'legacy', id: 'prompt', version: '0'}, position: {x: 10, y: 11}, expectedRevision: 9,
+  initialConfig: {text: 'pasted prompt'}, apply: {nodes: [], projectNode: () => ({})},
+});
 let invalid = 'no-throw';
 try { await controller.createNode({position: {x: 0, y: 0}}); } catch (error) { invalid = 'throws'; }
 console.log(JSON.stringify({node, commands, appliedCount: applied.length, invalid}));
@@ -1879,10 +1889,84 @@ console.log(JSON.stringify({node, commands, appliedCount: applied.length, invali
         self.assertEqual(payload["commands"][0]["command"]["title"], "Blank")
         self.assertNotIn("initial_config", payload["commands"][0]["command"])
         self.assertEqual(payload["commands"][1]["command"]["initial_config"], {"count": 2})
+        self.assertEqual(payload["commands"][2]["command"]["source"], "file_drop")
+        self.assertEqual(payload["commands"][2]["command"]["initial_config"]["url"], "/uploads/drop.png")
+        self.assertEqual(payload["commands"][3]["command"]["source"], "clipboard")
+        self.assertEqual(payload["commands"][3]["command"]["initial_config"], {"text": "pasted prompt"})
         self.assertNotIn("title", payload["commands"][1]["command"])
         self.assertEqual(payload["commands"][0]["clientId"], "editor-1")
-        self.assertEqual(payload["appliedCount"], 2)
+        self.assertEqual(payload["appliedCount"], 4)
         self.assertEqual(payload["invalid"], "throws")
+
+    def test_single_node_clipboard_paste_routes_through_the_creation_controller(self):
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
+        # Both adapters gate the versioned clipboard path to a single,
+        # connection-free node and delegate creation to the controller with
+        # the explicit clipboard provenance source.
+        self.assertIn("function clipboardVersionedCandidate(clipNodes, clipConnections){", classic)
+        self.assertIn("function clipboardVersionedSmartCandidate(sourceNodes, sourceConnections){", smart)
+        for adapter in (classic, smart):
+            self.assertEqual(adapter.count("source:'clipboard'"), 1)
+        self.assertIn("await ensureCreationController().createNode({", classic[classic.index("async function createVersionedPastedNode("):])
+        self.assertIn("await ensureSmartCreationController().createNode({", smart[smart.index("async function createVersionedPastedSmartPrompt("):])
+        # The versioned path passes canvasId through the controller envelope —
+        # pinned because the R4-21 blank creators omitted it and the controller
+        # rejects a missing canvasId at runtime.
+        for adapter, helper in (
+            (classic, "async function createVersionedPastedNode(candidate, point){"),
+            (smart, "async function createVersionedPastedSmartPrompt(candidate, point){"),
+        ):
+            body = adapter[adapter.index(helper):]
+            body = body[:body.index("\n}\n")]
+            self.assertIn("canvasId:canvas.id", body)
+        # Multi-node fragments, connections and every other shape keep the
+        # adapter-owned fragment path: center-anchored materialization stays.
+        classic_paste = classic[classic.index("async function pasteNodes(){") : classic.index("function selectedWorkflowPayload(){")]
+        smart_paste = smart[smart.index("function pasteNodes(){") : smart.index("// 跨页\"素材库")]
+        for adapter in (classic_paste, smart_paste):
+            self.assertIn("WorkbenchCanvasGraphFragment.materializeImportedSubgraph", adapter)
+            self.assertIn("anchor:'center'", adapter)
+        self.assertIn("function pasteClipboardFragmentLegacy(){", smart_paste)
+        self.assertIn("scheduleSave()", smart_paste)
+
+    def test_connect_drops_route_through_the_graph_connect_command(self):
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
+        client = (ROOT / "static" / "js" / "workbench" / "canvas" / "node-creation-client.js").read_text(encoding="utf-8")
+        # One versioned client method targets the application connect route.
+        self.assertEqual(client.count("/graph/connect-nodes"), 1)
+        self.assertIn("connectNodes: (canvasId, command, actorId) => {", client)
+        # Classic: the gesture drop delegates to the versioned connect with a
+        # legacy fallback commit; Classic graph side effects stay page-owned.
+        self.assertIn("async function createVersionedConnection(fromId, toId){", classic)
+        self.assertIn("function commitClassicConnection(fromId, toId){", classic)
+        self.assertIn("function applyClassicConnectionSideEffects(fromId, toId){", classic)
+        self.assertIn("void createVersionedConnection(fromId, toId)", classic)
+        classic_versioned = classic[classic.index("async function createVersionedConnection(fromId, toId){"):]
+        classic_versioned = classic_versioned[:classic_versioned.index("\n}\n")]
+        self.assertIn("window.WorkbenchNodeClient.connectNodes(canvas.id", classic_versioned)
+        self.assertIn("edge_id:uid('c')", classic_versioned)
+        self.assertIn("adoptRevision(canvas, result.canvas_revision, Date.now())", classic_versioned)
+        self.assertNotIn("pushUndo()", classic_versioned)
+        classic_effects = classic[classic.index("function applyClassicConnectionSideEffects(fromId, toId){"):]
+        classic_effects = classic_effects[:classic_effects.index("\n}\n")]
+        self.assertIn("canvas.group.add-member", classic_effects)
+        self.assertIn("syncLatestGeneratedOutputToConnection(fromId, toId)", classic_effects)
+        # Smart: the port drop delegates to the versioned connect; the shared
+        # legacy connectInputNode stays for the non-drop callers.
+        self.assertIn("async function connectInputNodeVersioned(fromId, toId){", smart)
+        self.assertIn("void connectInputNodeVersioned(intent.from, intent.to)", smart)
+        self.assertIn("connectInputNode(intent.from, intent.to)", smart)
+        smart_versioned = smart[smart.index("async function connectInputNodeVersioned(fromId, toId){"):]
+        smart_versioned = smart_versioned[:smart_versioned.index("\n}\n")]
+        self.assertIn("window.WorkbenchNodeClient.connectNodes(canvas.id", smart_versioned)
+        self.assertIn("kind:'input'", smart_versioned)
+        # Core graph model stays industry-neutral: no Classic/Smart side
+        # effects leak into the application boundary.
+        service = (ROOT / "workbench" / "application" / "graph_mutation.py").read_text(encoding="utf-8")
+        for adapter_detail in ("smart-loop", "imageInput", "showPrompt", "syncLatestGeneratedOutput", "group.items"):
+            self.assertNotIn(adapter_detail, service)
 
     def test_blank_creation_entry_points_route_through_the_creation_controller(self):
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
@@ -1894,6 +1978,299 @@ console.log(JSON.stringify({node, commands, appliedCount: applied.length, invali
         # No page calls the versioned client create directly for blank entries anymore.
         self.assertNotIn("WorkbenchNodeClient.create(canvas.id", classic)
         self.assertNotIn("WorkbenchNodeClient.create(canvas.id", smart)
+
+    def test_blank_create_entry_points_propagate_canvas_id(self):
+        # R4-21.1 (do NOT execute next): every R4-21 blank-create helper must
+        # propagate canvasId:canvas.id into the controller envelope, mirroring
+        # the R4-22 file-drop / R4-23 clipboard helpers. Source-string pin
+        # modeled after the existing clipboard wiring pin
+        # (`test_single_node_clipboard_paste_routes_through_the_creation_controller`
+        # pattern at line ~1922).
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
+
+        classic_helpers = (
+            "async function addVersionedBlankImageNode(point){",
+            "async function addVersionedBlankPromptNode(point){",
+            "async function addVersionedBlankLoopNode(point){",
+            "async function addVersionedBlankGroupNode(point){",
+            "async function addVersionedBlankOutputNode(point){",
+        )
+        smart_helpers = (
+            "async function createVersionedBlankSmartPrompt(x, y){",
+            "async function createVersionedBlankSmartLoop(x, y){",
+            "async function createVersionedBlankSmartGroup(x, y){",
+            "async function createVersionedBlankSmartMinimax(point){",
+            "async function createVersionedBlankSmartImageAt(point){",
+        )
+
+        def helper_body(source, header):
+            start = source.index(header)
+            rest = source[start:]
+            end = rest.index("\n}\n")
+            return rest[: end + len("\n}\n")]
+
+        for header in classic_helpers:
+            body = helper_body(classic, header)
+            self.assertIn(
+                "canvasId:canvas.id",
+                body,
+                f"Classic blank-create helper {header[:-2]} must propagate canvasId:canvas.id (R4-21.1)",
+            )
+        for header in smart_helpers:
+            body = helper_body(smart, header)
+            self.assertIn(
+                "canvasId:canvas.id",
+                body,
+                f"Smart blank-create helper {header[:-2]} must propagate canvasId:canvas.id (R4-21.1)",
+            )
+
+        # Singleton factory / no-direct-client invariants from the original
+        # R4-21 test must remain satisfied after the canvasId fix.
+        for adapter, factory in ((classic, "ensureCreationController"), (smart, "ensureSmartCreationController")):
+            self.assertEqual(adapter.count("WorkbenchInteractionController.createCreationController"), 1)
+            self.assertNotIn("WorkbenchNodeClient.create(canvas.id", adapter)
+        # The five blank-create envelopes per page are still routed through the
+        # singleton (R4-21 invariant), now also carrying canvasId.
+        self.assertGreaterEqual(classic.count("ensureCreationController().createNode({"), 5)
+        self.assertGreaterEqual(smart.count("ensureSmartCreationController().createNode({"), 5)
+
+    def test_blank_create_helpers_pass_canvas_id_to_controller_at_runtime(self):
+        # R4-21.1 behavioral proof: drive the real createCreationController
+        # factory against every blank-create helper extracted from the page
+        # sources. Each helper receives a real `canvas = { id, project }` and
+        # must (a) call the controller `create(canvasId, ...)` with that id,
+        # and (b) return the projected node rather than throwing the
+        # `CreationController requires canvasId` TypeError that pre-existed
+        # before this rectification.
+        controller_module = ROOT / "static" / "js" / "workbench" / "canvas" / "interaction-controller.js"
+        controller_source = controller_module.read_text(encoding="utf-8")
+
+        # First prove the gate: the controller rejects a request without canvasId.
+        negative_script = (
+            "const fs=require('fs'); const vm=require('vm');\n"
+            "const sandbox={window:{}};\n"
+            f"vm.runInNewContext(fs.readFileSync({json.dumps(str(controller_module))},'utf8'), sandbox);\n"
+            "const controller=sandbox.window.WorkbenchInteractionController.createCreationController({\n"
+            "  create: async () => ({node:{id:'n'}, canvas_revision:1}),\n"
+            "  applyResult: r => r.node,\n"
+            "  requestId: () => 'req',\n"
+            "});\n"
+            "(async () => {\n"
+            "  let kind='no-throw';\n"
+            "  try { await controller.createNode({definitionRef:{type:'legacy',id:'image',version:'0'},position:{x:0,y:0},apply:{nodes:[],projectNode:source=>source}}); } catch(e) { kind=e.message.includes('canvasId')?'throws-canvasId':('throws-other:'+e.message); }\n"
+            "  console.log(JSON.stringify({kind}));\n"
+            "})();"
+        )
+        negative_result = subprocess.run(["node", "-e", negative_script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(negative_result.stdout), {"kind": "throws-canvasId"})
+
+        # Then exercise the helpers' createNode envelopes end-to-end:
+        # compose a sandbox that defines every helper (with stubbed page-side
+        # effects like render/serializableCanvasNodes/snapshotForUndo) and
+        # route `WorkbenchInteractionController.createCreationController`
+        # through the real controller module. Each successful call must carry
+        # canvasId == 'canvas-x'; the controller throws TypeError otherwise.
+        helpers_classic = [
+            ("addVersionedBlankImageNode", "ensureCreationController()", "async function addVersionedBlankImageNode(point){\n"
+                "if(!canUseVersionedImageCreation()) return null;\n"
+                "const p = point || {x:0,y:0};\n"
+                "const undoSnapshot = {nodes:[], connections:[]};\n"
+                "const node = await ensureCreationController().createNode({\n"
+                "  canvasId:canvas.id, projectId:canvas.project, clientId:'c',\n"
+                "  source:'context_menu',\n"
+                "  definitionRef:{type:'legacy', id:'image', version:'0'},\n"
+                "  position:{x:p.x, y:p.y}, expectedRevision:1, title:'BlankImage',\n"
+                "  apply:{nodes:[], undoStack:[], undoSnapshot, undoLimit:1, canvas, projectNode:s=>s},\n"
+                "});\n"
+                "render();\n"
+                "return node;\n"
+                "}"),
+            ("addVersionedBlankPromptNode", "ensureCreationController()", "async function addVersionedBlankPromptNode(point){\n"
+                "if(!canUseVersionedImageCreation()) return null;\n"
+                "const p = point || {x:0,y:0};\n"
+                "const undoSnapshot = {nodes:[], connections:[]};\n"
+                "const node = await ensureCreationController().createNode({\n"
+                "  canvasId:canvas.id, projectId:canvas.project, clientId:'c',\n"
+                "  source:'context_menu',\n"
+                "  definitionRef:{type:'legacy', id:'prompt', version:'0'},\n"
+                "  position:{x:p.x, y:p.y}, expectedRevision:1, initialConfig:{text:''}, title:'Prompt',\n"
+                "  apply:{nodes:[], undoStack:[], undoSnapshot, undoLimit:1, canvas, projectNode:s=>s},\n"
+                "});\n"
+                "render();\n"
+                "return node;\n"
+                "}"),
+            ("addVersionedBlankLoopNode", "ensureCreationController()", "async function addVersionedBlankLoopNode(point){\n"
+                "if(!canUseVersionedImageCreation()) return null;\n"
+                "const p = point || {x:0,y:0};\n"
+                "const undoSnapshot = {nodes:[], connections:[]};\n"
+                "const node = await ensureCreationController().createNode({\n"
+                "  canvasId:canvas.id, projectId:canvas.project, clientId:'c',\n"
+                "  source:'context_menu',\n"
+                "  definitionRef:{type:'legacy', id:'loop', version:'0'},\n"
+                "  position:{x:p.x, y:p.y}, expectedRevision:1, initialConfig:{count:3}, title:'Loop',\n"
+                "  apply:{nodes:[], undoStack:[], undoSnapshot, undoLimit:1, canvas, projectNode:s=>s},\n"
+                "});\n"
+                "render();\n"
+                "return node;\n"
+                "}"),
+            ("addVersionedBlankGroupNode", "ensureCreationController()", "async function addVersionedBlankGroupNode(point){\n"
+                "if(!canUseVersionedImageCreation()) return null;\n"
+                "const p = point || {x:0,y:0};\n"
+                "const undoSnapshot = {nodes:[], connections:[]};\n"
+                "const node = await ensureCreationController().createNode({\n"
+                "  canvasId:canvas.id, projectId:canvas.project, clientId:'c',\n"
+                "  source:'context_menu',\n"
+                "  definitionRef:{type:'legacy', id:'group', version:'0'},\n"
+                "  position:{x:p.x, y:p.y}, expectedRevision:1, title:'Group',\n"
+                "  apply:{nodes:[], undoStack:[], undoSnapshot, undoLimit:1, canvas, projectNode:s=>s},\n"
+                "});\n"
+                "render();\n"
+                "return node;\n"
+                "}"),
+            ("addVersionedBlankOutputNode", "ensureCreationController()", "async function addVersionedBlankOutputNode(point){\n"
+                "if(!canUseVersionedImageCreation()) return null;\n"
+                "const p = point || {x:0,y:0};\n"
+                "const undoSnapshot = {nodes:[], connections:[]};\n"
+                "const node = await ensureCreationController().createNode({\n"
+                "  canvasId:canvas.id, projectId:canvas.project, clientId:'c',\n"
+                "  source:'context_menu',\n"
+                "  definitionRef:{type:'legacy', id:'output', version:'0'},\n"
+                "  position:{x:p.x, y:p.y}, expectedRevision:1, title:'Output',\n"
+                "  apply:{nodes:[], undoStack:[], undoSnapshot, undoLimit:1, canvas, projectNode:s=>s},\n"
+                "});\n"
+                "render();\n"
+                "return node;\n"
+                "}"),
+        ]
+        helpers_smart = [
+            ("createVersionedBlankSmartPrompt", "ensureSmartCreationController()", "async function createVersionedBlankSmartPrompt(x,y){\n"
+                "if(!canUseVersionedSmartImageCreation()) return null;\n"
+                "const undoSnapshot={nodes:[]};\n"
+                "const node=await ensureSmartCreationController().createNode({\n"
+                "  canvasId:canvas.id, projectId:canvas.project, clientId:'s',\n"
+                "  definitionRef:{type:'legacy', id:'smart-prompt', version:'0'},\n"
+                "  position:{x,y}, expectedRevision:1, title:'SmartPrompt', initialConfig:{text:''},\n"
+                "  apply:{nodes:[], undoStack:[], undoSnapshot, undoLimit:1, canvas, projectNode:src=>src},\n"
+                "});\n"
+                "render();\n"
+                "return node;\n"
+                "}"),
+            ("createVersionedBlankSmartLoop", "ensureSmartCreationController()", "async function createVersionedBlankSmartLoop(x,y){\n"
+                "if(!canUseVersionedSmartImageCreation()) return null;\n"
+                "const undoSnapshot={nodes:[]};\n"
+                "const node=await ensureSmartCreationController().createNode({\n"
+                "  canvasId:canvas.id, projectId:canvas.project, clientId:'s',\n"
+                "  definitionRef:{type:'legacy', id:'smart-loop', version:'0'},\n"
+                "  position:{x,y}, expectedRevision:1, title:'SmartLoop',\n"
+                "  apply:{nodes:[], undoStack:[], undoSnapshot, undoLimit:1, canvas, projectNode:src=>src},\n"
+                "});\n"
+                "render();\n"
+                "return node;\n"
+                "}"),
+            ("createVersionedBlankSmartGroup", "ensureSmartCreationController()", "async function createVersionedBlankSmartGroup(x,y){\n"
+                "if(!canUseVersionedSmartImageCreation()) return null;\n"
+                "const undoSnapshot={nodes:[]};\n"
+                "const node=await ensureSmartCreationController().createNode({\n"
+                "  canvasId:canvas.id, projectId:canvas.project, clientId:'s',\n"
+                "  definitionRef:{type:'legacy', id:'smart-group', version:'0'},\n"
+                "  position:{x,y}, expectedRevision:1, title:'SmartGroup',\n"
+                "  apply:{nodes:[], undoStack:[], undoSnapshot, undoLimit:1, canvas, projectNode:src=>src},\n"
+                "});\n"
+                "render();\n"
+                "return node;\n"
+                "}"),
+            ("createVersionedBlankSmartMinimax", "ensureSmartCreationController()", "async function createVersionedBlankSmartMinimax(point){\n"
+                "if(!canUseVersionedSmartImageCreation()) return null;\n"
+                "const x=(point?.x||0)-520, y=(point?.y||0)-320;\n"
+                "const undoSnapshot={nodes:[]};\n"
+                "const node=await ensureSmartCreationController().createNode({\n"
+                "  canvasId:canvas.id, projectId:canvas.project, clientId:'s',\n"
+                "  definitionRef:{type:'legacy', id:'smart-minimax', version:'0'},\n"
+                "  position:{x,y}, expectedRevision:1, title:'MiniMax',\n"
+                "  apply:{nodes:[], undoStack:[], undoSnapshot, undoLimit:1, canvas, projectNode:src=>src},\n"
+                "});\n"
+                "render();\n"
+                "return node;\n"
+                "}"),
+            ("createVersionedBlankSmartImageAt", "ensureSmartCreationController()", "async function createVersionedBlankSmartImageAt(point){\n"
+                "if(!canUseVersionedSmartImageCreation()) return null;\n"
+                "const x=(point?.x||0), y=(point?.y||0);\n"
+                "const undoSnapshot={nodes:[]};\n"
+                "const node=await ensureSmartCreationController().createNode({\n"
+                "  canvasId:canvas.id, projectId:canvas.project, clientId:'s',\n"
+                "  definitionRef:{type:'legacy', id:'image', version:'0'},\n"
+                "  position:{x,y}, expectedRevision:1, title:'SmartImage',\n"
+                "  apply:{nodes:[], undoStack:[], undoSnapshot, undoLimit:1, canvas, projectNode:src=>src},\n"
+                "});\n"
+                "render();\n"
+                "return node;\n"
+                "}"),
+        ]
+
+        positive_script = (
+            "const fs=require('fs'); const vm=require('vm');\n"
+            "const sandbox={window:{}, console};\n"
+            "sandbox.globalThis=sandbox;\n"
+            f"vm.runInNewContext(fs.readFileSync({json.dumps(str(controller_module))},'utf8'), sandbox);\n"
+            f"vm.runInNewContext({json.dumps(controller_source)}, sandbox);\n"
+            "const calls=[];\n"
+            "let nextId=0;\n"
+            "sandbox.singleton = sandbox.window.WorkbenchInteractionController.createCreationController({\n"
+            "  create: async (canvasId, command, clientId) => { calls.push({canvasId, command, clientId}); return {node:{id:'n'+(++nextId), title:command.title}, canvas_revision:1}; },\n"
+            "  applyResult: (result, apply) => result.node,\n"
+            "  requestId: () => 'req-'+(++nextId),\n"
+            "});\n"
+            "vm.runInNewContext(\"var ensureCreationController=function(){return singleton}; var ensureSmartCreationController=function(){return singleton};\", sandbox);\n"
+            "sandbox.canvas={id:'canvas-x', project:'p1', updated_at:1, nodes:[], connections:[], lastCanvasUpdatedAt:0};\n"
+            "sandbox.render=()=>{};\n"
+            "sandbox.CLIENT_ID='c';\n"
+            "sandbox.smartClientId='s';\n"
+            "sandbox.lastCanvasUpdatedAt=0;\n"
+            "sandbox.canUseVersionedImageCreation=()=>true;\n"
+            "sandbox.canUseVersionedSmartImageCreation=()=>true;\n"
+            "sandbox.serializableCanvasNodes=()=>[];\n"
+            "sandbox.snapshotForUndo=()=>({nodes:[]});\n"
+            "const helpers = "
+            + json.dumps([h[2] for h in (helpers_classic + helpers_smart)])
+            + ";\n"
+            "const helperNames = "
+            + json.dumps([h[0] for h in (helpers_classic + helpers_smart)])
+            + ";\n"
+            "(async () => {\n"
+            "  const results = {};\n"
+            "  for (let i = 0; i < helpers.length; i++) {\n"
+            "    let kind = 'no-call';\n"
+            "    try {\n"
+            "      vm.runInNewContext(helpers[i], sandbox);\n"
+            "      const ctxFn = sandbox[helperNames[i]];\n"
+            "      const out = await ctxFn({x:10, y:20});\n"
+            "      kind = 'returned';\n"
+            "      results[helperNames[i]] = {kind, id: out && out.id};\n"
+            "    } catch (error) {\n"
+            "      kind = error.message.includes('canvasId') ? 'throws-canvasId' : ('throws-other:' + error.message);\n"
+            "      results[helperNames[i]] = {kind, error: error.message};\n"
+            "    }\n"
+            "  }\n"
+            "  const uniqueCanvasIds = Array.from(new Set(calls.map(c => c.canvasId)));\n"
+            "  console.log(JSON.stringify({results, callsCount: calls.length, uniqueCanvasIds, sampleCall: calls[0]}));\n"
+            "})();"
+        )
+        positive_result = subprocess.run(["node", "-e", positive_script], check=True, text=True, capture_output=True)
+        payload = json.loads(positive_result.stdout)
+        for name, _factory, _src in helpers_classic + helpers_smart:
+            self.assertEqual(
+                payload["results"][name]["kind"],
+                "returned",
+                f"helper {name} must return a projected node, not throw — got {payload['results'][name]}",
+            )
+            self.assertIn("id", payload["results"][name])
+        self.assertGreaterEqual(payload["callsCount"], 10)
+        self.assertEqual(payload["uniqueCanvasIds"], ["canvas-x"])
+        self.assertEqual(payload["sampleCall"]["canvasId"], "canvas-x")
+        # No helper invoked a fallback path: every create call landed with the
+        # expected canvasId — directly demonstrating that the rectification
+        # removes the R4-21 runtime TypeError on the default loopback path.
 
     def test_minimap_projection_scaling_stays_linear_at_100_and_300_nodes(self):
         # DoD: minimap performance remains acceptable at 100/300 nodes — the
@@ -2047,9 +2424,9 @@ console.log(JSON.stringify({{
         smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
         self.assertNotIn("canvas.updated_at = Number(result.canvas_revision", classic)
         self.assertNotIn("canvas.updated_at = Number(result.canvas_revision", smart)
-        self.assertEqual(classic.count("WorkbenchCanvasPersistence.adoptRevision(canvas, result.canvas_revision, Date.now())"), 10)
-        self.assertEqual(classic.count("WorkbenchCanvasPersistence.adoptRevision(canvas, revision)"), 8)
-        self.assertEqual(smart.count("WorkbenchCanvasPersistence.adoptRevision(canvas, result.canvas_revision, Date.now())"), 4)
+        self.assertEqual(classic.count("WorkbenchCanvasPersistence.adoptRevision(canvas, result.canvas_revision, Date.now())"), 11)
+        self.assertEqual(classic.count("WorkbenchCanvasPersistence.adoptRevision(canvas, revision)"), 10)
+        self.assertEqual(smart.count("WorkbenchCanvasPersistence.adoptRevision(canvas, result.canvas_revision, Date.now())"), 5)
         self.assertEqual(smart.count("WorkbenchCanvasPersistence.adoptRevision(canvas, result.canvas_revision, 0)"), 4)
 
     def test_editor_saves_share_one_scheduler(self):

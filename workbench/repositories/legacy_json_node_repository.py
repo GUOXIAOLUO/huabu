@@ -3,7 +3,13 @@
 from typing import Any
 
 from workbench.application.node_creation import NodeCreationPersistence
-from workbench.application.graph_mutation import CreateNodeAndEdgeCommand, GraphMutationPersistence
+from workbench.application.graph_mutation import (
+    ConnectNodesCommand,
+    ConnectNodesPersistence,
+    CreateNodeAndEdgeCommand,
+    GraphMutationError,
+    GraphMutationPersistence,
+)
 from workbench.application.node_mutation import (
     NodeDeleteCommand,
     NodeMutationPersistence,
@@ -72,9 +78,13 @@ class LegacyJsonNodeCreationRepository:
             }
             if definition_id == "image":
                 if is_smart_image:
-                    payload.update({"title": node.title, "images": []})
+                    payload.update({"title": node.title, "images": list(node.config.get("images") or [])})
                 else:
-                    payload["name"] = node.title
+                    payload.update({
+                        "name": str(node.config.get("name") or node.title),
+                        "url": str(node.config.get("url") or ""),
+                        "mediaKind": str(node.config.get("mediaKind") or "image"),
+                    })
             elif definition_id == "output":
                 payload["images"] = []
             elif node.definition_ref.id == "prompt":
@@ -378,6 +388,50 @@ class LegacyJsonGraphMutationRepository:
             command.canvas_id, expected_updated_at=command.expected_revision, mutation=mutation,
         )
         return GraphMutationPersistence(canvas_revision=int(saved.get("updated_at") or 1), node=command.node, edge=command.edge)
+
+    def connect_nodes(self, command: ConnectNodesCommand, edge) -> ConnectNodesPersistence:
+        """Connect two existing Legacy nodes atomically in one canvas lock.
+
+        The retained adapter edge shapes stay here: Classic Canvases persist
+        ``{id, from, to}``; Smart Canvases persist ``{from, to, kind}`` and
+        sync the target's ``inputNodeIds`` for input edges. The application
+        boundary owns request validity, authorization, and revision safety.
+        """
+
+        def mutation(canvas: dict[str, Any]) -> None:
+            node_ids = {item.get("id") for item in canvas.get("nodes") or [] if isinstance(item, dict)}
+            if command.from_node_id not in node_ids or command.to_node_id not in node_ids:
+                raise GraphMutationError("invalid_graph", "both edge endpoints must exist on the Canvas")
+            connections = canvas.setdefault("connections", [])
+            if canvas.get("kind") == "smart":
+                kind = command.edge_kind or "flow"
+                if any(
+                    isinstance(candidate, dict)
+                    and candidate.get("from") == command.from_node_id
+                    and candidate.get("to") == command.to_node_id
+                    and (candidate.get("kind") or "flow") == kind
+                    for candidate in connections
+                ):
+                    raise GraphMutationError("duplicate_edge", "an equivalent edge already exists")
+                connections.append({"from": command.from_node_id, "to": command.to_node_id, "kind": kind})
+                if kind == "input":
+                    target = next((item for item in canvas["nodes"] if isinstance(item, dict) and item.get("id") == command.to_node_id), None)
+                    if target is not None:
+                        target["inputNodeIds"] = list(dict.fromkeys([*(target.get("inputNodeIds") or []), command.from_node_id]))
+            else:
+                if any(
+                    isinstance(candidate, dict)
+                    and candidate.get("from") == command.from_node_id
+                    and candidate.get("to") == command.to_node_id
+                    for candidate in connections
+                ):
+                    raise GraphMutationError("duplicate_edge", "an equivalent edge already exists")
+                connections.append({"id": command.edge_id, "from": command.from_node_id, "to": command.to_node_id})
+
+        saved = self._repository.mutate_if_current(
+            command.canvas_id, expected_updated_at=command.expected_revision, mutation=mutation,
+        )
+        return ConnectNodesPersistence(canvas_revision=int(saved.get("updated_at") or 1), edge=edge)
 
 
 def _smart_minimax_payload(node: NodeRecord) -> dict[str, Any]:

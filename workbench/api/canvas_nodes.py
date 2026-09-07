@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from workbench.application.node_creation import NodeCreateCommand, NodeCreationError, NodeCreationService, NodeCreationSource
 from workbench.application.node_mutation import NodeDeleteCommand, NodeMutationError, NodeMutationService, NodeUpdateCommand
-from workbench.application.graph_mutation import CreateNodeAndEdgeFromCreationCommand, GraphMutationError, GraphMutationService
+from workbench.application.graph_mutation import ConnectNodesCommand, CreateNodeAndEdgeFromCreationCommand, GraphMutationError, GraphMutationService
 from workbench.domain.canvas.models import DefinitionRef, ModelBinding, NodeRecord, Position
 from workbench.repositories.canvas_repository import StaleCanvasRevisionError
 
@@ -59,6 +59,17 @@ class CreateNodeAndEdgePayload(NodeCreatePayload):
     existing_node_id: str = Field(min_length=1, max_length=255)
     edge_id: str = Field(min_length=1, max_length=255)
     direction: str = Field(default="from_existing", pattern="^(from_existing|to_existing)$")
+
+
+class ConnectNodesPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    project_id: str = Field(min_length=1, max_length=255)
+    expected_revision: int = Field(ge=1)
+    edge_id: str = Field(min_length=1, max_length=255)
+    from_node_id: str = Field(min_length=1, max_length=255)
+    to_node_id: str = Field(min_length=1, max_length=255)
+    kind: str = Field(default="flow", pattern="^(flow|input)$")
 
 
 class NodeLookup(Protocol):
@@ -187,6 +198,22 @@ def create_canvas_nodes_router(
         except StaleCanvasRevisionError as error:
             raise HTTPException(status_code=409, detail={"code": "stale_revision", "canvas": error.current})
         return {"node": result.node.model_dump(mode="json"), "edge": result.edge.model_dump(mode="json", by_alias=True), "canvas_revision": result.canvas_revision}
+
+    @router.post("/{canvas_id}/graph/connect-nodes", status_code=201)
+    async def connect_nodes(canvas_id: str, payload: ConnectNodesPayload, x_user_id: str = Header(default="")):
+        actor_id = _actor_from_header(x_user_id)
+        try:
+            result = graph_service_for_actor(actor_id).connect_nodes(ConnectNodesCommand(
+                actor_id=actor_id, project_id=payload.project_id, canvas_id=canvas_id,
+                expected_revision=payload.expected_revision, edge_id=payload.edge_id,
+                from_node_id=payload.from_node_id, to_node_id=payload.to_node_id, edge_kind=payload.kind,
+            ))
+        except GraphMutationError as error:
+            status_code = 403 if error.code == "forbidden" else 422
+            raise HTTPException(status_code=status_code, detail={"code": error.code, "message": str(error)})
+        except StaleCanvasRevisionError as error:
+            raise HTTPException(status_code=409, detail={"code": "stale_revision", "canvas": error.current})
+        return {"edge": result.edge.model_dump(mode="json", by_alias=True), "canvas_revision": result.canvas_revision}
 
     return router
 

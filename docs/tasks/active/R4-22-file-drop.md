@@ -2,7 +2,7 @@
 
 - Round: R4
 - Priority: P1
-- Status: READY
+- Status: DONE
 - Activated: 2026-09-07T06:53+08:00
 - Depends on: R4-21 (DONE, review closed)
 
@@ -54,7 +54,7 @@ Run:
 
 ## Definition of Done
 
-- [ ] File drop creates through unified boundary and reloads correctly.
+- [x] File drop creates through unified boundary and reloads correctly.
 
 ## Documentation
 
@@ -68,9 +68,15 @@ Update `AGENT_NEXT_TASK.md` after the card is actually verified.
 
 Before:
 
+Classic and Smart created top-level dropped media by directly constructing page-owned nodes and saving raw Canvas payloads.
+
 After:
 
+`CreationController` creates supported top-level dropped media through `NodeCreationService`; the Legacy compatibility repository persists the media payload needed for reload.
+
 Duplicate owner removed:
+
+The default top-level Classic and Smart file-drop materialization paths no longer need page-generated node IDs or raw node appends. Target-node fills, group layout and unsupported compatibility paths remain adapter-owned.
 
 ## Next Recommended Card
 

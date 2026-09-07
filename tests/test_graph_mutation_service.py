@@ -1,7 +1,15 @@
 import unittest
 from datetime import UTC, datetime
 
-from workbench.application.graph_mutation import CreateNodeAndEdgeCommand, CreateNodeAndEdgeFromCreationCommand, GraphMutationError, GraphMutationPersistence, GraphMutationService
+from workbench.application.graph_mutation import (
+    ConnectNodesCommand,
+    ConnectNodesPersistence,
+    CreateNodeAndEdgeCommand,
+    CreateNodeAndEdgeFromCreationCommand,
+    GraphMutationError,
+    GraphMutationPersistence,
+    GraphMutationService,
+)
 from workbench.application.node_creation import NodeCreateCommand, NodeCreationSource
 from workbench.domain.canvas.models import DefinitionRef, EdgeRecord, NodeRecord, Position, RendererRef, Size
 from workbench.domain.canvas.ports import PortSet
@@ -23,6 +31,8 @@ class Auth:
 
 class Repository:
     def create_node_and_edge(self, command): return GraphMutationPersistence(canvas_revision=2, node=command.node, edge=command.edge)
+
+    def connect_nodes(self, command, edge): return ConnectNodesPersistence(canvas_revision=3, edge=edge)
 
 
 class Preparer:
@@ -87,3 +97,38 @@ class GraphMutationServiceTests(unittest.TestCase):
             GraphMutationService(authorizer=Auth(), repository=Repository(), audit_sink=Audit()).create_from_node_command(
                 CreateNodeAndEdgeFromCreationCommand(creation=creation, edge_id="edge", existing_node_id="old"), node_preparer=NeverPrepare(),
             )
+
+    def connect_command(self, **changes):
+        values = dict(actor_id="actor", project_id="project", canvas_id="canvas", expected_revision=5, edge_id="edge-1", from_node_id="a", to_node_id="b")
+        values.update(changes)
+        return ConnectNodesCommand(**values)
+
+    def test_authorized_connect_builds_the_legacy_edge_and_audits(self):
+        audit = Audit()
+        result = GraphMutationService(authorizer=Auth(), repository=Repository(), audit_sink=audit).connect_nodes(self.connect_command())
+        self.assertEqual(result.canvas_revision, 3)
+        self.assertEqual((result.edge.id, result.edge.from_.node_id, result.edge.to.node_id, result.edge.from_.port_id, result.edge.to.port_id), (
+            "edge-1", "a", "b", "legacy.out", "legacy.in",
+        ))
+        self.assertEqual((audit.events[0].edge_id, audit.events[0].from_node_id, audit.events[0].to_node_id), (
+            "edge-1", "a", "b",
+        ))
+
+    def test_connect_rejects_self_edges_before_persistence(self):
+        service = GraphMutationService(authorizer=Auth(), repository=Repository(), audit_sink=Audit())
+        with self.assertRaisesRegex(GraphMutationError, "cannot connect a node to itself"):
+            service.connect_nodes(self.connect_command(from_node_id="a", to_node_id="a"))
+
+    def test_connect_rejects_invalid_revisions_and_kinds_before_persistence(self):
+        service = GraphMutationService(authorizer=Auth(), repository=Repository(), audit_sink=Audit())
+        for revision in (0, -1):
+            with self.subTest(revision=revision), self.assertRaisesRegex(GraphMutationError, "expected_revision must be positive"):
+                service.connect_nodes(self.connect_command(expected_revision=revision))
+        with self.assertRaisesRegex(GraphMutationError, "edge_kind"):
+            service.connect_nodes(self.connect_command(edge_kind="dashed"))
+        with self.assertRaisesRegex(GraphMutationError, "required"):
+            service.connect_nodes(self.connect_command(edge_id=" "))
+
+    def test_connect_rejects_unauthorized_mutation(self):
+        with self.assertRaisesRegex(GraphMutationError, "not permitted"):
+            GraphMutationService(authorizer=Auth(False), repository=Repository(), audit_sink=Audit()).connect_nodes(self.connect_command())

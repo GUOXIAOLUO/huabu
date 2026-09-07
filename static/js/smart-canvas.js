@@ -1715,7 +1715,7 @@ async function createVersionedBlankSmartPrompt(x, y){
     const undoSnapshot = snapshotForUndo();
     try {
         const node = await ensureSmartCreationController().createNode({
-            projectId:canvas.project, clientId:smartClientId,
+            canvasId:canvas.id, projectId:canvas.project, clientId:smartClientId,
             definitionRef:{type:'legacy', id:'smart-prompt', version:'0'},
             position:{x,y}, expectedRevision:Number(canvas.updated_at || 0),
             title:'3D动画短片生成器', initialConfig:config,
@@ -1734,7 +1734,7 @@ async function createVersionedBlankSmartLoop(x, y){
     const undoSnapshot = snapshotForUndo();
     try {
         const node = await ensureSmartCreationController().createNode({
-            projectId:canvas.project, clientId:smartClientId,
+            canvasId:canvas.id, projectId:canvas.project, clientId:smartClientId,
             definitionRef:{type:'legacy', id:'smart-loop', version:'0'},
             position:{x,y}, expectedRevision:Number(canvas.updated_at || 0),
             title:'Loop',
@@ -1753,7 +1753,7 @@ async function createVersionedBlankSmartGroup(x, y){
     const undoSnapshot = snapshotForUndo();
     try {
         const node = await ensureSmartCreationController().createNode({
-            projectId:canvas.project, clientId:smartClientId,
+            canvasId:canvas.id, projectId:canvas.project, clientId:smartClientId,
             definitionRef:{type:'legacy', id:'smart-group', version:'0'},
             position:{x,y}, expectedRevision:Number(canvas.updated_at || 0),
             title:'智能分组',
@@ -1775,7 +1775,7 @@ async function createVersionedBlankSmartMinimax(point){
     const undoSnapshot = snapshotForUndo();
     try {
         const node = await ensureSmartCreationController().createNode({
-            projectId:canvas.project, clientId:smartClientId,
+            canvasId:canvas.id, projectId:canvas.project, clientId:smartClientId,
             definitionRef:{type:'legacy', id:'smart-minimax', version:'0'},
             position:{x,y}, expectedRevision:Number(canvas.updated_at || 0),
             title:'MiniMax H3',
@@ -1921,7 +1921,7 @@ async function createVersionedBlankSmartImageAt(point){
     const undoSnapshot = snapshotForUndo();
     try {
         const node = await ensureSmartCreationController().createNode({
-            projectId:canvas.project, clientId:smartClientId,
+            canvasId:canvas.id, projectId:canvas.project, clientId:smartClientId,
             definitionRef:{type:'legacy', id:'image', version:'0'},
             position:{x, y}, expectedRevision:Number(canvas.updated_at || 0),
             title:tr('smart.createImportNode'),
@@ -1942,6 +1942,28 @@ async function createVersionedBlankSmartImageAt(point){
         toast(tr('smart.toastCanvasFail'));
         return null;
     }
+}
+async function createVersionedDroppedSmartImage(file, point){
+    if(!canUseVersionedSmartImageCreation()) return null;
+    const layout = imageLayout([], mediaNodeDefaultScale({type:'smart-image', images:[]}), {type:'smart-image', images:[]});
+    const x = (point?.x || 0) - Math.round(layout.width / 2);
+    const y = (point?.y || 0) - Math.round(layout.height / 2);
+    const image = {...file, kind:file?.kind || mediaKindForItem(file)};
+    const undoSnapshot = snapshotForUndo();
+    try {
+        const node = await ensureSmartCreationController().createNode({
+            canvasId:canvas.id, projectId:canvas.project, clientId:smartClientId, source:'file_drop',
+            definitionRef:{type:'legacy', id:'image', version:'0'}, position:{x,y}, expectedRevision:Number(canvas.updated_at || 0),
+            title:uploadTitleForItems([image], tr('smart.createImportNode')), initialConfig:{images:[image]},
+            apply:{
+                nodes, undoStack, undoSnapshot, undoLimit:UNDO_LIMIT, canvas,
+                projectNode:created => { const projected = {id:created.id, type:'smart-image', x, y, title:created.title, images:created.config?.images || [image], created_at:Date.now()}; projected.scale = mediaNodeDefaultScale(projected); return projected; },
+                onSelected:created => { selectedId = created.id; selectedIds = []; },
+            },
+        });
+        render();
+        return node;
+    } catch(error) { console.error('Versioned Smart file-drop creation failed', error); throw error; }
 }
 function smartGroupLayoutSize(node){
     const explicitW = Number(node?.w);
@@ -7001,9 +7023,65 @@ function copySelectedNodes(){
     nodeClipboard = JSON.parse(JSON.stringify(subgraph));
     toast(`已复制 ${subgraph.nodes.length} 个节点`);
 }
+// Clipboard paste candidate: only a single, connection-free smart-prompt node
+// round-trips losslessly through the compatibility repository (the repo
+// persists its full durable config). smart-image loses its scale, groups lose
+// items and every fragment edge would be dropped, so those stay on the
+// adapter-owned fragment path below.
+const SMART_PROMPT_CLIPBOARD_CONFIG_KEYS = Object.freeze(['text', 'promptResult', 'promptResultOutdated', 'promptSeparator', 'promptSplitEnabled', 'llmEnabled', 'llmProvider', 'llmModel', 'llmSystemEnabled', 'llmSystemPrompt', 'llmInstruction', 'promptSkillEnabled', 'promptSkillPack', 'promptSkillDefinition', 'promptOutputMode', 'promptAttachments']);
+function clipboardVersionedSmartCandidate(sourceNodes, sourceConnections){
+    if(sourceConnections.length || sourceNodes.length !== 1) return null;
+    const source = sourceNodes[0];
+    if(source?.type !== 'smart-prompt') return null;
+    const config = {text:'', promptResult:'', promptResultOutdated:false, promptSeparator:';', promptSplitEnabled:false, llmEnabled:false, llmProvider:'', llmModel:'', llmSystemEnabled:false, llmSystemPrompt:'You are a helpful prompt assistant.', llmInstruction:'', promptSkillEnabled:true, promptSkillPack:'MiniMax H3 Skills', promptSkillDefinition:'3D动画短片生成器', promptOutputMode:'text', promptAttachments:[]};
+    for(const key of SMART_PROMPT_CLIPBOARD_CONFIG_KEYS){
+        if(source[key] !== undefined) config[key] = source[key];
+    }
+    return {title:String(source.title || '3D动画短片生成器'), config};
+}
+async function createVersionedPastedSmartPrompt(candidate, point){
+    if(!canUseVersionedSmartImageCreation()) return null;
+    const undoSnapshot = snapshotForUndo();
+    try {
+        const node = await ensureSmartCreationController().createNode({
+            canvasId:canvas.id, projectId:canvas.project, clientId:smartClientId, source:'clipboard',
+            definitionRef:{type:'legacy', id:'smart-prompt', version:'0'},
+            position:{x:point.x, y:point.y}, expectedRevision:Number(canvas.updated_at || 0),
+            title:candidate.title, initialConfig:candidate.config,
+            apply:{
+                nodes, undoStack, undoSnapshot, undoLimit:UNDO_LIMIT, canvas,
+                projectNode:created => ({id:created.id, type:'smart-prompt', x:point.x, y:point.y, w:340, h:286, title:created.title || candidate.title, ...candidate.config, ...(created.config || {}), created_at:Date.now()}),
+                onSelected:created => { selectedId = created.id; selectedIds = []; selectedImage = {nodeId:'', index:-1}; },
+            },
+        });
+        render();
+        return node;
+    } catch(error) { console.error('Versioned Smart clipboard creation failed', error); return null; }
+}
 function pasteNodes(){
     if(!canvas || !nodeClipboard?.nodes?.length || isEditableTarget(document.activeElement)) return;
     lastNodePasteAt = Date.now();
+    const sourceNodes = nodeClipboard.nodes;
+    const sourceConnections = nodeClipboard.connections || [];
+    const candidate = clipboardVersionedSmartCandidate(sourceNodes, sourceConnections);
+    if(candidate && canUseVersionedSmartImageCreation()){
+        const placed = window.WorkbenchCanvasGraphFragment.materializeImportedSubgraph({
+            nodes:sourceNodes,
+            connections:sourceConnections,
+            target:lastMouseWorld || viewportCenter(),
+            anchor:'center',
+            serializeNode:smartCloneData,
+            createNodeId:type => uid(smartCloneIdPrefix(type)),
+        });
+        void createVersionedPastedSmartPrompt(candidate, {x:placed.nodes[0].x, y:placed.nodes[0].y}).then(created => {
+            if(!created) pasteClipboardFragmentLegacy();
+        });
+        return;
+    }
+    pasteClipboardFragmentLegacy();
+}
+function pasteClipboardFragmentLegacy(){
+    if(!canvas || !nodeClipboard?.nodes?.length) return;
     pushUndo();
     const sourceNodes = nodeClipboard.nodes;
     const p = lastMouseWorld || viewportCenter();
@@ -10335,6 +10413,14 @@ function handlePortDrop(drag, e){
             {direction:'in', dataType:toNode?.input_port_type || toNode?.port_type || 'legacy.any'},
         );
         if(!intent || portsCompatible === false){ discardPendingUndo(); render(); return; }
+        if(canUseVersionedSmartImageCreation()){
+            void connectInputNodeVersioned(intent.from, intent.to).then(created => {
+                if(created){ commitPendingUndo(); render(); }
+                else if(connectInputNode(intent.from, intent.to)){ commitPendingUndo(); render(); scheduleSave(); }
+                else { discardPendingUndo(); render(); }
+            });
+            return;
+        }
         if(connectInputNode(intent.from, intent.to)){
             commitPendingUndo();
             render();
@@ -14425,6 +14511,14 @@ async function handleFiles(files, targetId='', opts={}){
         if(!fileList.length) return;
         const uploaded = await uploadFiles(fileList);
         if(!uploaded.length) return;
+        if(!targetId && opts.forceNew && canUseVersionedSmartImageCreation()) {
+            const created = [];
+            for(const [index, file] of uploaded.entries()) {
+                const node = await createVersionedDroppedSmartImage({...file, kind:file.kind || mediaKindForFile(fileList[index])}, opts.point);
+                created.push(node);
+            }
+            return created;
+        }
         if(!opts.skipUndo) pushUndo();
         appendImagesToSmartNode(uploaded.map((file, index) => ({...file, kind:file.kind || mediaKindForFile(fileList[index])})), targetId, opts);
     } catch(e) { toast(e.message || tr('smart.toastUploadFail')); }
@@ -14716,6 +14810,39 @@ function connectInputNode(fromId, toId){
     to.inputNodeIds = Array.from(new Set([...(to.inputNodeIds || []), from.id]));
     addConnection(from.id, to.id, 'input');
     return true;
+}
+// Versioned connect: the durable mutation (edge + target inputNodeIds) goes
+// through the application connect command atomically with revision CAS, while
+// the Smart loop-input compatibility policy stays page-owned (card R4-24).
+async function connectInputNodeVersioned(fromId, toId){
+    if(!canUseVersionedSmartImageCreation()) return null;
+    const from = nodes.find(n => n.id === fromId);
+    const to = nodes.find(n => n.id === toId);
+    if(!from || !to || from.id === to.id) return null;
+    let loopTouched = false;
+    if(to.type === 'smart-loop'){
+        const groupImages = isSmartGroupNode(from) ? imagesForNode(from).filter(img => img?.url) : [];
+        const groupPrompts = isSmartGroupNode(from) ? promptTextItemsForNode(from).filter(Boolean) : [];
+        const looksImage = isSmartImageNode(from) || groupImages.length > 0 || (from.type === 'smart-loop' && from.imageInput);
+        const looksPrompt = from.type === 'smart-prompt' || groupPrompts.length > 0 || (from.type === 'smart-loop' && from.showPrompt);
+        if(looksImage && !to.imageInput) to.imageInput = true;
+        if(looksPrompt && !to.showPrompt) to.showPrompt = true;
+        if(looksImage || looksPrompt) { fitSmartLoopNode(to); loopTouched = true; }
+        const canImage = Boolean(to.imageInput) && looksImage;
+        const canPrompt = Boolean(to.showPrompt) && looksPrompt;
+        if(!canImage && !canPrompt) return null;
+    }
+    try {
+        const result = await window.WorkbenchNodeClient.connectNodes(canvas.id, {
+            project_id:canvas.project, expected_revision:Number(canvas.updated_at || 0),
+            edge_id:uid('c'), from_node_id:fromId, to_node_id:toId, kind:'input',
+        }, smartClientId);
+        to.inputNodeIds = Array.from(new Set([...(to.inputNodeIds || []), fromId]));
+        canvas.connections = [...(canvas.connections || []), {from:fromId, to:toId, kind:'input'}];
+        canvas.updated_at = window.WorkbenchCanvasPersistence.adoptRevision(canvas, result.canvas_revision, Date.now());
+        if(loopTouched) scheduleSave();
+        return true;
+    } catch(error) { console.error('Versioned Smart connection failed', error); return null; }
 }
 function upstreamNodesForKinds(node, kinds=['input']){
     if(!node) return [];

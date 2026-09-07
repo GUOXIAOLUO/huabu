@@ -123,6 +123,113 @@ class CanvasNodesRuntimeTests(unittest.TestCase):
             "output", [], 460, 180,
         ))
 
+    def test_registered_graph_route_connects_two_existing_nodes_atomically(self):
+        from workbench.api.canvas_nodes import ConnectNodesPayload
+
+        canvas = main.new_canvas("classic connect API test", kind="classic", project="default")
+        main.canvas_repository().mutate_if_current(canvas["id"], expected_updated_at=canvas["updated_at"], mutation=lambda item: item["nodes"].extend([
+            {"id": "source", "type": "image", "url": "/uploads/a.png"},
+            {"id": "target", "type": "prompt", "text": "hello"},
+        ]))
+        endpoint = self.endpoint("/api/v1/canvases/{canvas_id}/graph/connect-nodes", "POST")
+        revision = main.load_canvas(canvas["id"])["updated_at"]
+        result = asyncio.run(endpoint(canvas["id"], ConnectNodesPayload(
+            project_id="default", expected_revision=revision, edge_id="edge-connect-1",
+            from_node_id="source", to_node_id="target",
+        ), x_user_id="local-user"))
+        saved = main.load_canvas(canvas["id"])
+        self.assertEqual((result["edge"]["id"], result["edge"]["from"]["node_id"], result["edge"]["to"]["node_id"]), (
+            "edge-connect-1", "source", "target",
+        ))
+        self.assertEqual(saved["connections"], [{"id": "edge-connect-1", "from": "source", "to": "target"}])
+        self.assertEqual(saved["updated_at"], result["canvas_revision"])
+        # The stale-revision contract: a second connect with the old revision
+        # is rejected with 409 and persists nothing.
+        with self.assertRaises(main.HTTPException) as raised:
+            asyncio.run(endpoint(canvas["id"], ConnectNodesPayload(
+                project_id="default", expected_revision=revision, edge_id="edge-connect-2",
+                from_node_id="source", to_node_id="target",
+            ), x_user_id="local-user"))
+        self.assertEqual(raised.exception.status_code, 409)
+        self.assertEqual(main.load_canvas(canvas["id"])["connections"], [{"id": "edge-connect-1", "from": "source", "to": "target"}])
+        # Duplicate edges and missing endpoints are rejected under the same lock.
+        current = main.load_canvas(canvas["id"])["updated_at"]
+        with self.assertRaises(main.HTTPException) as raised:
+            asyncio.run(endpoint(canvas["id"], ConnectNodesPayload(
+                project_id="default", expected_revision=current, edge_id="edge-connect-3",
+                from_node_id="source", to_node_id="target",
+            ), x_user_id="local-user"))
+        self.assertEqual((raised.exception.status_code, raised.exception.detail["code"]), (422, "duplicate_edge"))
+        with self.assertRaises(main.HTTPException) as raised:
+            asyncio.run(endpoint(canvas["id"], ConnectNodesPayload(
+                project_id="default", expected_revision=current, edge_id="edge-connect-4",
+                from_node_id="source", to_node_id="missing",
+            ), x_user_id="local-user"))
+        self.assertEqual((raised.exception.status_code, raised.exception.detail["code"]), (422, "invalid_graph"))
+        self.assertEqual(main.load_canvas(canvas["id"])["updated_at"], current)
+
+    def test_registered_graph_route_connects_smart_nodes_with_input_sync(self):
+        from workbench.api.canvas_nodes import ConnectNodesPayload
+
+        canvas = main.new_canvas("smart connect API test", kind="smart", project="default")
+        main.canvas_repository().mutate_if_current(canvas["id"], expected_updated_at=canvas["updated_at"], mutation=lambda item: item["nodes"].extend([
+            {"id": "prompt-1", "type": "smart-prompt", "title": "Prompt", "text": "hi"},
+            {"id": "image-1", "type": "smart-image", "title": "Image", "images": []},
+        ]))
+        endpoint = self.endpoint("/api/v1/canvases/{canvas_id}/graph/connect-nodes", "POST")
+        revision = main.load_canvas(canvas["id"])["updated_at"]
+        result = asyncio.run(endpoint(canvas["id"], ConnectNodesPayload(
+            project_id="default", expected_revision=revision, edge_id="edge-smart-connect-1",
+            from_node_id="prompt-1", to_node_id="image-1", kind="input",
+        ), x_user_id="local-user"))
+        saved = main.load_canvas(canvas["id"])
+        self.assertEqual(saved["connections"], [{"from": "prompt-1", "to": "image-1", "kind": "input"}])
+        self.assertEqual(saved["nodes"][1]["inputNodeIds"], ["prompt-1"])
+        self.assertEqual(saved["updated_at"], result["canvas_revision"])
+        with open(self.audit_path, encoding="utf-8") as handle:
+            events = [line for line in handle.read().splitlines() if '"canvas.graph.nodes_connected"' in line]
+        self.assertTrue(events)
+        self.assertIn('"edge_id":"edge-smart-connect-1"', events[-1])
+
+    def test_registered_local_route_persists_clipboard_sourced_nodes_across_legacy_record_types(self):
+        create = self.endpoint("/api/v1/canvases/{canvas_id}/nodes", "POST")
+        classic = main.new_canvas("classic clipboard paste API test", kind="classic", project="default")
+        image = asyncio.run(create(classic["id"], NodeCreatePayload(
+            request_id="runtime-clipboard-image-1", project_id="default", source="clipboard",
+            definition_ref={"type": "legacy", "id": "image", "version": "0"},
+            position={"x": 30, "y": 40}, expected_revision=classic["updated_at"], title="pasted.mp4",
+            initial_config={"url": "/uploads/pasted.mp4", "name": "pasted.mp4", "mediaKind": "video"},
+        ), x_user_id="local-user"))
+        prompt = asyncio.run(create(classic["id"], NodeCreatePayload(
+            request_id="runtime-clipboard-prompt-1", project_id="default", source="clipboard",
+            definition_ref={"type": "legacy", "id": "prompt", "version": "0"},
+            position={"x": 50, "y": 60}, expected_revision=image.canvas_revision,
+            initial_config={"text": "pasted prompt text"},
+        ), x_user_id="local-user"))
+        saved = main.load_canvas(classic["id"])
+        self.assertTrue(image.created)
+        self.assertTrue(prompt.created)
+        self.assertEqual([node["type"] for node in saved["nodes"]], ["image", "prompt"])
+        self.assertEqual((saved["nodes"][0]["url"], saved["nodes"][0]["name"], saved["nodes"][0]["mediaKind"]), (
+            "/uploads/pasted.mp4", "pasted.mp4", "video",
+        ))
+        self.assertEqual(saved["nodes"][1]["text"], "pasted prompt text")
+        self.assertEqual((saved["nodes"][1]["x"], saved["nodes"][1]["y"]), (50, 60))
+        smart = main.new_canvas("smart clipboard paste API test", kind="smart", project="default")
+        asyncio.run(create(smart["id"], NodeCreatePayload(
+            request_id="runtime-clipboard-smart-prompt-1", project_id="default", source="clipboard",
+            definition_ref={"type": "legacy", "id": "smart-prompt", "version": "0"},
+            position={"x": 70, "y": 80}, expected_revision=smart["updated_at"], title="我的Prompt",
+            initial_config={"text": "smart pasted", "llmEnabled": True, "llmModel": "gpt-test", "promptSeparator": ","},
+        ), x_user_id="local-user"))
+        saved_smart = main.load_canvas(smart["id"])
+        node = saved_smart["nodes"][0]
+        self.assertEqual((node["type"], node["title"], node["text"], node["llmModel"], node["promptSeparator"]), (
+            "smart-prompt", "我的Prompt", "smart pasted", "gpt-test", ",",
+        ))
+        self.assertTrue(node["llmEnabled"])
+        self.assertEqual((node["x"], node["y"]), (70, 80))
+
     def test_registered_routes_update_and_delete_legacy_image(self):
         canvas = main.new_canvas("node mutation API test", kind="classic", project="default")
         create = self.endpoint("/api/v1/canvases/{canvas_id}/nodes", "POST")

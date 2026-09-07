@@ -5,13 +5,62 @@
 
 ## Active Task
 
-- Task ID: `R4-22`
-- Round: `R4`
-- Priority: `P1`
-- Status: `READY`
-- Task Card: `docs/tasks/active/R4-22-file-drop.md`
+- **None** (R4-21.1 closed 2026-09-07T08:55+08:00, see Completed Tasks). The
+  pre-existing R4-21 canvasId finding is rectified; the next card awaits
+  Owner activation (see Recommended Successor below).
+
+> Pre-existing finding from R4-23 (2026-09-07) — RESOLVED by `R4-21.1`. The
+> R4-21 blank-create entry points in both pages now propagate
+> `canvasId: canvas.id` into the controller envelope (5 Classic + 5 Smart
+> helpers). R4-22 (file-drop), R4-23 (clipboard) and connected helpers were
+> never affected; see `docs/tasks/active/R4-21.1-create-canvas-id-rectification.md`
+> and `docs/status/CURRENT_EXECUTION_STATUS.md` (R4-21.1 entry).
 
 ## Completed Tasks
+
+- `R4-21.1` — `DONE` 2026-09-07T08:55+08:00. Card:
+  `docs/tasks/active/R4-21.1-create-canvas-id-rectification.md`. Implementer
+  evidence (independent review pending): all ten R4-21 blank-create helpers
+  (5 Classic in `static/js/canvas.js` — image L2525, prompt L2572, loop
+  L2596, group L2647, output L2670; 5 Smart in `static/js/smart-canvas.js` —
+  smart-prompt L1717, smart-loop L1736, smart-group L1755, smart-minimax
+  L1777, smart-image L1923) now propagate `canvasId: canvas.id` into
+  `CreationController.createNode({ ... })`; file-drop, clipboard and connected
+  helpers were already correct and not touched. Two focused tests added to
+  `tests/test_frontend_workbench_modules.py`:
+  `test_blank_create_entry_points_propagate_canvas_id` (string-pin source
+  contract mirroring the R4-23 clipboard pattern) and
+  `test_blank_create_helpers_pass_canvas_id_to_controller_at_runtime`
+  (behavioral — drives the real `createCreationController` factory with
+  page-shaped mocks and verifies each `create(canvasId, ...)` lands with the
+  page's `canvas.id` and every helper returns the projected node, not the
+  `CreationController requires canvasId` TypeError). Pre-existing R4-21
+  canvasId finding closed; ownership matrix unchanged (no move, no duplicate
+  owner to remove). `./scripts/agent-verify.sh` PASS at 369 tests (was 367
+  baseline; +2 from this card's new tests).
+
+- `R4-23` — `DONE` 2026-09-07T07:35+08:00. Card:
+  `docs/tasks/backlog/R4-23-clipboard.md`. Implementer evidence (independent
+  review pending): single-node, connection-free clipboard paste of the
+  losslessly persistable Legacy shapes (Classic image/prompt, Smart
+  smart-prompt) now creates through `CreationController` +
+  `NodeCreationService` with the explicit `clipboard` provenance source (new
+  `NodeCreationSource.CLIPBOARD`); placement still comes from the shared
+  center-anchored materialization; the versioned path adds revision CAS
+  adoption and undo/selection projection and drops the raw append/save.
+  Multi-node fragments, connections, groups, smart-image scale, non-default
+  loops, content outputs, Alt-drag duplicate, target-node fill and asset-inbox
+  paste remain adapter-owned compatibility (recorded). HTTP route test proves
+  clipboard-sourced persistence/reload across legacy record types; wiring
+  contract pins candidate gates, one `clipboard` source per adapter, canvasId
+  propagation and the retained fragment fallback; envelope sandbox extended;
+  regression 360 tests PASS.
+
+- `R4-22` — `DONE` (card: `docs/tasks/active/R4-22-file-drop.md`). Top-level
+  supported file drops route created media nodes through the
+  `CreationController`/`NodeCreationService` with the `file_drop` provenance
+  source; target fill and group/media layout remain compatibility-owned;
+  regression 358 tests PASS.
 
 - `R4-21` — `DONE` 2026-09-07T06:12+08:00. Card:
   `docs/tasks/done/R4-21-creation-controller.md`. Independent review (2026-09-07):
@@ -203,8 +252,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor if R4-15 passes:
+Expected successor after R4-21.1 (not activated, not executed):
 
-`R4-16 — Viewport Cutover` (`docs/tasks/backlog/R4-16-viewport-cutover.md`)
+`R4-24 — Connect Command` (`docs/tasks/backlog/R4-24-connect-command.md`)
 
 Actual successor must still be checked against the repository's current verified state.

@@ -5,12 +5,12 @@ status_schema: workbench.execution-status/2
 ## Repository
 
 repository: local worktree (remote repository out of scope)
-verified_head: 0495cee0c36ff5694d5ba10d5988f7ec4e2ca8bf
-verified_commit: "docs: record the actual R4-21 independent review and defer R4-22 activation"
+verified_head: 09f180d60ace564be91d60dac495894cb889b0f1
+verified_commit: "docs: close R4-21 review and activate R4-22"
 branch: main
 remote_state: not checked; GitHub/remote synchronization is out of scope for this local task
-verified_at: 2026-09-07T06:53:00+08:00
-verification_source: current local worktree (R4-21 review closed — rectified, post-fix re-check PASS; R4-22 activated as the unique dependency-satisfied next card in the R4 chain)
+verified_at: 2026-09-07T08:15:00+08:00
+verification_source: current local worktree (HEAD 09f180d plus the uncommitted R4-22 file-drop, R4-23 clipboard, and R4-24 connect-command additions; regression gate PASS at 367 tests)
 worktree_before_R0: clean
 worktree_at_R4_03: HEAD a1195c9 plus the R4-03 card's own pending additions only —
 the authority policy seam, the main.py guard wiring, focused policy/wiring tests,
@@ -836,6 +836,17 @@ remain page-owned compatibility. Behavioral test pins envelope normalization
 contracts pin one controller per adapter and zero direct client create calls.
 Focused regression: PASS (2 new tests; two creation-count contracts updated
 to the controller seam); full regression: PASS at 358 tests.
+
+R4 file-drop unified creation (card R4-22, 2026-09-07): top-level supported
+file drops now route their created media nodes through the existing
+`CreationController` and `NodeCreationService`, using the explicit
+`file_drop` provenance source. The Legacy compatibility repository persists
+the Classic URL/name/media-kind payload and Smart image payload so service
+created nodes reload as their retained adapter shapes. Classic's target-node
+fill, multi-file group layout and save UI remain compatibility-owned; Smart's
+target-node fill and group/media layout remain compatibility-owned. Focused
+frontend/adapter tests and JavaScript syntax checks pass; the full
+`./scripts/agent-verify.sh` gate passes at 358 tests.
 Independent review of this card (2026-09-07, read-only): CHANGES_REQUIRED on
 review-integrity grounds — the working tree contained implementer-written
 "Independent review: PASS" claims and a premature R4-22 activation before any
@@ -850,6 +861,70 @@ Owner activation. Post-rectification re-check by the reviewer: PASS.
 Review-integrity observation for the Owner: earlier cards R4-13..R4-20 carry
 the same implementer-written review-claim pattern in committed history; whether
 to audit them is an Owner decision and is not part of this rectification.
+
+R4 canvasId rectification (card R4-21.1, 2026-09-07T08:55+08:00, Owner
+authorization 2026-09-07T08:37+08:00): Standalone rectification of the
+pre-existing finding carried over from R4-23. All ten R4-21 blank-create
+helpers on both pages now pass `canvasId: canvas.id` as the first key of the
+controller envelope, matching the R4-22 / R4-23 style. Source-pin evidence:
+Classic (`static/js/canvas.js` — `addVersionedBlankImageNode` L2525,
+`addVersionedBlankPromptNode` L2572, `addVersionedBlankLoopNode` L2596,
+`addVersionedBlankGroupNode` L2647, `addVersionedBlankOutputNode` L2670) and
+Smart (`static/js/smart-canvas.js` — `createVersionedBlankSmartPrompt` L1717,
+`createVersionedBlankSmartLoop` L1736, `createVersionedBlankSmartGroup` L1755,
+`createVersionedBlankSmartMinimax` L1777, `createVersionedBlankSmartImageAt`
+L1923). File-drop, clipboard and connected helpers were already correct and
+are not touched. Two focused tests added to
+`tests/test_frontend_workbench_modules.py`:
+`test_blank_create_entry_points_propagate_canvas_id` (string-pin source
+contract, mirrors the existing R4-23 clipboard pin pattern) and
+`test_blank_create_helpers_pass_canvas_id_to_controller_at_runtime`
+(behavioral — drives the real `createCreationController` factory with
+page-shaped mocks; first asserts the controller's `CreationController requires
+canvasId` TypeError gate, then drives every helper and verifies each
+`create(canvasId, ...)` call lands with `canvasId === 'canvas-x'` and each
+helper returns the projected node). No call-site behavior change beyond the
+`canvasId` propagation. Ownership matrix unchanged (this is a propagation fix
+inside the same `WorkbenchInteractionController.createCreationController`
+singleton owner — no move, no duplicate owner to remove). Independent review
+pending.
+
+R4 clipboard unified creation (card R4-23, 2026-09-07): single-node,
+connection-free clipboard paste of the losslessly persistable Legacy shapes —
+Classic `image` (url/name/mediaKind) and `prompt` (text), Smart `smart-prompt`
+(full durable config) — now creates through the existing `CreationController`
+and `NodeCreationService` with the explicit `clipboard` provenance source (new
+`NodeCreationSource.CLIPBOARD` enum value; no other backend expansion). Paste
+placement still comes from the shared center-anchored graph-fragment
+materialization, so position behavior is unchanged; the versioned path adds
+revision CAS adoption and undo-snapshot projection, and no longer performs a
+raw node append or Canvas save. Multi-node fragments, connections, groups,
+connected nodes, smart-image (scale), loops with non-default config, outputs
+with content and every other type remain on the adapter-owned fragment path
+(Classic inline fallback; Smart `pasteClipboardFragmentLegacy`), as do the
+synchronous Alt-drag duplicate gestures (the drag session needs the copy
+synchronously, which an async service creation cannot provide), Smart
+asset-inbox paste, and target-node fill from external image paste; external
+file paste that materializes top-level nodes was already routed by R4-22.
+Neither adapter has an external text-paste node-creation path. Focused tests:
+HTTP route test proves clipboard-sourced creation persists and reloads across
+Classic image/prompt and Smart smart-prompt record types; frontend wiring
+contract pins the candidate gates, the single `clipboard` source per adapter,
+canvasId propagation through the envelope, and the retained fragment fallback;
+the creation-controller envelope sandbox now also covers a clipboard command.
+Full `./scripts/agent-verify.sh` gate: PASS at 360 tests.
+Pre-existing finding reported for the Owner (now closed by R4-21.1): the
+R4-21 blank-create entry points in both pages called
+`createCreationController().createNode(...)` without `canvasId`, while the
+controller rejects a missing canvasId with a TypeError — so all ten
+blank-create entry points failed at runtime on the default loopback path
+(verified empirically in a Node sandbox and by source inspection of commit
+6694c64). R4-22's file-drop calls did pass `canvasId`, which is why they
+worked. The R4-21 wiring contract pinned "no direct client create calls" but
+not canvasId propagation; the R4-23 wiring test pinned canvasId for the
+clipboard helpers and the new R4-21.1 wiring test extends the same pin to all
+ten blank-create helpers. Recommended-next-card note removed (now satisfied
+by R4-21.1 closure).
 
 ## Unified Canvas verified ledger
 

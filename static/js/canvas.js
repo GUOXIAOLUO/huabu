@@ -2523,7 +2523,7 @@ async function addVersionedBlankImageNode(point){
     const undoSnapshot = {nodes:JSON.parse(JSON.stringify(serializableCanvasNodes())), connections:JSON.parse(JSON.stringify(connections))};
     try {
         const node = await ensureCreationController().createNode({
-            projectId:canvas.project, clientId:CLIENT_ID,
+            canvasId:canvas.id, projectId:canvas.project, clientId:CLIENT_ID,
             source:'context_menu',
             definitionRef:{type:'legacy', id:'image', version:'0'},
             position:{x:p.x, y:p.y},
@@ -2543,13 +2543,34 @@ async function addVersionedBlankImageNode(point){
         return null;
     }
 }
+async function createVersionedDroppedMediaNode(file, point){
+    if(!canUseVersionedImageCreation()) return null;
+    const p = point || defaultPoint(0, 0);
+    const kind = file?.kind || 'image';
+    const undoSnapshot = {nodes:JSON.parse(JSON.stringify(serializableCanvasNodes())), connections:JSON.parse(JSON.stringify(connections))};
+    try {
+        const node = await ensureCreationController().createNode({
+            canvasId:canvas.id, projectId:canvas.project, clientId:CLIENT_ID, source:'file_drop',
+            definitionRef:{type:'legacy', id:'image', version:'0'}, position:{x:p.x, y:p.y},
+            expectedRevision:Number(lastCanvasUpdatedAt || canvas.updated_at || 0),
+            title:file?.name || nodeTitleForMedia({mediaKind:kind}),
+            initialConfig:{url:file?.url || '', name:file?.name || '', mediaKind:kind},
+            apply:{
+                nodes, undoStack, undoSnapshot, undoLimit:UNDO_MAX, canvas,
+                projectNode:created => ({id:created.id, type:'image', x:p.x, y:p.y, url:file?.config?.url || file?.url || '', name:file?.config?.name || file?.name || created.title, mediaKind:file?.config?.mediaKind || kind}),
+                onRevision:revision => { lastCanvasUpdatedAt = window.WorkbenchCanvasPersistence.adoptRevision(canvas, revision); },
+            },
+        });
+        return node;
+    } catch(error) { console.error('Versioned file-drop creation failed', error); throw error; }
+}
 async function addVersionedBlankPromptNode(point){
     if(!canUseVersionedImageCreation()) return null;
     const p = point || defaultPoint(0, 0);
     const undoSnapshot = {nodes:JSON.parse(JSON.stringify(serializableCanvasNodes())), connections:JSON.parse(JSON.stringify(connections))};
     try {
         const node = await ensureCreationController().createNode({
-            projectId:canvas.project, clientId:CLIENT_ID, source:'context_menu',
+            canvasId:canvas.id, projectId:canvas.project, clientId:CLIENT_ID, source:'context_menu',
             definitionRef:{type:'legacy', id:'prompt', version:'0'},
             position:{x:p.x, y:p.y}, expectedRevision:Number(lastCanvasUpdatedAt || canvas.updated_at || 0),
             initialConfig:{text:''}, title:'Prompt',
@@ -2573,7 +2594,7 @@ async function addVersionedBlankLoopNode(point){
     const undoSnapshot = {nodes:JSON.parse(JSON.stringify(serializableCanvasNodes())), connections:JSON.parse(JSON.stringify(connections))};
     try {
         const node = await ensureCreationController().createNode({
-            projectId:canvas.project, clientId:CLIENT_ID, source:'context_menu',
+            canvasId:canvas.id, projectId:canvas.project, clientId:CLIENT_ID, source:'context_menu',
             definitionRef:{type:'legacy', id:'loop', version:'0'},
             position:{x:p.x, y:p.y}, expectedRevision:Number(lastCanvasUpdatedAt || canvas.updated_at || 0),
             initialConfig:{count:3}, title:'Loop',
@@ -2624,7 +2645,7 @@ async function addVersionedBlankGroupNode(point){
     const undoSnapshot = {nodes:JSON.parse(JSON.stringify(serializableCanvasNodes())), connections:JSON.parse(JSON.stringify(connections))};
     try {
         const node = await ensureCreationController().createNode({
-            projectId:canvas.project, clientId:CLIENT_ID, source:'context_menu',
+            canvasId:canvas.id, projectId:canvas.project, clientId:CLIENT_ID, source:'context_menu',
             definitionRef:{type:'legacy', id:'group', version:'0'},
             position:{x:p.x, y:p.y}, expectedRevision:Number(lastCanvasUpdatedAt || canvas.updated_at || 0), title:'Group',
             apply: {
@@ -2647,7 +2668,7 @@ async function addVersionedBlankOutputNode(point){
     const undoSnapshot = {nodes:JSON.parse(JSON.stringify(serializableCanvasNodes())), connections:JSON.parse(JSON.stringify(connections))};
     try {
         const node = await ensureCreationController().createNode({
-            projectId:canvas.project, clientId:CLIENT_ID, source:'context_menu',
+            canvasId:canvas.id, projectId:canvas.project, clientId:CLIENT_ID, source:'context_menu',
             definitionRef:{type:'legacy', id:'output', version:'0'},
             position:{x:p.x, y:p.y}, expectedRevision:Number(lastCanvasUpdatedAt || canvas.updated_at || 0), title:'Output',
             apply: {
@@ -4194,26 +4215,32 @@ async function uploadMediaFiles(files, point, onlyImages=false, opts={}){
     const uploaded = await window.WorkbenchCanvasMediaDrop.uploadFiles(supported);
     const base = point || screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
     const created = [];
-    uploaded.forEach((file, i) => {
+    for(const [i, file] of uploaded.entries()) {
         const kind = file.kind || mediaKindForUpload(supported[i]);
+        const position = {x:base.x + i * 36, y:base.y + i * 36};
+        if(canUseVersionedImageCreation()){
+            const createdThroughController = await createVersionedDroppedMediaNode({...file, kind}, position);
+            created.push(createdThroughController);
+            continue;
+        }
         const node = {
             id:uid('img'),
             type:'image',
-            x:base.x + i * 36,
-            y:base.y + i * 36,
+            x:position.x,
+            y:position.y,
             url:file.url,
             name:file.name,
             mediaKind:kind
         };
         nodes.push(node);
         created.push(node);
-    });
+    }
     if(opts.group && created.length > 1){
         layoutUploadedMediaNodes(created, base);
         created.group = createGroupForUploadedNodes(created, base);
     }
     render();
-    scheduleSave();
+    if(!canUseVersionedImageCreation() || opts.group) scheduleSave();
     return created;
 }
 async function uploadImages(files, point){
@@ -15511,11 +15538,70 @@ function clipboardNodeCount(){
     if(Array.isArray(clipboard?.nodes)) return clipboard.nodes.length;
     return 0;
 }
-function pasteNodes(){
+// Clipboard paste candidate: only a single, connection-free node whose durable
+// Legacy shape round-trips losslessly through the compatibility repository
+// (image: url/name/mediaKind; prompt: text) may create through the versioned
+// boundary. Multi-node fragments, groups, connected nodes and every other
+// type stay on the adapter-owned fragment path below.
+function clipboardVersionedCandidate(clipNodes, clipConnections){
+    if(!clipConnections.length && clipNodes.length === 1){
+        const source = clipNodes[0];
+        if(source?.type === 'image'){
+            const config = {url:String(source.url || ''), name:String(source.name || ''), mediaKind:String(source.mediaKind || 'image')};
+            return {
+                definitionId:'image', title:config.name || undefined, config,
+                projectNode:(created, p) => ({id:created.id, type:'image', x:p.x, y:p.y, url:String(created.config?.url ?? config.url), name:String(created.config?.name || config.name || created.title || ''), mediaKind:String(created.config?.mediaKind || config.mediaKind)}),
+            };
+        }
+        if(source?.type === 'prompt'){
+            const config = {text:String(source.text || '')};
+            return {
+                definitionId:'prompt', title:undefined, config,
+                projectNode:(created, p) => ({id:created.id, type:'prompt', x:p.x, y:p.y, text:String(created.config?.text ?? config.text)}),
+            };
+        }
+    }
+    return null;
+}
+async function createVersionedPastedNode(candidate, point){
+    if(!canUseVersionedImageCreation()) return null;
+    const undoSnapshot = {nodes:JSON.parse(JSON.stringify(serializableCanvasNodes())), connections:JSON.parse(JSON.stringify(connections))};
+    try {
+        const node = await ensureCreationController().createNode({
+            canvasId:canvas.id, projectId:canvas.project, clientId:CLIENT_ID, source:'clipboard',
+            definitionRef:{type:'legacy', id:candidate.definitionId, version:'0'}, position:{x:point.x, y:point.y},
+            expectedRevision:Number(lastCanvasUpdatedAt || canvas.updated_at || 0),
+            ...(candidate.title !== undefined ? {title:candidate.title} : {}),
+            initialConfig:candidate.config,
+            apply:{
+                nodes, undoStack, undoSnapshot, undoLimit:UNDO_MAX, canvas,
+                projectNode:created => candidate.projectNode(created, point),
+                onRevision:revision => { lastCanvasUpdatedAt = window.WorkbenchCanvasPersistence.adoptRevision(canvas, revision); },
+                onSelected:created => { selected.clear(); selected.add(created.id); },
+            },
+        });
+        render();
+        return node;
+    } catch(error) { console.error('Versioned clipboard creation failed', error); return null; }
+}
+async function pasteNodes(){
     if(!canvas || !clipboard) return;
     const clipNodes = Array.isArray(clipboard) ? clipboard : (Array.isArray(clipboard.nodes) ? clipboard.nodes : []);
     const clipConnections = Array.isArray(clipboard?.connections) ? clipboard.connections : [];
     if(!clipNodes.length) return;
+    const candidate = clipboardVersionedCandidate(clipNodes, clipConnections);
+    if(candidate && canUseVersionedImageCreation()){
+        const placed = window.WorkbenchCanvasGraphFragment.materializeImportedSubgraph({
+            nodes:clipNodes,
+            connections:clipConnections,
+            target:lastMouseBoard,
+            anchor:'center',
+            serializeNode:serializableCanvasNode,
+            createNodeId:type => uid(type || 'n'),
+        });
+        const created = await createVersionedPastedNode(candidate, {x:placed.nodes[0].x, y:placed.nodes[0].y});
+        if(created) return;
+    }
     pushUndo();
     const materialized = window.WorkbenchCanvasGraphFragment.materializeImportedSubgraph({
         nodes:clipNodes,
@@ -15892,19 +15978,13 @@ function ensureClassicConnectionGesture(){
             },
             drop: (gesture, result, e2) => {
                 const {from:fromId, to:toId} = result.intent;
-                // Persistence stays behind the page save/application seam.
-                pushUndo();
-                connections.push({id:uid('c'), from:fromId, to:toId});
-                const group = nodes.find(node => node.id === toId && node.type === 'group');
-                const groupedNode = nodes.find(node => node.id === fromId);
-                if(group && ['image','prompt'].includes(groupedNode?.type) && window.WorkbenchCanvasCommands?.graphCommand('canvas.group.add-member', 'classic')){
-                    group.items = Array.isArray(group.items) ? group.items : [];
-                    if(!group.items.includes(fromId)) group.items.push(fromId);
+                if(canUseVersionedImageCreation()){
+                    void createVersionedConnection(fromId, toId).then(created => {
+                        if(!created) commitClassicConnection(fromId, toId);
+                    });
+                    return;
                 }
-                syncLatestGeneratedOutputToConnection(fromId, toId);
-                syncGeneratorInputs();
-                scheduleSave();
-                render();
+                commitClassicConnection(fromId, toId);
             },
             noTarget: (gesture, e2) => {
                 const source = gesture.source;
@@ -15933,6 +16013,45 @@ function ensureClassicConnectionGesture(){
         });
     }
     return classicConnectionGesture;
+}
+// Classic graph-connect side effects stay page-owned: group membership, latest
+// output sync and generator-input sync are Classic compatibility behavior and
+// must never enter the Core graph model (card R4-24).
+function applyClassicConnectionSideEffects(fromId, toId){
+    const group = nodes.find(node => node.id === toId && node.type === 'group');
+    const groupedNode = nodes.find(node => node.id === fromId);
+    if(group && ['image','prompt'].includes(groupedNode?.type) && window.WorkbenchCanvasCommands?.graphCommand('canvas.group.add-member', 'classic')){
+        group.items = Array.isArray(group.items) ? group.items : [];
+        if(!group.items.includes(fromId)) group.items.push(fromId);
+    }
+    syncLatestGeneratedOutputToConnection(fromId, toId);
+    syncGeneratorInputs();
+}
+function commitClassicConnection(fromId, toId){
+    // Legacy adapter-owned commit: raw edge append plus page save.
+    pushUndo();
+    connections.push({id:uid('c'), from:fromId, to:toId});
+    applyClassicConnectionSideEffects(fromId, toId);
+    scheduleSave();
+    render();
+}
+async function createVersionedConnection(fromId, toId){
+    if(!canUseVersionedImageCreation()) return false;
+    const undoSnapshot = {nodes:JSON.parse(JSON.stringify(serializableCanvasNodes())), connections:JSON.parse(JSON.stringify(connections))};
+    try {
+        const result = await window.WorkbenchNodeClient.connectNodes(canvas.id, {
+            project_id:canvas.project, expected_revision:Number(lastCanvasUpdatedAt || canvas.updated_at || 0),
+            edge_id:uid('c'), from_node_id:fromId, to_node_id:toId,
+        }, CLIENT_ID);
+        undoStack.push(undoSnapshot);
+        if(undoStack.length > UNDO_MAX) undoStack.shift();
+        connections.push({id:result.edge.id, from:fromId, to:toId});
+        lastCanvasUpdatedAt = window.WorkbenchCanvasPersistence.adoptRevision(canvas, result.canvas_revision, Date.now());
+        applyClassicConnectionSideEffects(fromId, toId);
+        scheduleSave();
+        render();
+        return true;
+    } catch(error) { console.error('Versioned connection creation failed', error); return false; }
 }
 function startLink(e, originId, originKind){
     if(!window.WorkbenchCanvasCommands?.graphCommand('canvas.graph.connect', 'classic')) return;

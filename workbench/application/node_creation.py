@@ -15,6 +15,7 @@ class NodeCreationSource(StrEnum):
     COMMAND_PALETTE = "command_palette"
     SKILL_LIBRARY_DRAG = "skill_library_drag"
     FILE_DROP = "file_drop"
+    CLIPBOARD = "clipboard"
     WORKFLOW_IMPORT = "workflow_import"
     AGENT_PROPOSAL = "agent_proposal"
     LEGACY = "legacy"
