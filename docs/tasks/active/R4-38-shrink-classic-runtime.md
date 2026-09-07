@@ -5,7 +5,8 @@
 - Status: IN_PROGRESS (umbrella shrink card; multi-wave; closes only when canvas.js is bootstrap/compat-only)
 - Activated: 2026-09-07T15:30+08:00
 - Wave 1 done: 2026-09-07T15:33+08:00
-- Closed: (not yet — 12 of 13 Classic capabilities still need shrink waves)
+- Wave 2 done: 2026-09-07T15:55+08:00
+- Closed: (not yet — 11 of 13 Classic capabilities still need shrink waves)
 - Depends on: R4-37
 
 ## Goal
@@ -34,7 +35,7 @@ closes once every wave is DONE.
 | Wave | Capability | Disposition | Action |
 |---|---|---|---|
 | **1 (done)** | comfy-result-normalization | MIGRATED | inline `resultMediaUrls` / `comfyResultOutputs` call sites through `media-result-normalizer.js`; delete the two wrapper function definitions in canvas.js. |
-| 2 | provider-node-creation (addGeneratorNode / addMidjourneyNode / addMsGenNode) | MIGRATE → MIGRATED | extract to `classic-node-factories.js` host seam; route context-menu / keyboard create through it. |
+| **2 (done)** | provider-node-creation (addGeneratorNode / addMidjourneyNode / addMsGenNode) | MIGRATED | new host seam `static/js/workbench/canvas/classic-node-factories.js` (`window.WorkbenchCanvasClassicNodeFactories.create(host)` returns frozen `{addGenerator, addMidjourney, addMsGen}`); canvas.js deletes the local `function addGeneratorNode / addMidjourneyNode / addMsGenNode` definitions and re-routes its `createNodeByType` dispatcher through `ensureClassicNodeFactories().addXxx({point})`. |
 | 3 | video-player (addVideoNode + renderVideoBody) | MIGRATE → MIGRATED | creation routed through creation boundary + video body delegated to MediaRenderer. |
 | 4 | output-node (addOutputNode + result grid family) | MIGRATE → MIGRATED | addOutputNode → creation boundary; output grid family to MediaRenderer shared lifecycle. |
 | 5–11 | 7 retained COMPAT capabilities (Comfy / RunningHub / MiniMax / LTX controls, video params, generation log, cascade orchestrators) | COMPAT (R8) | bounded compat seam modules per cluster (no runtime replacement in R4) — see R4-25/R4-30 host-seam pattern. |
@@ -72,7 +73,20 @@ closes once every wave is DONE.
       focused test
       `test_classic_editor_inlines_execution_result_extraction_through_the_shared_seam`
       in place.
-- [ ] Wave 2: provider-node-creation MIGRATED.
+- [x] Wave 2: provider-node-creation MIGRATED. New host seam
+      `static/js/workbench/canvas/classic-node-factories.js`
+      (`WorkbenchCanvasClassicNodeFactories.create({addNode, uid,
+      defaultPoint, imageApiProviders, allImageModels,
+      defaultApiImageResolution, resolveMidjourneyProviderId,
+      modelscopeImageModels})` returns frozen handle
+      `{addGenerator, addMidjourney, addMsGen}`; canvas.js deletes the
+      three local factory function definitions and re-routes its
+      `createNodeByType` dispatcher through
+      `ensureClassicNodeFactories().addXxx({point})`; canvas.html
+      loads the seam before canvas.js; focused test
+      `test_classic_editor_routes_provider_node_creation_through_classic_node_factories_seam`
+      pins source-contract + behavioral drive + missing-host-op throws
+      TypeError.
 - [ ] Wave 3: video-player MIGRATED.
 - [ ] Wave 4: output-node MIGRATED.
 - [ ] Wave 5–12: each COMPAT capability either stays canvas-owned behind
@@ -115,15 +129,59 @@ for per-wave evidence so far.)
   files), PASS JavaScript syntax (71 files), PASS Architecture guards
   (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
 
+## Wave 2 evidence
+
+- Files changed:
+  - new `static/js/workbench/canvas/classic-node-factories.js`
+    (~115 LOC: host-injected `addNode` / `uid` / `defaultPoint` /
+    `imageApiProviders` / `allImageModels` /
+    `defaultApiImageResolution` / `resolveMidjourneyProviderId` /
+    `modelscopeImageModels`; frozen `addGenerator` / `addMidjourney`
+    / `addMsGen` API; TypeError-on-missing-host guard).
+  - `static/canvas.html`: `<script src=".../classic-node-factories.js?v=2026.09.07.1"></script>`
+    inserted between `provider-controls.js` and
+    `classic-execution-host.js`.
+  - `static/js/canvas.js`: `function addGeneratorNode / addMidjourneyNode / addMsGenNode`
+    function bodies deleted (-39 LOC of factory schema); `let classicNodeFactories = null;`
+    + `function ensureClassicNodeFactories()` added next to the existing
+    `ensureProviderControls` initializer; the 3 dispatch lines in
+    `createNodeByType` (line ~3858-3860) rewritten to call the seam:
+    `if(type === 'generator') return ensureClassicNodeFactories().addGenerator({point});`
+    (and same for midjourney/msgen).
+  - `tests/test_frontend_workbench_modules.py`: new focused test
+    `test_classic_editor_routes_provider_node_creation_through_classic_node_factories_seam`
+    — drives the seam in a vm sandbox with a mock host and asserts the
+    three records land at `host.addNode` with the right `(type, id,
+    apiProvider, model, msgenModel)`; iterates each of the 8 required
+    host ops in turn to verify TypeError on missing; source-contracts
+    pin canvas.html load order (seam before editor), the three
+    wrapper-function-deletion markers, and the dispatcher seam-call
+    shapes.
+  - `tests/test_classic_capability_inventory.py`: schema extension —
+    `evidence_target` per capability; defaults to
+    `static/js/canvas.js` so legacy MIGRATE / COMPAT / DEFER-R8 entries
+    don't need to migrate the manifest schema.
+  - `docs/plans/R4_CLASSIC_CAPABILITY_INVENTORY.md`: `provider-node-creation`
+    disposition `MIGRATE → MIGRATED`, target_owner kept (Unified
+    creation/mutation boundary), `evidence_target` =
+    `static/js/workbench/canvas/classic-node-factories.js`, evidence =
+    `addGenerator(` / `addMidjourney(` / `addMsGen(` (substrings of the
+    seam module).
+- Regression: `./scripts/agent-verify.sh` PASS at 345 Python unit tests
+  (was 344 after Wave 1; +1 from Wave 2's new focused test), PASS
+  Python AST parse (76 files), PASS JavaScript syntax (72 files; +1
+  for `classic-node-factories.js`), PASS Architecture guards (4), PASS
+  `git diff --check`. `AGENT VERIFY: PASS`.
+
 ## Recommended Next Card (after this card itself closes)
 
 `R4-39 — Remove Legacy canvas.js Product Runtime`
 (`docs/tasks/backlog/R4-39-remove-classic-runtime.md`)
 
-Within R4-38 itself, the next wave after Wave 1 is **Wave 2:
-provider-node-creation** (extract `addGeneratorNode` /
-`addMidjourneyNode` / `addMsGenNode` to a `classic-node-factories.js`
-host seam and route context-menu / keyboard create through it).
+Within R4-38 itself, the next wave after Wave 2 is **Wave 3:
+video-player MIGRATE** (`addVideoNode` + `renderVideoBody` — creation
+boundary + Video body delegated to MediaRenderer or a dedicated
+`classic-video-factory.js` host seam).
 
 Do not execute waves in batch — each wave is its own focused commit
 + regression cycle.

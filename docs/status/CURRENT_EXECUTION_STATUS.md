@@ -1387,6 +1387,77 @@ new redundant ones, since the handoff helpers had no other consumers),
 PASS Python AST parse, PASS JavaScript syntax, PASS Architecture
 guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
 
+R4 Classic runtime shrink — Wave 2 of R4-38
+(card R4-38, Wave 2 done 2026-09-07T15:55+08:00, Owner authorization
+via in-conversation "继续 Wave 2"; implementer evidence, independent
+review pending): the second shrink wave of the Classic runtime closes
+the `provider-node-creation` MIGRATE capability from the R4-31
+inventory. The three Classic non-blank provider factories
+(`addGeneratorNode` for `'generator'`, `addMidjourneyNode` for
+`'midjourney'`, `addMsGenNode` for `'msgen'`) — which previously owned
+~39 lines of canvas.js with provider-specific default records for the
+generator / midjourney / ModelScope card kinds — are extracted to a
+new host seam `static/js/workbench/canvas/classic-node-factories.js`
+(`window.WorkbenchCanvasClassicNodeFactories.create({addNode, uid,
+defaultPoint, imageApiProviders, allImageModels,
+defaultApiImageResolution, resolveMidjourneyProviderId,
+modelscopeImageModels})` returns a frozen handle with
+`addGenerator({point})` / `addMidjourney({point})` / `addMsGen({point})`;
+each method constructs the type-specific default record and delegates
+the durable creation to the page's `host.addNode(...)`). canvas.js
+loses the three local factory function definitions (-39 LOC), grows
+`let classicNodeFactories = null;` + `function ensureClassicNodeFactories()`
+sibling to the existing `ensureProviderControls` initializer (~10 LOC),
+and re-routes its `createNodeByType` dispatcher's three lines for
+`generator` / `midjourney` / `msgen` to call the seam:
+`if(type === 'generator') return ensureClassicNodeFactories().addGenerator({point});`
+(and same shape for midjourney/msgen). `static/canvas.html` loads the
+seam between `provider-controls.js` (R4-32) and
+`classic-execution-host.js` (R4-33). New focused test in
+`tests/test_frontend_workbench_modules.py`:
+`test_classic_editor_routes_provider_node_creation_through_classic_node_factories_seam`
+— (a) **behavioral**: drives the seam in a vm sandbox with a mock host
+that captures the three addNode records and asserts each lands at
+`host.addNode` with the right `(type, id, apiProvider, model,
+msgenModel)`; (b) **TypeError-on-missing-host**: iterates each of the
+8 required host ops in turn by deleting one and asserts
+`WorkbenchCanvasClassicNodeFactories.create(partialHost)` throws
+`TypeError`; (c) **source-contract**: canvas.html load order (seam
+before editor), canvas.js no longer defines `function addGeneratorNode
+/ addMidjourneyNode / addMsGenNode`, dispatcher uses seam-call
+shapes `.addGenerator({point})` / `.addMidjourney({point})` /
+`.addMsGen({point})`. R4-31 inventory table and JSON evidence
+manifest updated for `provider-node-creation` row: disposition
+`MIGRATE → MIGRATED`, target_owner kept (Unified creation/mutation
+boundary), plus a new schema field `evidence_target` (per-capability
+override of the evidence file; defaults to `static/js/canvas.js`) set
+to `static/js/workbench/canvas/classic-node-factories.js`; evidence
+substring updated to `addGenerator(` / `addMidjourney(` / `addMsGen(`
+(substrings of the seam module so the existing
+`assertIn(name, evidence_target_source)` contract holds without
+keep-the-old-wrapper-name workarounds). Inventory test schema
+extension: `test_every_capability_evidence_is_grounded_in_source`
+now reads `capability.evidence_target` (default
+`static/js/canvas.js`); all 12 pre-Wave-2 capabilities (incl. Wave 1's
+`comfy-result-normalization`) keep canvas.js as their default target
+without manifest edits. Owner-authorized R4-32
+`provider-controls.js` host seam pattern is reused (REQUIRED ops dict,
+`assertHost` throwing `TypeError` for each missing op, frozen handle
+returned); classic-execution-host.js the same; new element is that
+this seam returns *creation* records rather than *mutation* handles,
+so the seam's host `addNode` delegates persistence / dispatch rather
+than mutating page state. Ownership matrix
+`docs/plans/R4_OWNERSHIP_MATRIX.md` `node creation` row already at
+PARTIAL with the Unified boundary named; no further move on this wave
+(individual factory migrations don't shift that row). R4-38 remains
+IN_PROGRESS — 11 of 13 Classic capabilities still need shrink waves
+(video-player + output-node + 7 COMPAT + 1 DEFER-R8). Regression:
+`./scripts/agent-verify.sh` PASS at 345 Python unit tests (was 344
+after Wave 1; +1 from Wave 2's new focused test), PASS Python AST
+parse (76 files), PASS JavaScript syntax (72 files; +1 for
+`classic-node-factories.js`), PASS Architecture guards (4), PASS
+`git diff --check`. `AGENT VERIFY: PASS`.
+
 R4 Classic runtime shrink — Wave 1 of R4-38
 (card R4-38, activated 2026-09-07T15:30+08:00, Owner authorization via
 in-conversation "提交并开发下一任务"; implementer evidence, independent

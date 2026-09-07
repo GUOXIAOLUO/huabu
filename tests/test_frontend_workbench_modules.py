@@ -59,6 +59,75 @@ console.log(JSON.stringify({{classic, smart}}));
         self.assertGreaterEqual(len(extract_calls), 6,
             msg=f"expected >= 6 inlined seam calls in canvas.js, got {len(extract_calls)}")
 
+    def test_classic_editor_routes_provider_node_creation_through_classic_node_factories_seam(self):
+        # Behavioral: drive the seam in a vm sandbox, verify the host sees
+        # exactly the right createNode calls for the three provider types.
+        seam = ROOT / "static/js/workbench/canvas/classic-node-factories.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+const calls = [];
+const host = {{
+    addNode: (record) => {{ calls.push({{type:record.type, id:record.id, apiProvider:record.apiProvider || '', model:record.model || '', msgenModel:record.msgenModel || ''}}); return record; }},
+    uid: (prefix) => prefix + '-test',
+    defaultPoint: (dx, dy) => ({{x: dx, y: dy}}),
+    imageApiProviders: () => [{{id: 'test-img'}}],
+    allImageModels: () => ['test-model'],
+    defaultApiImageResolution: () => '1024x1024',
+    resolveMidjourneyProviderId: () => 'test-mj',
+    modelscopeImageModels: () => ['test-ms'],
+}};
+const api = sandbox.window.WorkbenchCanvasClassicNodeFactories.create(host);
+api.addGenerator({{point: {{x: 100, y: 50}}}});
+api.addMidjourney({{point: {{x: 200, y: 60}}}});
+api.addMsGen({{point: {{x: 300, y: 70}}}});
+console.log(JSON.stringify(calls));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), [
+            {"type": "generator", "id": "gen-test", "apiProvider": "test-img", "model": "test-model", "msgenModel": ""},
+            {"type": "midjourney", "id": "mj-test", "apiProvider": "test-mj", "model": "", "msgenModel": ""},
+            {"type": "msgen", "id": "msgen-test", "apiProvider": "", "model": "", "msgenModel": "zimage"},
+        ])
+        # Behavioral: missing host op throws TypeError on create.
+        for missing in ('addNode', 'uid', 'defaultPoint', 'imageApiProviders',
+                'allImageModels', 'defaultApiImageResolution',
+                'resolveMidjourneyProviderId', 'modelscopeImageModels'):
+            partial_script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+const fullHost = {{
+    addNode: (r) => r, uid: (p) => p, defaultPoint: () => ({{x:0,y:0}}),
+    imageApiProviders: () => [], allImageModels: () => [],
+    defaultApiImageResolution: () => '', resolveMidjourneyProviderId: () => '',
+    modelscopeImageModels: () => [],
+}};
+delete fullHost.{missing};
+try {{ sandbox.window.WorkbenchCanvasClassicNodeFactories.create(fullHost); console.log('no-throw'); }}
+catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
+"""
+            partial_result = subprocess.run(["node", "-e", partial_script], check=True, text=True, capture_output=True)
+            self.assertIn("TypeError", partial_result.stdout,
+                msg=f"missing host.{missing} should throw TypeError, got: {partial_result.stdout}")
+        # Source-contract: canvas.html loads the seam before canvas.js.
+        page_source = (ROOT / "static/canvas.html").read_text(encoding="utf-8")
+        seam_href = "workbench/canvas/classic-node-factories.js"
+        editor_href = "static/js/canvas.js"
+        self.assertLess(page_source.index(seam_href), page_source.index(editor_href),
+            msg="classic-node-factories.js must load before canvas.js in canvas.html")
+        # Source-contract: canvas.js deleted the local factory function
+        # definitions and now uses the seam-call dispatcher instead.
+        editor_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        self.assertNotIn("function addGeneratorNode", editor_source)
+        self.assertNotIn("function addMidjourneyNode", editor_source)
+        self.assertNotIn("function addMsGenNode", editor_source)
+        self.assertIn("function ensureClassicNodeFactories", editor_source)
+        for seam_call in (".addGenerator({point})", ".addMidjourney({point})", ".addMsGen({point})"):
+            self.assertIn(seam_call, editor_source,
+                msg=f"canvas.js dispatcher should call ensureClassicNodeFactories(){seam_call}")
+
     def test_versioned_node_creation_is_default_on_loopback_with_an_explicit_rollback(self):
         client = ROOT / "static" / "js" / "workbench" / "canvas" / "node-creation-client.js"
         script = f"""

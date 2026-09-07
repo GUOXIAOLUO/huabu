@@ -2707,45 +2707,6 @@ function addLLMNode(point){
         running:false
     });
 }
-function addGeneratorNode(point){
-    const p = point || defaultPoint(120, 0);
-    const providerId = imageApiProviders()[0]?.id || '';
-    const model = allImageModels(providerId)[0] || '';
-    return addNode({id:uid('gen'), type:'generator', x:p.x, y:p.y, apiProvider:providerId, model, ratio:'square', resolution:defaultApiImageResolution(model), customRatio:'', customSize:'', customRatioWidth:'', customRatioHeight:'', customWidth:'', customHeight:'', inputs:[]});
-}
-function addMidjourneyNode(point){
-    const p = point || defaultPoint(140, 0);
-    return addNode({
-        id:uid('mj'), type:'midjourney', x:p.x, y:p.y,
-        apiProvider:resolveMidjourneyProviderId(''), mode:'imagine', size:'1:1', version:'6.1', speed:'relax',
-        inputs:[], running:false, lastTaskId:'', lastAction:'', lastTaskStatus:'', lastImageCount:0, lastPrompt:'', mjModalTaskId:'', mjModalPrompt:''
-    });
-}
-function addMsGenNode(point){
-    const p = point || defaultPoint(140, 0);
-    return addNode({
-        id:uid('msgen'),
-        type:'msgen',
-        x:p.x,
-        y:p.y,
-        msgenModel:'zimage',
-        msWidth:1024,
-        msHeight:1024,
-        msCustomModel:modelscopeImageModels()[0] || 'Tongyi-MAI/Z-Image-Turbo',
-        msRatio:'square',
-        msResolution:'1k',
-        msCustomRatio:'',
-        msCustomSize:'',
-        msCustomRatioWidth:'',
-        msCustomRatioHeight:'',
-        msCustomWidth:'',
-        msCustomHeight:'',
-        count:1,
-        fitImage:false,
-        inputs:[],
-        running:false
-    });
-}
 function addVideoNode(point){
     const p = point || defaultPoint(160, 0);
     const providerId = videoApiProviders()[0]?.id || 'comfly';
@@ -3855,9 +3816,9 @@ function createNodeByType(type, point){
     if(type === 'loop') return addLoopNode(point);
     if(type === 'group') return addGroupNode(point);
     if(type === 'llm') return addLLMNode(point);
-    if(type === 'generator') return addGeneratorNode(point);
-    if(type === 'midjourney') return addMidjourneyNode(point);
-    if(type === 'msgen') return addMsGenNode(point);
+    if(type === 'generator') return ensureClassicNodeFactories().addGenerator({point});
+    if(type === 'midjourney') return ensureClassicNodeFactories().addMidjourney({point});
+    if(type === 'msgen') return ensureClassicNodeFactories().addMsGen({point});
     if(type === 'video') return addVideoNode(point);
     if(type === 'minimax') return addMiniMaxNode(point);
     if(type === 'rh') return addRhNode(point);
@@ -8466,6 +8427,25 @@ function ensureProviderControls(){
         });
     }
     return classicProviderControls;
+}
+// Classic non-blank provider-node factories (generator / midjourney / msgen)
+// live behind a shared host seam (card R4-38 Wave 2). The page holds the
+// state-supplier functions; the seam holds the type-specific default records.
+let classicNodeFactories = null;
+function ensureClassicNodeFactories(){
+    if(!classicNodeFactories){
+        classicNodeFactories = window.WorkbenchCanvasClassicNodeFactories.create({
+            addNode,
+            uid,
+            defaultPoint,
+            imageApiProviders,
+            allImageModels,
+            defaultApiImageResolution,
+            resolveMidjourneyProviderId,
+            modelscopeImageModels,
+        });
+    }
+    return classicNodeFactories;
 }
 function renderLLMBody(node){
     const providerControls = ensureProviderControls();

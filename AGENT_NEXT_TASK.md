@@ -5,8 +5,8 @@
 
 ## Active Task
 
-- `R4-38` — `IN_PROGRESS` (umbrella shrink; multi-wave; closes only when
-  canvas.js is bootstrap/compat-only). Card:
+- `R4-38` — `IN_PROGRESS` (umbrella shrink; multi-wave; closes only
+  when canvas.js is bootstrap/compat-only). Card:
   `docs/tasks/active/R4-38-shrink-classic-runtime.md`. Activated
   2026-09-07T15:30+08:00 (after R4-37 close, with Owner authorization
   via in-conversation "提交并开发下一任务"). Goal: shrink the Classic
@@ -19,10 +19,29 @@
   `resultMediaUrls` wrappers in canvas.js, inlined 6 call sites through
   `window.WorkbenchCanvasMediaResultNormalizer.extract`, focused test
   `test_classic_editor_inlines_execution_result_extraction_through_the_shared_seam`
-  +1 → 344 tests PASS). Next wave (recommended successor inside the
-  same card): **Wave 2 — provider-node-creation** MIGRATE
-  (`addGeneratorNode` / `addMidjourneyNode` / `addMsGenNode` →
-  `classic-node-factories.js` host seam).
+  +1 → 344 tests PASS). **Wave 2 done** 2026-09-07T15:55+08:00
+  (provider-node-creation MIGRATED: new host seam
+  `static/js/workbench/canvas/classic-node-factories.js`
+  (`WorkbenchCanvasClassicNodeFactories.create({addNode, uid,
+  defaultPoint, imageApiProviders, allImageModels,
+  defaultApiImageResolution, resolveMidjourneyProviderId,
+  modelscopeImageModels})` returns frozen `{addGenerator, addMidjourney,
+  addMsGen}`); canvas.js deleted the three local factory function
+  definitions and re-routes its `createNodeByType` dispatcher through
+  `ensureClassicNodeFactories().addXxx({point})`; canvas.html loads the
+  seam between `provider-controls.js` and `classic-execution-host.js`;
+  focused test
+  `test_classic_editor_routes_provider_node_creation_through_classic_node_factories_seam`
+  drives the seam in a vm sandbox with mock host, asserts exact addNode
+  records, iterates 8 required host ops for TypeError-on-missing, pins
+  canvas.html load order + canvas.js wrapper-deletion + dispatcher
+  seam-call shapes; inventory `provider-node-creation` row updated
+  disposition `MIGRATE → MIGRATED` + new schema field
+  `evidence_target` pointing at the seam module — +1 → 345 tests PASS).
+  Next wave (recommended successor inside the same card): **Wave 3 —
+  video-player** MIGRATE (`addVideoNode` + `renderVideoBody` →
+  creation boundary + Video body delegation, likely a
+  `classic-video-factory.js` host seam following the Wave-2 pattern).
 
 ## Completed Tasks
 

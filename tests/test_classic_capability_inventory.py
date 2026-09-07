@@ -66,13 +66,22 @@ class ClassicCapabilityInventoryTests(unittest.TestCase):
 
     def test_every_capability_evidence_is_grounded_in_source(self):
         capabilities = self.manifest.get("capabilities", [])
+        # Capabilities may declare an `evidence_target` pointing at a
+        # shared seam module file. Defaults to canvas.js so legacy
+        # MIGRATE / COMPAT / DEFER-R8 entries that still live on the
+        # page-side don't need to migrate the manifest schema.
         for capability in capabilities:
+            target_rel = capability.get("evidence_target", "static/js/canvas.js")
+            target_path = ROOT / target_rel
+            self.assertTrue(target_path.exists(),
+                f"evidence_target file does not exist for capability {capability['id']!r}: {target_rel}")
+            target_source = target_path.read_text(encoding="utf-8")
             for name in capability.get("evidence", []):
-                with self.subTest(capability=capability.get("id"), evidence=name):
+                with self.subTest(capability=capability.get("id"), evidence=name, target=target_rel):
                     self.assertIn(
                         name,
-                        self.source,
-                        f"evidence function {name!r} for {capability['id']!r} is not present in canvas.js",
+                        target_source,
+                        f"evidence function {name!r} for {capability['id']!r} is not present in {target_rel}",
                     )
 
     def test_inventory_covers_all_in_scope_areas(self):
