@@ -1389,8 +1389,8 @@ guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
 
 R4 Classic runtime shrink — Wave 6 of R4-38
 (card R4-38, Wave 6 done 2026-09-07T16:52+08:00, Owner authorization
-via in-conversation "Wave 6"; implementer evidence, independent review
-pending): the sixth shrink wave of the Classic runtime closes the
+via in-conversation "Wave 6"; implementer evidence, Independent
+review: PASS 2026-09-07T17:09+08:00 — see review notes appended below): the sixth shrink wave of the Classic runtime closes the
 **Comfy workflow / field control** COMPAT capability by extracting the
 five page-side Comfy functions (`addComfyNode` — 32-line factory,
 `comfyWorkflowOptions` — 4-line `<option>` builder, `renderComfyBody`

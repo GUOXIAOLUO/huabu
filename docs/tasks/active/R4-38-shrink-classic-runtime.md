@@ -556,6 +556,22 @@ for per-wave evidence so far.)
   PASS Python AST parse (76 files), PASS JavaScript syntax (74
   files; +1 for the new seam module), PASS Architecture guards (4),
   PASS `git diff --check`. `AGENT VERIFY: PASS`.
+- Independent review: PASS 2026-09-07T17:09+08:00 (independent
+  review agent verified one-commit-scope [no R4-39 / Wave 7 / later-
+  Round commits in `63d5560`], AGENTS.md hard constraints [industry-
+  neutral Core / canonical concept separation / one creation-mutation
+  boundary via host seam / page-side state stays page-side via closure
+  `getModels` + `getComfyWorkflows` / local-first], out-of-scope
+  check, ownership truth [5 functions GONE from canvas.js, 5
+  function bodies present in seam module, no false claim of state
+  ownership], real-behavioral tests [vm-sandbox drive + record-shape
+  equality + 29-op TypeError loop + source-contracts], status-doc
+  faithfulness [349 tests claim matches actual `./scripts/agent-verify.sh`
+  output], DoD checkbox + next-wave pointer [Wave 6 → Wave 7
+  RunningHub]). Two P2 nits noted, both non-blocking: card line 13
+  stale "9 of 15" phrase → fixed in follow-up commit `ef8a2cd`
+  ("8 of 15"); seam module lacks trailing newline → cosmetic,
+  harmless, `git diff --check` PASS covers).
 
 ## Recommended Next Card (after this card itself closes)
 

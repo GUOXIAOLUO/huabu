@@ -10,11 +10,16 @@
   `docs/tasks/active/R4-38-shrink-classic-runtime.md`. Activated
   2026-09-07T15:30+08:00 (after R4-37 close, with Owner authorization
   via in-conversation "提交并开发下一任务"). Goal: shrink the Classic
-  runtime (`canvas.js`, 17 001 lines) so it no longer owns Canvas
-  product runtime responsibilities. The R4-31 inventory's 13 Classic
-  capabilities partition into a 12-wave shrink plan (each wave = one
-  focused migration of one inventory capability into the corresponding
-  shared seam / bounded compat). **Wave 1 done** 2026-09-07T15:33+08:00
+  runtime (`canvas.js`, 17 001 lines at activation; 15 793 lines
+  after Waves 1-6 = -1 207 LOC) so it no longer owns Canvas product
+  runtime responsibilities. The R4-31 inventory's 15 Classic
+  capabilities (post R4-38 Wave 3 + Wave 4 splits of `video-player`
+  and `output-node` into MIGRATE/COMPAT pairs) partition into a
+  16-wave shrink plan (Wave 1-4 MIGRATE-style inline + delete; Wave
+  5-14 COMPAT-style page-owned bounded compat seam; Wave 15 DEFER-R8
+  re-validation; Wave 16 shrink-to-bootstrap final). Wave 6 review
+  PASS 2026-09-07T17:09+08:00; next wave (Wave 7 RunningHub COMPAT
+  seam) NOT activated, NOT executed. **Wave 1 done** 2026-09-07T15:33+08:00
   (comfy-result-normalization MIGRATED: deleted `comfyResultOutputs` /
   `resultMediaUrls` wrappers in canvas.js, inlined 6 call sites through
   `window.WorkbenchCanvasMediaResultNormalizer.extract`, focused test
@@ -130,7 +135,13 @@
   workflows AND the empty-list fallback option, exercises the full
   29-op missing-host-op TypeError loop, source-contracts the five
   wrapper-deletions + dispatcher seam-call shapes + canvas.html load
-  order — +1 → 349 tests PASS).
+  order — +1 → 349 tests PASS). Independent review: PASS
+  2026-09-07T17:09+08:00 (read-only agent verified one-commit-scope,
+  AGENTS.md hard constraints, ownership truth, real-behavioral
+  tests, status-doc faithfulness, DoD checkbox + next-wave pointer;
+  2 P2 nits — card line 13 stale "9 of 15" phrase fixed in
+  follow-up commit `ef8a2cd`, seam module lacks trailing newline
+  cosmetic + `git diff --check` PASS covers — both non-blocking).
 Next wave (recommended successor inside the same card): **Wave 7 —
 RunningHub workflow/params COMPAT seam** (`addRhNode` +
 `renderRhBody` + `renderRhParams` + `runningHubProvider` +
@@ -712,8 +723,15 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor after R4-37 close (not activated, not executed):
+Current Active Task (umbrella multi-wave, Wave 6 just reviewed PASS,
+next wave is Wave 7 RunningHub COMPAT seam — not activated, not
+executed):
 
-`R4-38 — Reduce canvas.js to Bootstrap/Compatibility Only` (`docs/tasks/backlog/R4-38-shrink-classic-runtime.md`)
+`R4-38 — Reduce canvas.js to Bootstrap/Compatibility Only` (`docs/tasks/active/R4-38-shrink-classic-runtime.md`)
+
+Expected successor after R4-38 itself closes (not activated, not
+executed):
+
+`R4-39 — Remove Legacy canvas.js Product Runtime` (`docs/tasks/backlog/R4-39-remove-classic-runtime.md`)
 
 Actual successor must still be checked against the repository's current verified state.
