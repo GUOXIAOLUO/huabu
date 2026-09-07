@@ -5,10 +5,26 @@
 
 ## Active Task
 
-- `None` — no active card. R4-31 closed 2026-09-07T12:40+08:00. Recommended
-  successor `R4-32` (see "Recommended Successor" below), not yet activated.
+- `None` — no active card. R4-32 closed 2026-09-07T12:55+08:00. Recommended
+  successor `R4-33` (see "Recommended Successor" below), not yet activated.
 
 ## Completed Tasks
+
+- `R4-32` — `DONE` 2026-09-07T12:55+08:00. Card:
+  `docs/tasks/active/R4-32-classic-provider-compat.md`. Implementer evidence
+  (independent review pending): the retained Classic provider-card controls no
+  longer own Canvas lifecycle/state for the LLM provider body. New
+  `static/js/workbench/canvas/provider-controls.js` exposes
+  `window.WorkbenchCanvasProviderControls.create(host)` (frozen validated
+  handle: `setField`/`save`/`render`; no R7 registry). Loaded ahead of
+  `canvas.js`; Classic adds `ensureProviderControls()` and cuts over
+  `renderLLMBody`'s five control handlers (provider/model/system/mode) to route
+  Canvas side-effects through the handle, removing the old direct node writes +
+  inline `render()`/`scheduleSave()`. Provider/model resolution + body
+  presentation stay page-side; other provider bodies remain page-owned
+  compatibility. Two focused tests (+2, 405→407). Ownership matrix
+  `Classic-only` table gains a "Provider-card controls (LLM body)" row.
+  `./scripts/agent-verify.sh` PASS at 407 tests.
 
 - `R4-31` — `DONE` 2026-09-07T12:40+08:00. Card:
   `docs/tasks/active/R4-31-classic-inventory.md`. Implementer evidence
@@ -449,8 +465,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor after R4-31 close (not activated, not executed):
+Expected successor after R4-32 close (not activated, not executed):
 
-`R4-32 — Classic Provider Compat` (`docs/tasks/backlog/R4-32-classic-provider-compat.md`)
+`R4-33 — Classic Execution Compat` (`docs/tasks/backlog/R4-33-classic-execution-compat.md`)
 
 Actual successor must still be checked against the repository's current verified state.

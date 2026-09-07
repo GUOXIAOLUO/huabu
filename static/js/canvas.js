@@ -8465,7 +8465,22 @@ function renderLoopBody(node){
     });
     return wrap;
 }
+// Provider-card controls route their Canvas state writes + save/render through
+// the shared provider-controls host (card R4-32); the LLM provider body is the
+// first cut over. Presentation and provider/model resolution stay page-side.
+let classicProviderControls = null;
+function ensureProviderControls(){
+    if(!classicProviderControls){
+        classicProviderControls = window.WorkbenchCanvasProviderControls.create({
+            setField: (node, key, value) => { if(node) node[key] = value; },
+            save: () => scheduleSave(),
+            render: () => render(),
+        });
+    }
+    return classicProviderControls;
+}
 function renderLLMBody(node){
+    const providerControls = ensureProviderControls();
     const wrap = document.createElement('div');
     wrap.className = 'llm-body';
     const mode = node.mode || 'node';
@@ -8504,25 +8519,26 @@ function renderLLMBody(node){
     });
     providerSelect.onchange = e => {
         e.stopPropagation();
-        node.llmProvider = e.target.value;
-        const models = providerChatModels(node.llmProvider);
-        node.model = models[0] || '';
-        if(node.llmProvider === 'modelscope') node.llmMsModel = node.model;
-        render();
-        scheduleSave();
+        const value = e.target.value;
+        providerControls.setField(node, 'llmProvider', value);
+        const models = providerChatModels(value);
+        providerControls.setField(node, 'model', models[0] || '');
+        if(value === 'modelscope') providerControls.setField(node, 'llmMsModel', node.model);
+        providerControls.render();
+        providerControls.save();
     };
     modelSelect.onchange = e => {
         e.stopPropagation();
-        node.model = e.target.value;
-        if((node.llmProvider||'comfly') === 'modelscope') node.llmMsModel = e.target.value;
-        scheduleSave();
+        providerControls.setField(node, 'model', e.target.value);
+        if((node.llmProvider||'comfly') === 'modelscope') providerControls.setField(node, 'llmMsModel', e.target.value);
+        providerControls.save();
     };
-    wrap.querySelector('.llm-sys-toggle').onclick = e => { e.stopPropagation(); node.showSystem = !node.showSystem; render(); scheduleSave(); };
+    wrap.querySelector('.llm-sys-toggle').onclick = e => { e.stopPropagation(); providerControls.setField(node, 'showSystem', !node.showSystem); providerControls.render(); providerControls.save(); };
     const sysEl = wrap.querySelector('.llm-system');
-    if(sysEl){ sysEl.oninput = e => { node.systemPrompt = e.target.value; scheduleSave(); }; bindScrollableText(sysEl); }
+    if(sysEl){ sysEl.oninput = e => { providerControls.setField(node, 'systemPrompt', e.target.value); providerControls.save(); }; bindScrollableText(sysEl); }
     wrap.querySelectorAll('[data-mode]').forEach(btn => {
         btn.classList.toggle('active', mode === btn.dataset.mode);
-        btn.onclick = e => { e.stopPropagation(); node.mode = btn.dataset.mode; render(); scheduleSave(); };
+        btn.onclick = e => { e.stopPropagation(); providerControls.setField(node, 'mode', btn.dataset.mode); providerControls.render(); providerControls.save(); };
     });
     const nodePane = wrap.querySelector('.llm-node-pane');
     const chatPane = wrap.querySelector('.llm-chat-pane');

@@ -78,6 +78,7 @@ REMOVE       = 可删除/待删除
 | Capability | Keep/Migrate/Compat/Remove | Target | Evidence |
 |---|---|---|---|
 | Legacy provider/execution cards | Compat | bounded Legacy renderer/execution seam | provider behavior unchanged; R8 owns runtime replacement |
+| Provider-card controls (LLM body) | Migrate | mountable `WorkbenchCanvasProviderControls` compatibility capability (setField/save/render) + Classic provider/model resolution | provider/system/mode control writes now route through `provider-controls.js` (R4-32); body presentation + provider/model resolution remain page-owned |
 | Classic upload/file-drop | Migrate | Unified creation/mutation runtime | direct local node construction remains page-owned |
 
 Full granular Classic-only capability inventory (R4-31): see

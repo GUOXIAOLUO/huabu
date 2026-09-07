@@ -1241,6 +1241,36 @@ Python unit tests (baseline 399; +6), PASS Python AST parse, PASS JavaScript
 syntax, PASS Architecture guards (4), PASS `git diff --check`.
 `AGENT VERIFY: PASS`.
 
+R4 Classic provider compatibility (card R4-32, 2026-09-07T12:13+08:00, Owner
+authorization via in-conversation "提交并开发下一任务"; implementer evidence,
+independent review pending): the retained Classic provider-card controls no
+longer own Canvas lifecycle/state directly for the LLM provider body. New
+`static/js/workbench/canvas/provider-controls.js` exposes
+`window.WorkbenchCanvasProviderControls.create(host)` — a frozen, validated
+host handle (`setField` / `save` / `render`); it is NOT an R7 provider registry
+and owns no Canvas state. Loaded by `static/canvas.html` ahead of
+`canvas.js`; Classic adds a lazy `ensureProviderControls()` accessor (injecting
+`node[key] = value` field write, `scheduleSave`, `render`) and cuts over
+`renderLLMBody`'s five control handlers (provider select, model select, system
+toggle, system prompt, mode buttons) to route their Canvas side-effects through
+the handle — the old direct `node.llmProvider = e.target.value` /
+`node.showSystem = !node.showSystem` / `node.systemPrompt = e.target.value`
+writes and their inline `render()` / `scheduleSave()` calls are removed.
+Provider/model metadata resolution and body presentation stay page-side; the
+other Classic provider bodies (generator/midjourney/msgen/Comfy/RunningHub/
+MiniMax/LTX) remain page-owned compatibility (already COMPAT in the R4-31
+inventory). Tests (two in `tests/test_frontend_workbench_modules.py`):
+`test_provider_controls_module_owns_the_canvas_commit_contract` (vm-sandbox
+behavioral: setField/save/render delegation, frozen handle, missing-op /
+non-object TypeError) and
+`test_provider_controls_is_loaded_before_the_classic_page_and_llm_body_uses_it`
+(module loads first; page constructs the handle; `renderLLMBody` delegates all
+five controls; old direct writes gone; module zero Classic leak). Ownership
+matrix `Classic-only` table gains a "Provider-card controls (LLM body)" row.
+Regression: `./scripts/agent-verify.sh` PASS at 407 Python unit tests
+(baseline 405; +2), PASS Python AST parse, PASS JavaScript syntax, PASS
+Architecture guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
+
 R4 clipboard unified creation (card R4-23, 2026-09-07): single-node,
 connection-free clipboard paste of the losslessly persistable Legacy shapes —
 Classic `image` (url/name/mediaKind) and `prompt` (text), Smart `smart-prompt`

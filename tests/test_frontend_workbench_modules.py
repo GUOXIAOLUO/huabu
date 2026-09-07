@@ -2249,6 +2249,67 @@ console.log(JSON.stringify({{calls, frozen, missingThrew, nonObjectThrew}}));
                                "resolveChatProviderId", "promptNodeLLMInputText", "nodes"):
             self.assertNotIn(adapter_detail, execution_host_module)
 
+    def test_provider_controls_module_owns_the_canvas_commit_contract(self):
+        provider_controls_module = ROOT / "static" / "js" / "workbench" / "canvas" / "provider-controls.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{ window: {{}} }};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(provider_controls_module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasProviderControls;
+const calls = [];
+const host = {{
+  setField: (n, k, v) => calls.push(['setField', n.id, k, v]),
+  save: () => calls.push(['save']),
+  render: () => calls.push(['render']),
+}};
+const handle = api.create(host);
+const node = {{id: 'n1'}};
+handle.setField(node, 'llmProvider', 'openai');
+handle.save();
+handle.render();
+const frozen = Object.isFrozen(handle);
+let missingThrew = false;
+try {{ api.create({{setField(){{}}, save(){{}}}}); }} catch(e) {{ missingThrew = true; }}
+let nonObjectThrew = false;
+try {{ api.create(null); }} catch(e) {{ nonObjectThrew = true; }}
+console.log(JSON.stringify({{calls, frozen, missingThrew, nonObjectThrew}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["calls"], [
+            ["setField", "n1", "llmProvider", "openai"],
+            ["save"],
+            ["render"],
+        ])
+        self.assertTrue(out["frozen"])
+        self.assertTrue(out["missingThrew"])
+        self.assertTrue(out["nonObjectThrew"])
+
+    def test_provider_controls_is_loaded_before_the_classic_page_and_llm_body_uses_it(self):
+        page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        provider_controls_module = (ROOT / "static" / "js" / "workbench" / "canvas" / "provider-controls.js").read_text(encoding="utf-8")
+        # The module loads ahead of the editor script.
+        self.assertLess(page.index("workbench/canvas/provider-controls.js"), page.index("js/canvas.js"))
+        # The page constructs the host handle and renderLLMBody delegates its
+        # provider/system/mode controls through it (no direct node writes).
+        self.assertIn("window.WorkbenchCanvasProviderControls.create({", classic)
+        self.assertIn("const providerControls = ensureProviderControls();", classic)
+        self.assertIn("providerControls.setField(node, 'llmProvider', value)", classic)
+        self.assertIn("providerControls.setField(node, 'showSystem', !node.showSystem)", classic)
+        self.assertIn("providerControls.setField(node, 'systemPrompt', e.target.value)", classic)
+        self.assertIn("providerControls.setField(node, 'mode', btn.dataset.mode)", classic)
+        # The old direct Canvas writes in renderLLMBody's handlers are gone
+        # (these strings are unique to the LLM body; the Comfy body keeps its
+        # own page-owned mode handler, out of scope for this card).
+        self.assertNotIn("node.llmProvider = e.target.value", classic)
+        self.assertNotIn("node.showSystem = !node.showSystem", classic)
+        self.assertNotIn("node.systemPrompt = e.target.value", classic)
+        # The extracted host is product-neutral: no Classic adapter detail leaks in.
+        for adapter_detail in ("llmProvider", "llm", "generator", "midjourney", "msgen",
+                               "providerChatModels", "renderLLMBody", "scheduleSave"):
+            self.assertNotIn(adapter_detail, provider_controls_module)
+
     def test_blank_creation_entry_points_route_through_the_creation_controller(self):
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
         smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
