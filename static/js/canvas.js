@@ -16016,16 +16016,33 @@ function ensureClassicConnectionGesture(){
 }
 // Classic graph-connect side effects stay page-owned: group membership, latest
 // output sync and generator-input sync are Classic compatibility behavior and
-// must never enter the Core graph model (card R4-24).
-function applyClassicConnectionSideEffects(fromId, toId){
-    const group = nodes.find(node => node.id === toId && node.type === 'group');
-    const groupedNode = nodes.find(node => node.id === fromId);
-    if(group && ['image','prompt'].includes(groupedNode?.type) && window.WorkbenchCanvasCommands?.graphCommand('canvas.group.add-member', 'classic')){
-        group.items = Array.isArray(group.items) ? group.items : [];
-        if(!group.items.includes(fromId)) group.items.push(fromId);
+// must never enter the Core graph model (card R4-24). Which of them fire is
+// decided by the shared compatibility policy (card R4-25); this function only
+// applies the projection it returns.
+let classicLegacyGraphCompatibility = null;
+function ensureLegacyGraphCompatibilityPolicy(){
+    if(!classicLegacyGraphCompatibility){
+        classicLegacyGraphCompatibility = window.WorkbenchLegacyGraphCompatibility.create({
+            commands: window.WorkbenchCanvasCommands || null,
+        });
     }
-    syncLatestGeneratedOutputToConnection(fromId, toId);
-    syncGeneratorInputs();
+    return classicLegacyGraphCompatibility;
+}
+function applyClassicConnectionSideEffects(fromId, toId){
+    const projection = ensureLegacyGraphCompatibilityPolicy().applyClassicConnect({
+        fromId, toId,
+        fromNode: nodes.find(node => node.id === fromId),
+        toNode: nodes.find(node => node.id === toId),
+    });
+    if(projection.groupAddMember){
+        const group = nodes.find(node => node.id === toId && node.type === 'group');
+        if(group){
+            group.items = Array.isArray(group.items) ? group.items : [];
+            projection.addedNodeIds.forEach(id => { if(!group.items.includes(id)) group.items.push(id); });
+        }
+    }
+    if(projection.shouldSyncOutput) syncLatestGeneratedOutputToConnection(fromId, toId);
+    if(projection.shouldSyncGeneratorInputs) syncGeneratorInputs();
 }
 function commitClassicConnection(fromId, toId){
     // Legacy adapter-owned commit: raw edge append plus page save.

@@ -1952,8 +1952,13 @@ console.log(JSON.stringify({node, commands, appliedCount: applied.length, invali
         self.assertNotIn("pushUndo()", classic_versioned)
         classic_effects = classic[classic.index("function applyClassicConnectionSideEffects(fromId, toId){"):]
         classic_effects = classic_effects[:classic_effects.index("\n}\n")]
-        self.assertIn("canvas.group.add-member", classic_effects)
+        # Which Classic side effects fire is decided by the shared
+        # compatibility policy (card R4-25); the page applies the projection
+        # and still owns executing the page-level sync helper.
+        self.assertIn("ensureLegacyGraphCompatibilityPolicy()", classic_effects)
         self.assertIn("syncLatestGeneratedOutputToConnection(fromId, toId)", classic_effects)
+        policy = (ROOT / "static" / "js" / "workbench" / "canvas" / "legacy-graph-compatibility.js").read_text(encoding="utf-8")
+        self.assertIn("canvas.group.add-member", policy)
         # Smart: the port drop delegates to the versioned connect; the shared
         # legacy connectInputNode stays for the non-drop callers.
         self.assertIn("async function connectInputNodeVersioned(fromId, toId){", smart)
@@ -2283,6 +2288,7 @@ console.log(JSON.stringify({node, commands, appliedCount: applied.length, invali
         # returns its success/failure value correctly.
         client_module = ROOT / "static/js/workbench/canvas/node-creation-client.js"
         client_source = client_module.read_text(encoding="utf-8")
+        policy_source = (ROOT / "static/js/workbench/canvas/legacy-graph-compatibility.js").read_text(encoding="utf-8")
         classic_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
         smart_source = (ROOT / "static/js/smart-canvas.js").read_text(encoding="utf-8")
         classic_helper = re.search(
@@ -2372,6 +2378,16 @@ smartBoot.snapshotForUndo = () => ({{}});
 smartBoot.serializableCanvasNodes = () => [];
 smartBoot.toast = () => {{}};
 smartBoot.uid = (prefix) => prefix + '-test-s';
+// The Smart connect helper asks the shared compatibility policy (R4-25) for
+// its projection. Drive the REAL policy here — wired to the same page-shaped
+// mocks — so this test covers the helper and the policy together.
+vm.runInNewContext({json.dumps(policy_source)}, smartBoot);
+const smartPolicy = smartBoot.window.WorkbenchLegacyGraphCompatibility.create({{
+  commands: smartBoot.window.WorkbenchCanvasCommands || null,
+  smartGroupImageCount: node => smartBoot.imagesForNode(node).filter(img => img && img.url).length,
+  smartGroupPromptCount: node => smartBoot.promptTextItemsForNode(node).filter(Boolean).length,
+}});
+smartBoot.ensureSmartLegacyGraphCompatibilityPolicy = () => smartPolicy;
 vm.runInNewContext({json.dumps(smart_helper)} + '\\nthis.connectInputNodeVersioned = connectInputNodeVersioned;', smartBoot);
 
 (async () => {{
@@ -2445,6 +2461,229 @@ vm.runInNewContext({json.dumps(smart_helper)} + '\\nthis.connectInputNodeVersion
         # false and the page-side save is intentionally not scheduled — the
         # service-owned revision CAS is the durable write.
         self.assertEqual(payload["smartSaveScheduled"], 0)
+
+    def test_legacy_graph_compatibility_policy_owns_connect_side_effects(self):
+        # R4-25: a single named policy module owns every Classic / Smart
+        # historical connect side effect. The two-page helpers delegate to
+        # it; no inline branching survives in the page code; Core
+        # graph_mutation has zero adapter leak. The policy is loaded into
+        # `window` exactly once and is the only writer of these fields.
+        classic = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        smart = (ROOT / "static/js/smart-canvas.js").read_text(encoding="utf-8")
+        policy_source = (ROOT / "static/js/workbench/canvas/legacy-graph-compatibility.js").read_text(encoding="utf-8")
+        service_source = (ROOT / "workbench/application/graph_mutation.py").read_text(encoding="utf-8")
+        # Policy module exists and exposes a factory / singleton on window.
+        self.assertIn("global.WorkbenchLegacyGraphCompatibility", policy_source)
+        self.assertIn("createLegacyGraphCompatibilityPolicy", policy_source)
+        # Page helpers consult the policy via the global; the page does not
+        # own the side-effect rules itself anymore.
+        self.assertIn("WorkbenchLegacyGraphCompatibility", classic)
+        self.assertIn("WorkbenchLegacyGraphCompatibility", smart)
+        # Core graph_mutation has zero adapter leak (preserved invariant
+        # from R4-24). The policy module is allowed to mention these
+        # branches — that's the whole point of the seam — but the service
+        # must not.
+        for adapter_detail in ("smart-loop", "imageInput", "showPrompt", "syncLatestGeneratedOutput", "group.items", "inputNodeIds"):
+            self.assertNotIn(adapter_detail, service_source)
+        # The RULES no longer live inline in the page helpers. Each helper
+        # delegates to the policy and applies the returned projection; the
+        # page keeps only the mechanically-unavoidable execution of
+        # page-owned effects (group mutation, sync helpers, save/render).
+        classic_effects = re.search(
+            r"function applyClassicConnectionSideEffects\(fromId, toId\)\{[\s\S]*?\n\}\n",
+            classic,
+        ).group(0)
+        # The helper reaches the policy through the page's accessor; the
+        # global itself is referenced by that accessor (pinned above at
+        # page level). Helper → accessor → policy is the seam.
+        self.assertIn("ensureLegacyGraphCompatibilityPolicy()", classic_effects)
+        # The Classic group-membership type rule is policy-owned now.
+        self.assertNotIn("['image','prompt']", classic_effects)
+        smart_connect = re.search(
+            r"async function connectInputNodeVersioned\(fromId, toId\)\{[\s\S]*?\n\}\n",
+            smart,
+        ).group(0)
+        self.assertIn("ensureSmartLegacyGraphCompatibilityPolicy()", smart_connect)
+        # The Smart loop-input rule is policy-owned now: no adapter type
+        # literal and no inline looks/looksPrompt derivation survives.
+        self.assertNotIn("smart-loop", smart_connect)
+        self.assertNotIn("looksImage", smart_connect)
+        self.assertNotIn("looksPrompt", smart_connect)
+
+    def test_legacy_graph_compatibility_policy_matches_classic_smart_history(self):
+        # R4-25 behavioral proof: load the policy module into a vm sandbox
+        # and verify the same side-effect projections the historical
+        # inline branches produced, on representative node pairs.
+        policy_module = ROOT / "static/js/workbench/canvas/legacy-graph-compatibility.js"
+        policy_source = policy_module.read_text(encoding="utf-8")
+        script = f"""
+const vm = require('vm');
+const source = {json.dumps(policy_source)};
+const sandbox = {{console, Math, Set, Array, Object}};
+vm.runInNewContext(source, sandbox);
+const policy = sandbox.WorkbenchLegacyGraphCompatibility.create({{
+  // No domain flags needed for the test cases; the policy answers
+  // purely from the node shape.
+  groupAddMemberAllowed: true,
+  commands: {{graphCommand: name => name === 'canvas.group.add-member' ? 'classic' : null}},
+}});
+function node(overrides) {{ return Object.assign({{id: 'n', type: 'image'}}, overrides); }}
+const classicA = policy.applyClassicConnect({{
+  fromNode: node({{id: 'a', type: 'image'}}),
+  toNode: node({{id: 'b', type: 'group', items: []}}),
+}});
+const classicB = policy.applyClassicConnect({{
+  fromNode: node({{id: 'a', type: 'image'}}),
+  toNode: node({{id: 'b', type: 'group', items: ['a']}}),  // already a member
+}});
+const classicC = policy.applyClassicConnect({{
+  fromNode: node({{id: 'a', type: 'image'}}),
+  toNode: node({{id: 'b', type: 'output'}}),
+}});
+const smartA = policy.prepareSmartConnect({{
+  fromNode: node({{id: 'a', type: 'smart-prompt'}}),
+  toNode: node({{id: 'b', type: 'smart-loop', imageInput: false, showPrompt: false}}),
+}});
+const smartB = policy.prepareSmartConnect({{
+  fromNode: node({{id: 'a', type: 'smart-loop', imageInput: true, showPrompt: false}}),
+  toNode: node({{id: 'b', type: 'smart-loop', imageInput: false, showPrompt: false}}),
+}});
+const smartC = policy.prepareSmartConnect({{
+  fromNode: node({{id: 'a', type: 'smart-image'}}),
+  toNode: node({{id: 'b', type: 'smart-loop', imageInput: true, showPrompt: true}}),
+}});
+const smartD = policy.prepareSmartConnect({{
+  fromNode: node({{id: 'a', type: 'smart-prompt'}}),
+  toNode: node({{id: 'b', type: 'smart-image', inputNodeIds: []}}),
+}});
+const smartE = policy.prepareSmartConnect({{
+  fromNode: node({{id: 'a', type: 'smart-prompt'}}),
+  toNode: node({{id: 'b', type: 'smart-image', inputNodeIds: ['a', 'x']}}),
+}});
+console.log(JSON.stringify({{classicA, classicB, classicC, smartA, smartB, smartC, smartD, smartE}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        # Classic side effects: group add-member adds when missing; the same
+        # call is idempotent on subsequent invocations; output/generator
+        # sync is a boolean side-effect flag the page can act on.
+        self.assertTrue(payload["classicA"]["groupAddMember"])
+        self.assertEqual(payload["classicA"]["addedNodeIds"], ["a"])
+        self.assertFalse(payload["classicB"]["groupAddMember"])
+        self.assertEqual(payload["classicB"]["addedNodeIds"], [])
+        # output / generator sync are flagged for the page to call its
+        # existing compatibility helpers (syncLatestGeneratedOutputToConnection,
+        # syncGeneratorInputs).
+        self.assertTrue(payload["classicA"]["shouldSyncOutput"])
+        self.assertTrue(payload["classicA"]["shouldSyncGeneratorInputs"])
+        self.assertTrue(payload["classicC"]["shouldSyncOutput"])
+        # Smart side effects: smart-prompt from → smart-loop prompts
+        # (showPrompt flip + fit + shouldConnect true).
+        self.assertTrue(payload["smartA"]["shouldConnect"])
+        self.assertTrue(payload["smartA"]["loopTouched"])
+        self.assertTrue(payload["smartA"]["flipShowPrompt"])
+        self.assertFalse(payload["smartA"]["flipImageInput"])
+        self.assertTrue(payload["smartA"]["fit"])
+        # smart-loop (imageInput=true) from → smart-loop copies the
+        # imageInput flag forward.
+        self.assertTrue(payload["smartB"]["flipImageInput"])
+        # A smart-loop that already has both flags on: nothing flips, but
+        # history still marks loopTouched (and re-fits) because
+        # `looksImage || looksPrompt` is true even with nothing to change.
+        # Preserving that quirk is the difference between this refactor and
+        # a behavior change.
+        self.assertTrue(payload["smartC"]["loopTouched"])
+        self.assertFalse(payload["smartC"]["flipImageInput"])
+        self.assertFalse(payload["smartC"]["flipShowPrompt"])
+        self.assertTrue(payload["smartC"]["fit"])
+        self.assertTrue(payload["smartC"]["shouldConnect"])
+        # Smart side effects: smart-prompt from → smart-image (input side).
+        # The policy prepares the inputNodeIds append; the page applies it
+        # on the success path.
+        self.assertTrue(payload["smartD"]["shouldConnect"])
+        self.assertEqual(payload["smartD"]["appendInputNodeId"], "a")
+        self.assertFalse(payload["smartD"]["loopTouched"])
+        # Idempotent: if the from-id is already in the target's inputNodeIds
+        # list, the projection is still shouldConnect true and the same
+        # append (the page uses Set semantics before applying).
+        self.assertTrue(payload["smartE"]["shouldConnect"])
+        self.assertEqual(payload["smartE"]["appendInputNodeId"], "a")
+
+    def test_classic_connect_side_effects_apply_the_policy_projection(self):
+        # R4-25 behavioral proof for the Classic half: drive the REAL
+        # `applyClassicConnectionSideEffects` out of canvas.js together with
+        # the REAL policy module and verify the page applies exactly the
+        # projection the policy returns — group membership (idempotent and
+        # command-gated) plus the historically unconditional output /
+        # generator syncs.
+        classic_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        policy_source = (ROOT / "static/js/workbench/canvas/legacy-graph-compatibility.js").read_text(encoding="utf-8")
+        factory = re.search(
+            r"let classicLegacyGraphCompatibility = null;[\s\S]*?\n\}\n",
+            classic_source,
+        ).group(0)
+        effects = re.search(
+            r"function applyClassicConnectionSideEffects\(fromId, toId\)\{[\s\S]*?\n\}\n",
+            classic_source,
+        ).group(0)
+
+        script = f"""
+const vm = require('vm');
+const policySource = {json.dumps(policy_source)};
+const factory = {json.dumps(factory)};
+const effects = {json.dumps(effects)};
+function makePage(addMemberAllowed) {{
+  const s = {{window: {{}}, console}};
+  vm.runInNewContext(policySource, s);
+  s.window.WorkbenchCanvasCommands = {{
+    graphCommand: (name) => (addMemberAllowed && name === 'canvas.group.add-member' ? 'classic' : null),
+  }};
+  s.nodes = [];
+  s.outputSyncs = 0; s.generatorSyncs = 0;
+  s.syncLatestGeneratedOutputToConnection = () => {{ s.outputSyncs++; }};
+  s.syncGeneratorInputs = () => {{ s.generatorSyncs++; }};
+  vm.runInNewContext(factory + '\\n' + effects, s);
+  return s;
+}}
+const page = makePage(true);
+const group = {{id: 'g1', type: 'group', items: []}};
+page.nodes = [{{id: 'a', type: 'image'}}, {{id: 'p', type: 'prompt'}}, {{id: 'o', type: 'output'}}, group];
+page.applyClassicConnectionSideEffects('a', 'g1');
+const afterFirst = Array.from(group.items);
+page.applyClassicConnectionSideEffects('a', 'g1');   // idempotent
+const afterSecond = Array.from(group.items);
+page.applyClassicConnectionSideEffects('p', 'g1');   // prompt joins too
+const afterThird = Array.from(group.items);
+page.applyClassicConnectionSideEffects('a', 'o');    // output target: syncs only
+const blocked = makePage(false);
+const blockedGroup = {{id: 'g1', type: 'group', items: []}};
+blocked.nodes = [{{id: 'a', type: 'image'}}, blockedGroup];
+blocked.applyClassicConnectionSideEffects('a', 'g1');
+console.log(JSON.stringify({{
+  afterFirst, afterSecond, afterThird, groupItems: Array.from(group.items),
+  outputSyncs: page.outputSyncs, generatorSyncs: page.generatorSyncs,
+  blockedItems: Array.from(blockedGroup.items),
+  blockedOutputSyncs: blocked.outputSyncs, blockedGeneratorSyncs: blocked.generatorSyncs,
+}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        # image joins an empty group; repeating the call is idempotent; a
+        # prompt joins as well (the Classic group-membership type rule is
+        # policy-owned, not inline in the page).
+        self.assertEqual(payload["afterFirst"], ["a"])
+        self.assertEqual(payload["afterSecond"], ["a"])
+        self.assertEqual(payload["afterThird"], ["a", "p"])
+        self.assertEqual(payload["groupItems"], ["a", "p"])
+        # Classic history syncs output + generator inputs unconditionally:
+        # four commits, four of each.
+        self.assertEqual(payload["outputSyncs"], 4)
+        self.assertEqual(payload["generatorSyncs"], 4)
+        # When the command gate denies add-member the policy suppresses the
+        # group mutation, but the syncs still run (unchanged history).
+        self.assertEqual(payload["blockedItems"], [])
+        self.assertEqual(payload["blockedOutputSyncs"], 1)
+        self.assertEqual(payload["blockedGeneratorSyncs"], 1)
 
     def test_minimap_projection_scaling_stays_linear_at_100_and_300_nodes(self):
         # DoD: minimap performance remains acceptable at 100/300 nodes — the
@@ -3634,8 +3873,12 @@ console.log(JSON.stringify({{
         self.assertIn("graphCommand('canvas.graph.connect', 'classic')", classic)
         self.assertIn("graphCommand('canvas.graph.connect', 'smart')", smart)
         self.assertIn("graphCommand('canvas.graph.create-connected', 'smart')", smart)
-        self.assertIn("graphCommand('canvas.group.add-member', 'classic')", classic)
         self.assertIn("graphCommand('canvas.group.add-member', 'smart')", smart)
+        # The Classic variant of the same catalog entry is now issued by the
+        # shared compatibility policy (card R4-25) rather than inline in the
+        # page — same command id, single owner.
+        policy = (ROOT / "static" / "js" / "workbench" / "canvas" / "legacy-graph-compatibility.js").read_text(encoding="utf-8")
+        self.assertIn("graphCommand('canvas.group.add-member', 'classic')", policy)
         self.assertIn("openSmartPortCreateMenu(drag, e)", smart)
         self.assertIn("createSmartConnectedNodeFromMenu(command, portCreate)", smart)
         self.assertIn("group: createVersionedConnectedSmartGroup", smart)
@@ -4483,7 +4726,9 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         self.assertIn("WorkbenchUnifiedRenderHost.cardShellView({selected:selected.has(node.id), onIntent:handleCanvasNodeShellIntent, ports:canvasLegacyNodeShellPorts(node)})", classic)
         self.assertIn("portVisibility.input !== false", (ROOT / "static" / "js" / "workbench" / "canvas" / "node-shell.js").read_text(encoding="utf-8"))
         self.assertIn("if(to.type === 'group') return ['image','prompt'].includes(from.type)", classic)
-        self.assertIn("group.items.push(fromId)", classic)
+        # Group membership is applied from the compatibility-policy
+        # projection (card R4-25) instead of an inline push.
+        self.assertIn("projection.addedNodeIds.forEach", classic)
         self.assertIn("function canvasNodeShellSemanticZoomEnabled()", classic)
         self.assertIn("params.get('semantic_zoom') !== '0'", classic)
         self.assertIn("WorkbenchSemanticZoom.viewModel(node, viewport.scale)", classic)

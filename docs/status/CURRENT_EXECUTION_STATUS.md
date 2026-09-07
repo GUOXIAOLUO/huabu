@@ -942,6 +942,59 @@ PASS (was 369 baseline; +1 from this card's new behavioral test).
 (auto-connect on drag, output flows, loop migration) stay deferred per
 the ownership matrix and remain a future-card concern.
 
+R4 legacy graph compatibility policy (card R4-25, 2026-09-07T09:45+08:00,
+Owner authorization 2026-09-07T09:20+08:00 in-conversation; implementer
+evidence, independent review pending): the Classic / Smart historical
+connect side-effect RULES were duplicated as inline branches in the two
+page runtimes; they now have a single named owner,
+`static/js/workbench/canvas/legacy-graph-compatibility.js`
+(`window.WorkbenchLegacyGraphCompatibility.create(...)`). Classic
+`applyClassicConnectionSideEffects` (`static/js/canvas.js`) asked the
+policy via `applyClassicConnect({fromId, toId, fromNode, toNode})` and
+applies the returned `{groupAddMember, addedNodeIds, shouldSyncOutput,
+shouldSyncGeneratorInputs}` projection; Smart
+`connectInputNodeVersioned` (`static/js/smart-canvas.js`) asks via
+`prepareSmartConnect({fromNode, toNode})` and applies
+`{shouldConnect, loopTouched, flipImageInput, flipShowPrompt, fit,
+toImageInput, toShowPrompt, appendInputNodeId}`. Each page reaches the
+policy through a lazy accessor (`ensureLegacyGraphCompatibilityPolicy` /
+`ensureSmartLegacyGraphCompatibilityPolicy`), and the module is loaded by
+`static/canvas.html` and `static/smart-canvas.html` ahead of the editor
+script. `workbench/application/graph_mutation.py` is untouched and stays
+industry-neutral — still zero `smart-loop` / `imageInput` / `showPrompt` /
+`syncLatestGeneratedOutput` / `group.items` / `inputNodeIds` references.
+Historical quirks deliberately preserved rather than "cleaned up": the
+Classic output / generator syncs remain unconditional on every connect
+commit; Smart `loopTouched` follows `looksImage || looksPrompt` and not
+the flips, so revisiting an already-flagged loop still re-fits it; and
+Smart `canImage` / `canPrompt` are evaluated against the flags after the
+flips are applied. Three focused tests added to
+`tests/test_frontend_workbench_modules.py`:
+`test_legacy_graph_compatibility_policy_owns_connect_side_effects` (the
+policy is the single owner; both helpers delegate through the accessor;
+no adapter rule literal survives in either helper; Core has zero adapter
+leak), `test_legacy_graph_compatibility_policy_matches_classic_smart_history`
+(behavioral — real policy in a vm sandbox over representative node pairs,
+pinning group add-member + idempotence, smart-prompt → smart-loop,
+smart-loop → smart-loop flag copy, no-op revisit and smart-image target
+append), and
+`test_classic_connect_side_effects_apply_the_policy_projection` (behavioral
+— the REAL `applyClassicConnectionSideEffects` with page-shaped mocks:
+membership added once, idempotent on repeat, suppressed when the command
+gate denies it, both syncs on every commit). R4-24's
+`test_versioned_connect_drops_land_at_the_application_command` now also
+loads the real policy into its Smart sandbox so the helper and the policy
+are exercised together. Three pre-existing contracts that pinned the old
+inline forms were updated to pin the new owner instead (R4-24 connect-drop
+wiring, shared command-catalog usage, Classic node-shell reuse).
+Ownership matrix `connection mutation` row updated: the final owner is now
+`GraphMutationService` connect-nodes command plus
+`legacy-graph-compatibility.js` as the single owner of the Classic/Smart
+connect side-effect rules. Regression: `./scripts/agent-verify.sh` PASS at
+373 Python unit tests (baseline 370; +3 from this card), PASS Python AST
+parse, PASS JavaScript syntax, PASS Architecture guards (4), PASS
+`git diff --check`. `AGENT VERIFY: PASS`.
+
 R4 clipboard unified creation (card R4-23, 2026-09-07): single-node,
 connection-free clipboard paste of the losslessly persistable Legacy shapes —
 Classic `image` (url/name/mediaKind) and `prompt` (text), Smart `smart-prompt`

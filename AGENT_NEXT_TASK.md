@@ -5,15 +5,8 @@
 
 ## Active Task
 
-- `R4-25` — `Active` since 2026-09-07T09:20+08:00 (Owner authorization via
-  in-conversation "提交并开发下一任务"). Card:
-  `docs/tasks/active/R4-25-legacy-graph-policy.md`. Containment seam for
-  Smart/Classic historical connect side effects (Smart `inputNodeIds` /
-  `smart-loop` image-input / show-prompt flags; Classic group membership,
-  generator-output sync, group add-member) under a `LegacyGraphCompatibilityPolicy`
-  / repository-adapter contract — moves them out of the page-helper path
-  while keeping Core `GraphMutationService` generic. Card file moved
-  from `docs/tasks/backlog/` to `docs/tasks/active/`.
+- **None** (R4-25 closed 2026-09-07T09:45+08:00; the next card awaits Owner
+  activation — see Recommended Successor below).
 
 > Pre-existing finding from R4-23 (2026-09-07) — RESOLVED by `R4-21.1`. The
 > R4-21 blank-create entry points in both pages now propagate
@@ -23,6 +16,46 @@
 > and `docs/status/CURRENT_EXECUTION_STATUS.md` (R4-21.1 entry).
 
 ## Completed Tasks
+
+- `R4-25` — `DONE` 2026-09-07T09:45+08:00. Card:
+  `docs/tasks/active/R4-25-legacy-graph-policy.md`. Implementer evidence
+  (independent review pending): the Classic / Smart historical connect
+  side-effect RULES were duplicated as inline branches in the two page
+  runtimes and now have a single named owner — new module
+  `static/js/workbench/canvas/legacy-graph-compatibility.js` exposing
+  `window.WorkbenchLegacyGraphCompatibility.create(...)` with
+  `applyClassicConnect(...)` → `{groupAddMember, addedNodeIds,
+  shouldSyncOutput, shouldSyncGeneratorInputs}` and
+  `prepareSmartConnect(...)` → `{shouldConnect, loopTouched, flipImageInput,
+  flipShowPrompt, fit, toImageInput, toShowPrompt, appendInputNodeId}`.
+  Classic `applyClassicConnectionSideEffects` (`static/js/canvas.js`) and
+  Smart `connectInputNodeVersioned` (`static/js/smart-canvas.js`) now ask
+  the policy through lazy accessors and apply the returned projection; the
+  module is loaded by `static/canvas.html` and `static/smart-canvas.html`
+  ahead of the editor script. `workbench/application/graph_mutation.py` is
+  untouched and stays industry-neutral (zero `smart-loop` / `imageInput` /
+  `showPrompt` / `syncLatestGeneratedOutput` / `group.items` /
+  `inputNodeIds` references). Historical quirks preserved rather than
+  "cleaned up": Classic output/generator syncs stay unconditional; Smart
+  `loopTouched` follows `looksImage || looksPrompt` and not the flips;
+  Smart `canImage`/`canPrompt` are evaluated after the flips. Three focused
+  tests added to `tests/test_frontend_workbench_modules.py`:
+  `test_legacy_graph_compatibility_policy_owns_connect_side_effects`
+  (single owner, both helpers delegate, no adapter rule literal survives,
+  Core zero leak),
+  `test_legacy_graph_compatibility_policy_matches_classic_smart_history`
+  (behavioral — real policy in a vm sandbox over representative node
+  pairs) and
+  `test_classic_connect_side_effects_apply_the_policy_projection`
+  (behavioral — the REAL page function with page-shaped mocks: membership
+  added once, idempotent, command-gate suppressed, both syncs per commit).
+  R4-24's end-to-end test now also loads the real policy into its Smart
+  sandbox. Three pre-existing contracts that pinned the old inline forms
+  were updated to pin the new owner. Ownership matrix `connection
+  mutation` row updated: final owner is `GraphMutationService`
+  connect-nodes plus `legacy-graph-compatibility.js` for the side-effect
+  rules. `./scripts/agent-verify.sh` PASS at 373 tests (was 370; +3 from
+  this card).
 
 - `R4-24` — `DONE` 2026-09-07T09:02+08:00. Card:
   `docs/tasks/active/R4-24-connect-command.md`. Implementer evidence
@@ -293,7 +326,7 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor after R4-25 (not activated, not executed):
+Expected successor after R4-25 close (not activated, not executed):
 
 `R4-26 — Group Mutation` (`docs/tasks/backlog/R4-26-group-mutation.md`)
 

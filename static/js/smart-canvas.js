@@ -14811,27 +14811,32 @@ function connectInputNode(fromId, toId){
     addConnection(from.id, to.id, 'input');
     return true;
 }
-// Versioned connect: the durable mutation (edge + target inputNodeIds) goes
-// through the application connect command atomically with revision CAS, while
-// the Smart loop-input compatibility policy stays page-owned (card R4-24).
+// Smart loop-input compatibility stays page-owned (card R4-24) but the RULE
+// now lives in the shared compatibility policy (card R4-25): the page asks
+// the policy for a projection and applies it, so no adapter type literal
+// survives in the connect helper.
+let smartLegacyGraphCompatibility = null;
+function ensureSmartLegacyGraphCompatibilityPolicy(){
+    if(!smartLegacyGraphCompatibility){
+        smartLegacyGraphCompatibility = window.WorkbenchLegacyGraphCompatibility.create({
+            commands: window.WorkbenchCanvasCommands || null,
+            smartGroupImageCount: node => imagesForNode(node).filter(img => img?.url).length,
+            smartGroupPromptCount: node => promptTextItemsForNode(node).filter(Boolean).length,
+        });
+    }
+    return smartLegacyGraphCompatibility;
+}
 async function connectInputNodeVersioned(fromId, toId){
     if(!canUseVersionedSmartImageCreation()) return null;
     const from = nodes.find(n => n.id === fromId);
     const to = nodes.find(n => n.id === toId);
     if(!from || !to || from.id === to.id) return null;
-    let loopTouched = false;
-    if(to.type === 'smart-loop'){
-        const groupImages = isSmartGroupNode(from) ? imagesForNode(from).filter(img => img?.url) : [];
-        const groupPrompts = isSmartGroupNode(from) ? promptTextItemsForNode(from).filter(Boolean) : [];
-        const looksImage = isSmartImageNode(from) || groupImages.length > 0 || (from.type === 'smart-loop' && from.imageInput);
-        const looksPrompt = from.type === 'smart-prompt' || groupPrompts.length > 0 || (from.type === 'smart-loop' && from.showPrompt);
-        if(looksImage && !to.imageInput) to.imageInput = true;
-        if(looksPrompt && !to.showPrompt) to.showPrompt = true;
-        if(looksImage || looksPrompt) { fitSmartLoopNode(to); loopTouched = true; }
-        const canImage = Boolean(to.imageInput) && looksImage;
-        const canPrompt = Boolean(to.showPrompt) && looksPrompt;
-        if(!canImage && !canPrompt) return null;
-    }
+    const projection = ensureSmartLegacyGraphCompatibilityPolicy().prepareSmartConnect({fromNode:from, toNode:to});
+    if(!projection.shouldConnect) return null;
+    if(projection.flipImageInput) to.imageInput = true;
+    if(projection.flipShowPrompt) to.showPrompt = true;
+    if(projection.fit) fitSmartLoopNode(to);
+    const loopTouched = projection.loopTouched;
     try {
         const result = await window.WorkbenchNodeClient.connectNodes(canvas.id, {
             project_id:canvas.project, expected_revision:Number(canvas.updated_at || 0),
