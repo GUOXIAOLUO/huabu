@@ -2814,38 +2814,6 @@ async function urlToBase64(url){
         reader.readAsDataURL(blob);
     });
 }
-function addComfyNode(point){
-    const p = point || defaultPoint(160, 0);
-    return addNode({
-        id:uid('comfy'),
-        type:'comfy',
-        x:p.x,
-        y:p.y,
-        w:420,
-        h:460,
-        mode:'text',
-        width:1024,
-        height:1024,
-        enhanceStrength:0.5,
-        enhanceUpscale:false,
-        enhanceUpscaleRes:2048,
-        editUpscale:false,
-        editUpscaleRes:2048,
-        editModel:allImageModels(imageApiProviders()[0]?.id || 'comfly')[0] || models.gpt,
-        ratio:'square',
-        resolution:'1k',
-        customRatio:'',
-        customSize:'',
-        customRatioWidth:'',
-        customRatioHeight:'',
-        customWidth:'',
-        customHeight:'',
-        comfyWorkflow:'',
-        comfyParams:{},
-        count:1,
-        inputs:[]
-    });
-}
 function syncClassicCreateMenuCommands(){
     if(!createMenu || !window.WorkbenchCanvasCommands) return;
     const buttons = createMenu.querySelectorAll(':scope > [data-canvas-command]');
@@ -3352,7 +3320,7 @@ function createNodeByType(type, point){
     if(type === 'video') return ensureClassicNodeFactories().addVideo({point});
     if(type === 'minimax') return addMiniMaxNode(point);
     if(type === 'rh') return addRhNode(point);
-    if(type === 'comfy') return addComfyNode(point);
+    if(type === 'comfy') return ensureClassicComfyControls().addNode({point});
     if(type === 'ltxDirector') return addLTXDirectorNode(point);
     if(type === 'output') return ensureClassicNodeFactories().addOutput({point});
     return null;
@@ -6236,6 +6204,7 @@ function renderNode(node){
         body.innerHTML = `<div class="text-[11px] text-gray-400">${promptNodes.length} ${tr('canvas.promptCount')} ${tr('canvas.grouped')}</div>`;
     }
     const cardBody = ensureClassicCardBodyRenderer();
+    const comfy = ensureClassicComfyControls();
     if(node.type === 'llm') body.appendChild(cardBody.renderLLM({node}));
     if(node.type === 'generator') body.appendChild(cardBody.renderGenerator({node}));
     if(node.type === 'midjourney') body.appendChild(cardBody.renderMidjourney({node}));
@@ -6243,7 +6212,7 @@ function renderNode(node){
     if(node.type === 'video') body.appendChild(renderVideoBody(node));
     if(node.type === 'minimax') body.appendChild(renderMiniMaxBody(node));
     if(node.type === 'rh') body.appendChild(renderRhBody(node));
-    if(node.type === 'comfy') body.appendChild(renderComfyBody(node));
+    if(node.type === 'comfy') body.appendChild(comfy.renderBody({node}));
     if(node.type === 'ltxDirector') body.appendChild(renderLTXDirectorBody(node));
     if(node.type === 'output') {
         const pendingHtml = (node._pending || []).map(p =>
@@ -8046,6 +8015,51 @@ function ensureClassicCardBodyRenderer(){
     }
     return classicCardBodyRenderer;
 }
+// Classic Comfy workflow / field controls (addComfyNode / comfyWorkflowOptions
+// / renderComfyBody / renderComfySettings / updateComfyField) live behind a
+// bounded compat seam (card R4-38 Wave 6). The seam holds the type-specific
+// DOM construction + field-binding; the page injects the helpers each body
+// needs (page-side Comfy workflow resolvers + render-image helper + render
+// composition + page-local lifecycle). The COMPAT/R8 boundary keeps page-side
+// state (comfyWorkflows, nodes, connections, scheduleSave, render) on the
+// page; R8 owns the real executor-driven Comfy workflow rendering.
+let classicComfyControls = null;
+function ensureClassicComfyControls(){
+    if(!classicComfyControls){
+        classicComfyControls = window.WorkbenchCanvasClassicComfyControls.create({
+            document,
+            escapeHtml,
+            tr,
+            addNode,
+            uid,
+            defaultPoint,
+            allImageModels,
+            imageApiProviders,
+            getModels: () => models,
+            getComfyWorkflows: () => comfyWorkflows,
+            generatorSources,
+            orderedSources,
+            imageRefsOnly,
+            comfyFields,
+            validComfyWorkflowName,
+            hasComfyWorkflow,
+            currentComfyWorkflow,
+            comfyFieldKind,
+            ensureComfyWorkflow,
+            render,
+            scheduleSave,
+            runCanvasGenerate,
+            renderPromptPreview,
+            renderComfyImages,
+            renderComfyCustomField,
+            toggleComfyRandom,
+            bindCascadeButtons,
+            cascadeBtnHtml,
+            retryBarHtml,
+        });
+    }
+    return classicComfyControls;
+}
 function renderLLMNodePane(container, node){
     const connectedInput = llmInputText(node);
     const isReadonly = connectedInput.length > 0;
@@ -9052,10 +9066,6 @@ function renderVideoImageInputs(list, node, imageInputs){
     });
     refreshIcons();
 }
-function comfyWorkflowOptions(selected){
-    const opts = comfyWorkflows.map(w => `<option value="${escapeHtml(w.name)}" ${w.name === selected ? 'selected' : ''}>${escapeHtml(w.title || w.name.replace('.json',''))}</option>`).join('');
-    return opts || `<option value="">${tr('canvas.comfyNoWorkflow')}</option>`;
-}
 function hasComfyWorkflow(name){
     return !!name && comfyWorkflows.some(w => w.name === name);
 }
@@ -9157,70 +9167,6 @@ function toggleComfyRandom(nodeId, fieldId){
     node.comfyRandomActive[fieldId] = !comfyRandomActive(node, fieldId);
     refreshNodes([node.id]);
     scheduleSave();
-}
-function renderComfyBody(node){
-    const wrap = document.createElement('div');
-    wrap.className = 'comfy-body';
-    const inputSources = generatorSources(node);
-    const ordered = orderedSources(node, inputSources);
-    const mediaInputs = ordered.filter(src => src.refs?.length);
-    const imageInputs = mediaInputs
-        .map(src => ({...src, refs:imageRefsOnly(src.refs || [])}))
-        .filter(src => src.refs?.length);
-    const promptInputs = ordered.filter(src => src.prompt && !src.refs?.length);
-    const mode = node.mode || 'text';
-    const imageFieldCount = mode === 'custom' ? comfyFields(node, 'image').length : 0;
-    const videoFieldCount = mode === 'custom' ? comfyFields(node, 'video').length : 0;
-    const audioFieldCount = mode === 'custom' ? comfyFields(node, 'audio').length : 0;
-    const mediaFieldCount = imageFieldCount + videoFieldCount + audioFieldCount;
-    if(mode === 'custom'){
-        const validWorkflow = validComfyWorkflowName(node.comfyWorkflow);
-        if(node.comfyWorkflow && node.comfyWorkflow !== validWorkflow) node.comfyWorkflow = validWorkflow;
-        if(!node.comfyWorkflow && validWorkflow) node.comfyWorkflow = validWorkflow;
-    }
-    wrap.innerHTML = `
-        <div class="mode-tabs">
-            <button type="button" data-mode="text" class="${mode === 'text' ? 'active' : ''}">${tr('canvas.comfyModeText')}</button>
-            <button type="button" data-mode="enhance" class="${mode === 'enhance' ? 'active' : ''}">${tr('canvas.comfyModeEnhance')}</button>
-            <button type="button" data-mode="edit" class="${mode === 'edit' ? 'active' : ''}">${tr('canvas.comfyModeEdit')}</button>
-            <button type="button" data-mode="custom" class="${mode === 'custom' ? 'active' : ''}">${tr('canvas.comfyModeCustom')}</button>
-        </div>
-        <div class="comfy-content">
-            <div class="prompt-list"></div>
-            <div class="comfy-images ${(mode === 'text' || (mode === 'custom' && !mediaFieldCount)) ? 'hidden' : ''}">
-                <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">${mode === 'custom' ? `Media · Images ${imageFieldCount} · Videos ${videoFieldCount} · Audio ${audioFieldCount}` : 'Images'}</div>
-                <div class="input-list mt-2"></div>
-            </div>
-        </div>
-        <div class="comfy-controls">
-            <div class="gen-settings comfy-settings"></div>
-            <div class="gen-run-row">
-                <button class="comfy-run ${node.running ? 'running' : ''}" ${node.running ? 'disabled' : ''}><i data-lucide="zap" class="w-4 h-4"></i>${node.running ? tr('canvas.comfyRunning') : tr('canvas.comfyRun')}</button>
-                ${cascadeBtnHtml(node)}
-            </div>
-            ${retryBarHtml(node)}
-        </div>
-    `;
-    wrap.querySelectorAll('[data-mode]').forEach(btn => {
-        btn.onclick = e => {
-            e.stopPropagation();
-            node.mode = btn.dataset.mode;
-            if(node.mode === 'custom' && !hasComfyWorkflow(node.comfyWorkflow) && comfyWorkflows[0]?.name){
-                node.comfyWorkflow = comfyWorkflows[0].name;
-                ensureComfyWorkflow(node.comfyWorkflow).then(() => render());
-            }
-            render();
-            scheduleSave();
-        };
-    });
-    renderPromptPreview(wrap.querySelector('.prompt-list'), promptInputs);
-    if(mode !== 'text' && !(mode === 'custom' && !mediaFieldCount)){
-        renderComfyImages(wrap.querySelector('.input-list'), node, mode === 'custom' ? mediaInputs : imageInputs);
-    }
-    renderComfySettings(wrap.querySelector('.comfy-settings'), node);
-    wrap.querySelector('.comfy-run').onclick = e => { e.stopPropagation(); runCanvasGenerate(node.id); };
-    bindCascadeButtons(wrap, node.id);
-    return wrap;
 }
 function renderComfyImages(list, node, imageInputs){
     list.innerHTML = imageInputs.length ? '' : `<div class="text-[11px] text-gray-300 py-2">${tr('canvas.groupEmpty')}</div>`;
@@ -10448,86 +10394,6 @@ async function runRhModelNode(node, opts={}){
         showErrorModal(err.message || tr('canvas.generationFailed'), tr('canvas.apiFailed'));
     }
 }
-function renderComfySettings(container, node){
-    const mode = node.mode || 'text';
-    if(mode === 'text'){
-        container.innerHTML = `
-            <div class="gen-settings-row">
-                <label class="field"><div class="setting-title">${tr('canvas.width')}</div><input class="setting-input" data-field="width" type="number" min="64" step="64" value="${Number(node.width || 1024)}"></label>
-                <label class="field"><div class="setting-title">${tr('canvas.height')}</div><input class="setting-input" data-field="height" type="number" min="64" step="64" value="${Number(node.height || 1024)}"></label>
-            </div>
-        `;
-    } else if(mode === 'enhance'){
-        const strength = Number(node.enhanceStrength ?? 0.5);
-        container.innerHTML = `
-            <div class="gen-settings-row">
-                <label class="field" style="flex:1">
-                    <div class="setting-title" style="display:flex;justify-content:space-between">
-                        <span>${tr('studio.enhancementStrength')}</span><span class="enhance-strength-val">${strength.toFixed(2)}</span>
-                    </div>
-                    <input type="range" class="canvas-range enhance-strength-slider" data-field="enhanceStrength" min="0.1" max="1.0" step="0.05" value="${strength}">
-                </label>
-            </div>
-            <div class="gen-settings-row">
-                <button type="button" class="setting-check ${node.enhanceUpscale ? 'active' : ''}" data-toggle-field="enhanceUpscale"><span class="check-dot"></span>${tr('studio.superResolution')}</button>
-                <select class="select-lite ${node.enhanceUpscale ? '' : 'opacity-40 cursor-not-allowed'}" data-field="enhanceUpscaleRes" ${node.enhanceUpscale ? '' : 'disabled'}><option value="2048">2X (2048)</option><option value="4096">4X (4096)</option></select>
-            </div>
-        `;
-        container.querySelector('[data-field="enhanceUpscaleRes"]').value = String(node.enhanceUpscaleRes || 2048);
-    } else if(mode === 'edit'){
-        container.innerHTML = `
-            <div class="gen-settings-row">
-                <button type="button" class="setting-check ${node.editUpscale ? 'active' : ''}" data-toggle-field="editUpscale"><span class="check-dot"></span>${tr('studio.superResolution')}</button>
-                <select class="select-lite ${node.editUpscale ? '' : 'opacity-40 cursor-not-allowed'}" data-field="editUpscaleRes" ${node.editUpscale ? '' : 'disabled'}><option value="2048">2X (2048)</option><option value="4096">4X (4096)</option></select>
-            </div>
-        `;
-        container.querySelector('[data-field="editUpscaleRes"]').value = String(node.editUpscaleRes || 2048);
-    } else if(mode === 'custom'){
-        const selected = validComfyWorkflowName(node.comfyWorkflow || comfyWorkflows[0]?.name || '');
-        if(node.comfyWorkflow && node.comfyWorkflow !== selected) node.comfyWorkflow = selected;
-        const data = currentComfyWorkflow(node);
-        const fields = data?.config?.fields || [];
-        const settingFields = fields.filter(f => comfyFieldKind(f) === 'setting');
-        container.innerHTML = `
-            <div class="gen-settings-row">
-                <select class="select-lite comfy-workflow-select" data-field="comfyWorkflow" style="width:100%">${comfyWorkflowOptions(selected)}</select>
-            </div>
-            ${!selected ? `<div class="text-[11px] text-slate-400">${tr('canvas.comfyNoWorkflow')}</div>` : (!data ? `<div class="text-[11px] text-slate-400">${tr('canvas.comfyLoadingWorkflow')}</div>` : '')}
-            ${data ? settingFields.map(f => renderComfyCustomField(node, f)).join('') || `<div class="text-[11px] text-slate-400">${tr('canvas.comfyNoExtraParams')}</div>` : ''}
-        `;
-        if(selected && !data) ensureComfyWorkflow(selected).then(() => render());
-    } else {
-        container.innerHTML = '';
-    }
-    container.querySelectorAll('[data-toggle-field]').forEach(btn => {
-        btn.onmousedown = e => e.stopPropagation();
-        btn.onclick = e => {
-            e.stopPropagation();
-            const field = btn.dataset.toggleField;
-            node[field] = !node[field];
-            render();
-            scheduleSave();
-        };
-    });
-    container.querySelectorAll('button[data-comfy-param]').forEach(btn => {
-        btn.onmousedown = e => e.stopPropagation();
-        btn.onclick = e => updateComfyField(node, btn, e);
-    });
-    container.querySelectorAll('button[data-comfy-random]').forEach(btn => {
-        btn.onmousedown = e => e.stopPropagation();
-        btn.onclick = e => {
-            e.stopPropagation();
-            toggleComfyRandom(node.id, btn.dataset.comfyRandom);
-        };
-    });
-    container.querySelectorAll('input, select, textarea').forEach(input => {
-        input.onmousedown = e => e.stopPropagation();
-        input.onclick = e => e.stopPropagation();
-        if(input.classList.contains('model-select')) return;
-        input.onchange = e => updateComfyField(node, input, e);
-        input.oninput = e => updateComfyField(node, input, e);
-    });
-}
 function renderComfyCustomField(node, f){
     const value = comfyParamValue(node, f);
     const label = escapeHtml(f.name || f.input);
@@ -10570,48 +10436,6 @@ function renderComfyCustomField(node, f){
         <label class="field" style="flex:1"><div class="setting-title">${label}</div><input class="setting-input" type="${type}" data-comfy-param="${escapeHtml(f.id)}" data-comfy-type="${escapeHtml(f.type || 'text')}" value="${escapeHtml(value)}"></label>
     </div>`;
 }
-function updateComfyField(node, input, event){
-    event?.stopPropagation();
-    const paramId = input.dataset.comfyParam;
-    if(paramId){
-        node.comfyParams = node.comfyParams || {};
-        const field = comfyFields(node).find(f => f.id === paramId);
-        const type = input.dataset.comfyType || field?.type || 'text';
-        if(type === 'boolean') node.comfyParams[paramId] = !Boolean(node.comfyParams[paramId] ?? field?.default ?? false);
-        else if(type === 'number' || type === 'slider') node.comfyParams[paramId] = Number(input.value) || 0;
-        else node.comfyParams[paramId] = input.value;
-        const val = input.closest('.field')?.querySelector('.comfy-param-val');
-        if(val) val.textContent = node.comfyParams[paramId];
-        if(type === 'boolean') render();
-        scheduleSave();
-        return;
-    }
-    const field = input.dataset.field;
-    if(!field) return;
-    if(field === 'comfyWorkflow'){
-        node.comfyWorkflow = validComfyWorkflowName(input.value);
-        node.comfyParams = {};
-        ensureComfyWorkflow(node.comfyWorkflow).then(() => render());
-        scheduleSave();
-        return;
-    }
-    if(input.type === 'checkbox') {
-        node[field] = input.checked;
-        if(field === 'enhanceUpscale') render();
-    }
-    else if(field === 'enhanceStrength') {
-        node[field] = Number(input.value) || 0.5;
-        const val = input.closest('.field')?.querySelector('.enhance-strength-val');
-        if(val) val.textContent = node[field].toFixed(2);
-    }
-    else if(['width','height','enhanceUpscaleRes','editUpscaleRes','count'].includes(field)) node[field] = Number(input.value) || 1;
-    else node[field] = input.value;
-    scheduleSave();
-}
-
-const CANVAS_GENERATOR_TYPES = ['generator','midjourney','msgen','comfy','ltxDirector','video','rh','minimax'];
-const CANVAS_IMAGE_OUTPUT_TYPES = ['generator','midjourney','msgen','comfy','ltxDirector','rh'];
-const CANVAS_MEDIA_OUTPUT_TYPES = ['generator','midjourney','msgen','comfy','ltxDirector','video','rh','minimax'];
 function hasExplicitOutputConnection(nodeId){
     return connections.some(c => {
         if(c.from !== nodeId) return false;

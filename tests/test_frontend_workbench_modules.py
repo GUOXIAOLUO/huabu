@@ -445,6 +445,196 @@ catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
                 msg=f"canvas.js dispatcher for {kind!r} must call cardBody.{method}({{node}})",
             )
 
+    def test_classic_editor_routes_comfy_workflow_field_controls_through_classic_comfy_controls_seam(self):
+        # Wave 6: comfy-controls COMPAT seam. Five page-side Comfy
+        # functions (addComfyNode / comfyWorkflowOptions / renderComfyBody
+        # / renderComfySettings / updateComfyField) move behind a
+        # bounded compat seam. canvas.js no longer owns the body / settings
+        # construction or the workflow-option helper; the page only
+        # routes the kind branches through
+        # `ensureClassicComfyControls().{addNode, renderBody}(...)`.
+        seam = ROOT / "static/js/workbench/canvas/classic-comfy-controls.js"
+        # Behavioral: drive the seam in a vm sandbox with a stubbed
+        # document. addNode must land at host.addNode with the right
+        # record shape; renderBody / renderSettings must run without
+        # throwing; getWorkflowOptions must produce a stable option HTML.
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+function makeEl() {{
+    const el = {{
+        tagName: 'DIV', className: '', innerHTML: '', value: '', disabled: false,
+        style: {{}},
+        options: [],
+        children: [],
+        onclick: null, oninput: null, onchange: null,
+        onmousedown: null, onblur: null,
+        classList: {{ contains: () => false }},
+        dataset: {{}},
+        appendChild(c) {{ this.children.push(c); return c; }},
+        querySelector(sel) {{ return makeEl(); }},
+        querySelectorAll(sel) {{ return []; }},
+        forEach() {{}},
+        closest() {{ return null; }},
+        dispatchEvent(ev) {{ return true; }},
+    }};
+    return el;
+}}
+const documentStub = {{ createElement: (tag) => makeEl() }};
+const sandbox = {{window: {{}}, document: documentStub}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+const captured = {{}};
+const host = {{
+    document: documentStub,
+    escapeHtml: (s) => String(s), tr: (k) => k,
+    addNode: (record) => {{ captured.record = record; return record; }},
+    uid: (prefix) => prefix + '-test',
+    defaultPoint: (dx, dy) => ({{x: dx, y: dy}}),
+    allImageModels: () => ['test-comfy-model'],
+    imageApiProviders: () => [{{id: 'comfly'}}],
+    getModels: () => ({{gpt: 'gpt-image-2'}}),
+    getComfyWorkflows: () => [{{name: 'wf1.json', title: 'Workflow 1'}}, {{name: 'wf2.json', title: 'Workflow 2'}}],
+    generatorSources: () => [], orderedSources: (n, s) => s, imageRefsOnly: (refs) => refs,
+    comfyFields: () => [],
+    validComfyWorkflowName: (n) => n,
+    hasComfyWorkflow: (n) => Boolean(n),
+    currentComfyWorkflow: () => null,
+    comfyFieldKind: () => 'setting',
+    ensureComfyWorkflow: async () => ({{}}),
+    render: () => {{}}, scheduleSave: () => {{}}, runCanvasGenerate: () => {{}},
+    renderPromptPreview: () => {{}}, renderComfyImages: () => {{}},
+    renderComfyCustomField: () => '', toggleComfyRandom: () => {{}},
+    bindCascadeButtons: () => {{}}, cascadeBtnHtml: () => '', retryBarHtml: () => '',
+}};
+const api = sandbox.window.WorkbenchCanvasClassicComfyControls.create(host);
+const out = {{
+    hasAddNode: typeof api.addNode === 'function',
+    hasRenderBody: typeof api.renderBody === 'function',
+    hasRenderSettings: typeof api.renderSettings === 'function',
+    hasUpdateField: typeof api.updateField === 'function',
+    hasGetWorkflowOptions: typeof api.getWorkflowOptions === 'function',
+    frozen: Object.isFrozen(api),
+    workflowOpts: api.getWorkflowOptions({{selected: 'wf1.json'}}),
+    workflowOptsEmpty: api.getWorkflowOptions({{selected: ''}}),
+}};
+try {{
+  api.addNode({{point: {{x: 100, y: 200}}}});
+  out.addNodeRan = true;
+  out.addNodeType = captured.record?.type;
+  out.addNodeId = captured.record?.id;
+  out.addNodeProvider = (captured.record?.editModel || '');
+  out.addNodeMode = captured.record?.mode;
+  out.addNodeComfyWorkflow = captured.record?.comfyWorkflow;
+}} catch(e) {{ out.addNodeErr = String(e); }}
+// Build a second seam instance with an empty workflow list so the
+// `getWorkflowOptions` fallback path can be exercised. The seam
+// module destructures host.getComfyWorkflows into a local `var` at
+// create() time, so a second `create()` call with an empty list is
+// the only way to land on the `<option value="">…</option>` branch.
+const emptyHost = Object.assign({{}}, host, {{getComfyWorkflows: () => []}});
+const emptyApi = sandbox.window.WorkbenchCanvasClassicComfyControls.create(emptyHost);
+out.workflowOptsEmpty = emptyApi.getWorkflowOptions({{selected: ''}});
+try {{
+  const node = {{type: 'comfy', mode: 'text'}};
+  api.renderBody({{node}});
+  out.renderBodyRan = true;
+}} catch(e) {{ out.renderBodyErr = String(e); }}
+try {{
+  const container = makeEl();
+  api.renderSettings({{container, node: {{mode: 'text', width: 1024, height: 1024}}}});
+  out.renderSettingsRan = true;
+}} catch(e) {{ out.renderSettingsErr = String(e); }}
+console.log(JSON.stringify(out));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        actual = json.loads(result.stdout)
+        self.assertTrue(actual["hasAddNode"], msg="seam must expose addNode")
+        self.assertTrue(actual["hasRenderBody"], msg="seam must expose renderBody")
+        self.assertTrue(actual["hasRenderSettings"], msg="seam must expose renderSettings")
+        self.assertTrue(actual["hasUpdateField"], msg="seam must expose updateField")
+        self.assertTrue(actual["hasGetWorkflowOptions"], msg="seam must expose getWorkflowOptions")
+        self.assertTrue(actual["frozen"], msg="seam handle must be frozen")
+        self.assertTrue(actual.get("addNodeRan"), msg=f"addNode must run on minimal mock host, got: {actual.get('addNodeErr')}")
+        self.assertTrue(actual.get("renderBodyRan"), msg=f"renderBody must run on minimal mock host, got: {actual.get('renderBodyErr')}")
+        self.assertTrue(actual.get("renderSettingsRan"), msg=f"renderSettings must run on minimal mock host, got: {actual.get('renderSettingsErr')}")
+        self.assertEqual(actual.get("addNodeType"), "comfy", msg="addNode must produce a 'comfy' node record")
+        self.assertEqual(actual.get("addNodeId"), "comfy-test", msg="addNode must use uid('comfy')")
+        self.assertEqual(actual.get("addNodeMode"), "text", msg="addNode must default mode to 'text'")
+        self.assertEqual(actual.get("addNodeComfyWorkflow"), "", msg="addNode must initialize comfyWorkflow to ''")
+        self.assertIn("wf1.json", actual["workflowOpts"], msg="getWorkflowOptions must list workflows when selected matches")
+        self.assertIn("wf2.json", actual["workflowOpts"], msg="getWorkflowOptions must list all workflows")
+        self.assertIn('selected', actual["workflowOpts"], msg="getWorkflowOptions must mark the selected workflow")
+        self.assertIn("comfyNoWorkflow", actual["workflowOptsEmpty"], msg="getWorkflowOptions must fall back to a placeholder when no workflows")
+        # TypeError-on-missing-host: every one of the 29 REQUIRED ops
+        # must be validated. Iterate each name in turn and confirm
+        # create() throws TypeError when it is removed.
+        REQUIRED = [
+            'document', 'escapeHtml', 'tr',
+            'addNode', 'uid', 'defaultPoint',
+            'allImageModels', 'imageApiProviders',
+            'getModels', 'getComfyWorkflows',
+            'generatorSources', 'orderedSources', 'imageRefsOnly',
+            'comfyFields', 'validComfyWorkflowName',
+            'hasComfyWorkflow', 'currentComfyWorkflow',
+            'comfyFieldKind', 'ensureComfyWorkflow',
+            'render', 'scheduleSave', 'runCanvasGenerate',
+            'renderPromptPreview', 'renderComfyImages',
+            'renderComfyCustomField', 'toggleComfyRandom',
+            'bindCascadeButtons', 'cascadeBtnHtml', 'retryBarHtml',
+        ]
+        self.assertEqual(len(REQUIRED), 29,
+            msg="REQUIRED_OPS count pin: Wave 6 seam module declares 29 host ops; if you add/remove an op, update both the seam and this test")
+        for missing in REQUIRED:
+            partial_script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+const fullHost = {{
+    document: {{createElement: () => ({{}})}}, escapeHtml: () => '', tr: () => '',
+    addNode: (r) => r, uid: (p) => p, defaultPoint: () => ({{x:0,y:0}}),
+    allImageModels: () => [], imageApiProviders: () => [],
+    getModels: () => ({{gpt: ''}}), getComfyWorkflows: () => [],
+    generatorSources: () => [], orderedSources: (n,s)=>s, imageRefsOnly: (refs)=>refs,
+    comfyFields: () => [], validComfyWorkflowName: (n)=>n,
+    hasComfyWorkflow: () => false, currentComfyWorkflow: () => null,
+    comfyFieldKind: () => 'setting', ensureComfyWorkflow: async () => ({{}}),
+    render: () => {{}}, scheduleSave: () => {{}}, runCanvasGenerate: () => {{}},
+    renderPromptPreview: () => {{}}, renderComfyImages: () => {{}},
+    renderComfyCustomField: () => '', toggleComfyRandom: () => {{}},
+    bindCascadeButtons: () => {{}}, cascadeBtnHtml: () => '', retryBarHtml: () => '',
+}};
+delete fullHost.{missing};
+try {{ sandbox.window.WorkbenchCanvasClassicComfyControls.create(fullHost); console.log('no-throw'); }}
+catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
+"""
+            partial_result = subprocess.run(["node", "-e", partial_script], check=True, text=True, capture_output=True)
+            self.assertIn("TypeError", partial_result.stdout,
+                msg=f"missing host.{missing} should throw TypeError, got: {partial_result.stdout}")
+        # Source-contract: canvas.html loads the seam before canvas.js.
+        page_source = (ROOT / "static/canvas.html").read_text(encoding="utf-8")
+        seam_href = "workbench/canvas/classic-comfy-controls.js"
+        editor_href = "static/js/canvas.js"
+        self.assertLess(page_source.index(seam_href), page_source.index(editor_href),
+            msg="classic-comfy-controls.js must load before canvas.js in canvas.html")
+        # Source-contract: canvas.js deleted the five local Comfy function
+        # definitions and the dispatcher routes 'comfy' through the seam.
+        editor_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        self.assertNotIn("function addComfyNode", editor_source,
+            msg="canvas.js should no longer define function addComfyNode")
+        self.assertNotIn("function comfyWorkflowOptions", editor_source,
+            msg="canvas.js should no longer define function comfyWorkflowOptions")
+        self.assertNotIn("function renderComfyBody", editor_source,
+            msg="canvas.js should no longer define function renderComfyBody")
+        self.assertNotIn("function renderComfySettings", editor_source,
+            msg="canvas.js should no longer define function renderComfySettings")
+        self.assertNotIn("function updateComfyField", editor_source,
+            msg="canvas.js should no longer define function updateComfyField")
+        self.assertIn("function ensureClassicComfyControls", editor_source,
+            msg="canvas.js must declare ensureClassicComfyControls next to ensureClassicCardBodyRenderer")
+        self.assertIn("ensureClassicComfyControls().addNode({point})", editor_source,
+            msg="canvas.js createNodeByType dispatcher must call ensureClassicComfyControls().addNode({point})")
+        self.assertIn("comfy.renderBody({node})", editor_source,
+            msg="canvas.js body dispatcher must call comfy.renderBody({node})")
+
     def test_versioned_node_creation_is_default_on_loopback_with_an_explicit_rollback(self):
         client = ROOT / "static" / "js" / "workbench" / "canvas" / "node-creation-client.js"
         script = f"""

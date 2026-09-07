@@ -9,12 +9,14 @@
 - Wave 3 done: 2026-09-07T16:05+08:00
 - Wave 4 done: 2026-09-07T16:13+08:00
 - Wave 5 done: 2026-09-07T16:30+08:00
-- Closed: (not yet — 10 of 15 Classic capabilities still need shrink waves;
+- Wave 6 done: 2026-09-07T16:52+08:00
+- Closed: (not yet — 9 of 15 Classic capabilities still need shrink waves;
   inventory grew from 13 → 14 (Wave 3) → 15 (Wave 4) as video-player and
   output-node were split into factory-half MIGRATE + body-half COMPAT.
   4 MIGRATE rows are 100% done (Waves 1-4); Wave 5 closed provider-card-body
-  COMPAT; 9 COMPAT rows + 1 DEFER-R8 remain across Waves 6-15, plus Wave 16
-  (shrink-to-bootstrap) closes the card.)
+  COMPAT; Wave 6 closed comfy-controls COMPAT; 8 COMPAT rows + 1 DEFER-R8
+  remain across Waves 7-15, plus Wave 16 (shrink-to-bootstrap) closes the
+  card.)
 - Depends on: R4-37
 
 ## Goal
@@ -182,7 +184,45 @@ every wave is DONE.
       provider-controls → card-body → canvas.js dependency order, and
       the `ensureProviderControls` host-injection assertion stays on
       canvas.js (the page owns the host, the seam consumes it).
-- [ ] Waves 6–14: each remaining COMPAT capability (Comfy / RunningHub /
+- [x] Wave 6: comfy-controls COMPAT seam done. New bounded compat
+      seam `static/js/workbench/canvas/classic-comfy-controls.js`
+      (`window.WorkbenchCanvasClassicComfyControls.create(host)` returns
+      frozen `{addNode({point}), renderBody({node}), renderSettings
+      ({container, node}), updateField({node, input, event}),
+      getWorkflowOptions({selected})}`); canvas.js deletes the five
+      local Comfy function definitions (addComfyNode / comfyWorkflow
+      Options / renderComfyBody / renderComfySettings / updateComfyField,
+      ~222 LOC of body + settings + field construction); canvas.js
+      `createNodeByType` routes `'comfy'` through
+      `ensureClassicComfyControls().addNode({point})`; body dispatcher
+      routes `node.type === 'comfy'` through `comfy.renderBody({node})`
+      (alongside the Wave 5 `cardBody.renderXxx({node})` pattern).
+      The seam module owns the five function bodies; page injects the
+      29 REQUIRED host ops (document / escapeHtml / tr / addNode / uid /
+      defaultPoint / allImageModels / imageApiProviders /
+      getModels: () => models / getComfyWorkflows: () => comfyWorkflows
+      / generatorSources / orderedSources / imageRefsOnly /
+      comfyFields / validComfyWorkflowName / hasComfyWorkflow /
+      currentComfyWorkflow / comfyFieldKind / ensureComfyWorkflow /
+      render / scheduleSave / runCanvasGenerate / renderPromptPreview /
+      renderComfyImages / renderComfyCustomField / toggleComfyRandom /
+      bindCascadeButtons / cascadeBtnHtml / retryBarHtml). The
+      R4-31 inventory's `comfy-controls` row gains
+      `evidence_target = static/js/workbench/canvas/classic-comfy-
+      controls.js` so the inventory's evidence-grounding test now
+      grounds the five Comfy function names in the seam module. Focused
+      test
+      `test_classic_editor_routes_comfy_workflow_field_controls_through_classic_comfy_controls_seam`
+      drives `addNode` / `renderBody` / `renderSettings` in a vm
+      sandbox with a stub document and asserts each runs without
+      throwing, asserts `addNode` produces
+      `(type:'comfy', id:'comfy-test', mode:'text', editModel:'test-comfy-model',
+      comfyWorkflow:'')` exactly, asserts `getWorkflowOptions` lists the
+      seeded workflows and the empty-list fallback option, exercises the
+      full 29-op missing-host-op TypeError loop, source-contracts the
+      five wrapper-deletions + `ensureClassicComfyControls().addNode({point})`
+      factory shape + `comfy.renderBody({node})` body dispatcher shape.
+- [ ] Waves 7–14: each remaining COMPAT capability (RunningHub /
       MiniMax / LTX controls, video-card-body, video-provider/params,
       output-grid-renderer, generation-log, cascade-orchestrator) either
       becomes a bounded compat seam module or stays page-side per the
@@ -438,16 +478,98 @@ for per-wave evidence so far.)
   the new seam module), PASS Architecture guards (4), PASS
   `git diff --check`. `AGENT VERIFY: PASS`.
 
+## Wave 6 evidence
+
+- Files changed:
+  - `static/js/workbench/canvas/classic-comfy-controls.js` (new,
+    ~325 LOC: IIFE wrapper; REQUIRED_OPS list with 29 host ops;
+    `create(host)` factory that validates every required op is present
+    (TypeError-on-missing-host) and destructures them into module-scope
+    `var` bindings; the five function bodies — `addComfyNode`,
+    `comfyWorkflowOptions`, `renderComfyBody`, `renderComfySettings`,
+    `updateComfyField` — copied verbatim from canvas.js with all
+    helper references now pointing to host-injected locals; frozen
+    handle with five methods that forward to the function bodies;
+    window export
+    `WorkbenchCanvasClassicComfyControls = Object.freeze({create})`).
+    The five Comfy bodies total ~222 LOC (32 + 4 + 64 + 80 + 42) and
+    are now reachable only through this seam module.
+  - `static/canvas.html`: `<script
+    src=".../classic-comfy-controls.js?v=2026.09.07.1"></script>`
+    inserted between `classic-card-body-renderer.js` and `canvas.js`,
+    so the load order is now
+    `provider-controls → card-body → comfy-controls → canvas.js`.
+  - `static/js/canvas.js`: `function addComfyNode` /
+    `comfyWorkflowOptions` / `renderComfyBody` / `renderComfySettings`
+    / `updateComfyField` function definitions deleted (-222 LOC of
+    Comfy body / settings / field construction). `createNodeByType`'s
+    `'comfy'` dispatch rewritten from `return addComfyNode(point)` to
+    `return ensureClassicComfyControls().addNode({point})`. The body
+    dispatcher's `'comfy'` branch rewritten from
+    `body.appendChild(renderComfyBody(node))` to
+    `body.appendChild(comfy.renderBody({node}))` after a single
+    `const comfy = ensureClassicComfyControls();` line alongside the
+    Wave 5 `const cardBody = ensureClassicCardBodyRenderer();` line.
+    New `let classicComfyControls = null;` + `function
+    ensureClassicComfyControls()` next to the existing
+    `ensureClassicCardBodyRenderer`, injecting all 29 REQUIRED host
+    ops (document / escapeHtml / tr / addNode / uid / defaultPoint /
+    allImageModels / imageApiProviders / getModels: () => models /
+    getComfyWorkflows: () => comfyWorkflows / generatorSources /
+    orderedSources / imageRefsOnly / comfyFields /
+    validComfyWorkflowName / hasComfyWorkflow / currentComfyWorkflow /
+    comfyFieldKind / ensureComfyWorkflow / render / scheduleSave /
+    runCanvasGenerate / renderPromptPreview / renderComfyImages /
+    renderComfyCustomField / toggleComfyRandom / bindCascadeButtons /
+    cascadeBtnHtml / retryBarHtml). The two closure values
+    (`getModels`, `getComfyWorkflows`) keep the seam's
+    REQUIRED-all-function contract stable even though `models` is a
+    const and `comfyWorkflows` is a `let`.
+  - `tests/test_frontend_workbench_modules.py`: new focused test
+    `test_classic_editor_routes_comfy_workflow_field_controls_through_classic_comfy_controls_seam`
+    — drives `addNode` / `renderBody` / `renderSettings` in a vm
+    sandbox with a stub `document.createElement` + minimal mock host
+    (29 ops); asserts each runs without throwing; asserts `addNode`
+    produces
+    `(type:'comfy', id:'comfy-test', mode:'text', editModel:'test-comfy-model',
+    comfyWorkflow:'')` exactly (the same record shape the page-side
+    factory produced); asserts `getWorkflowOptions` lists the seeded
+    workflows and the empty-list fallback option (`<option value="">
+    canvas.comfyNoWorkflow</option>`); iterates all 29 host ops to
+    verify TypeError-on-missing-host (with a
+    `assertEqual(len(REQUIRED), 29)` count pin to keep seam + test
+    synchronized); source-contracts the canvas.html seam load order
+    (comfy-controls before canvas.js), the five `function` wrapper
+    deletions in canvas.js, and the two dispatcher seam-call shapes
+    (`ensureClassicComfyControls().addNode({point})` +
+    `comfy.renderBody({node})`).
+  - `docs/plans/R4_CLASSIC_CAPABILITY_INVENTORY.md`: `comfy-controls`
+    manifest row gets `evidence_target =
+    "static/js/workbench/canvas/classic-comfy-controls.js"` so the
+    `test_every_capability_evidence_is_grounded_in_source` inventory
+    test now grounds the five Comfy function names
+    (`addComfyNode` / `renderComfyBody` / `renderComfySettings` /
+    `updateComfyField` / `comfyWorkflowOptions`) in the seam module
+    instead of canvas.js.
+- Regression: `./scripts/agent-verify.sh` PASS at 349 Python unit
+  tests (was 348 after Wave 5; +1 from Wave 6's new focused test),
+  PASS Python AST parse (76 files), PASS JavaScript syntax (74
+  files; +1 for the new seam module), PASS Architecture guards (4),
+  PASS `git diff --check`. `AGENT VERIFY: PASS`.
+
 ## Recommended Next Card (after this card itself closes)
 
 `R4-39 — Remove Legacy canvas.js Product Runtime`
 (`docs/tasks/backlog/R4-39-remove-classic-runtime.md`)
 
-Within R4-38 itself, the next wave after Wave 5 is **Wave 6:
-Comfy workflow/field controls COMPAT seam** (batches `addComfyNode` +
-`renderComfyBody` + `renderComfySettings` + `updateComfyField` +
-`comfyWorkflowOptions` as bounded compat per R4-31 — R8 owns the real
-executor-driven Comfy workflow rendering).
+Within R4-38 itself, the next wave after Wave 6 is **Wave 7:
+RunningHub workflow/params COMPAT seam** (batches `addRhNode` +
+`renderRhBody` + `renderRhParams` + `runningHubProvider` +
+`currentRunningHubWorkflow` + `currentRunningHubWorkflowConfig` as
+bounded compat per R4-31 — R8 owns the real executor-driven
+RunningHub workflow rendering; the same seam pattern as Wave 5
+card-body and Wave 6 comfy-controls applies — extract to
+`static/js/workbench/canvas/classic-runninghub-controls.js`).
 
 Do not execute waves in batch — each wave is its own focused commit
 + regression cycle.

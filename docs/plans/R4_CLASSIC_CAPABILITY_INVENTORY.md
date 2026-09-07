@@ -123,7 +123,7 @@ Machine-readable; anchored by `tests/test_classic_capability_inventory.py`.
     {"id": "provider-node-creation", "category": "Provider cards", "disposition": "MIGRATED", "target_owner": "Unified creation/mutation boundary", "evidence_target": "static/js/workbench/canvas/classic-node-factories.js", "evidence": ["addGenerator(", "addMidjourney(", "addMsGen("]},
     {"id": "provider-card-body", "category": "Provider cards", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8 Provider/Model registry)", "evidence_target": "static/js/workbench/canvas/classic-card-body-renderer.js", "evidence": ["renderGeneratorBody", "renderMidjourneyBody", "renderMsGenBody", "renderLLMBody"]},
 
-    {"id": "comfy-controls", "category": "Comfy", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8)", "evidence": ["addComfyNode", "renderComfyBody", "renderComfySettings", "updateComfyField", "comfyWorkflowOptions"]},
+    {"id": "comfy-controls", "category": "Comfy", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8)", "evidence_target": "static/js/workbench/canvas/classic-comfy-controls.js", "evidence": ["addComfyNode", "renderComfyBody", "renderComfySettings", "updateComfyField", "comfyWorkflowOptions"]},
     {"id": "comfy-result-normalization", "category": "Comfy", "disposition": "MIGRATED", "target_owner": "Unified media-result normalizer", "evidence": ["window.WorkbenchCanvasMediaResultNormalizer.extract"]},
 
     {"id": "runninghub", "category": "RunningHub", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8)", "evidence": ["addRhNode", "renderRhBody", "runningHubProvider", "currentRunningHubWorkflow", "currentRunningHubWorkflowConfig", "renderRhParams"]},
