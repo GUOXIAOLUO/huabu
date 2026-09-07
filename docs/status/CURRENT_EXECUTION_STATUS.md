@@ -1387,6 +1387,67 @@ new redundant ones, since the handoff helpers had no other consumers),
 PASS Python AST parse, PASS JavaScript syntax, PASS Architecture
 guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
 
+R4 Classic runtime shrink — Wave 3 of R4-38
+(card R4-38, Wave 3 done 2026-09-07T16:05+08:00, Owner authorization
+via in-conversation "Wave 3"; implementer evidence, independent review
+pending): the third shrink wave closes the **factory half** of the
+R4-31 `video-player` capability (the page-side `function addVideoNode(point)`
+that encoded the type-specific video-record schema with provider/model
+defaults, 16:9 aspect, durations, all the boolean provider flags,
+etc.) by extending the host seam
+`static/js/workbench/canvas/classic-node-factories.js` (Wave 2 seam)
+with 4 new REQUIRED host ops (`videoApiProviders` / `providerVideoModels`
+/ `videoModels` / `defaultVideoModels`; 8 → 12 total) and a new
+`addVideo({point})` factory method on the seam's frozen handle. The
+seam bodies out exactly the original `function addVideoNode(point)`
+body it replaces — provider default `'comfly'`, model fallback chain
+`providerVideoModels(providerId)[0] || videoModels()[0] || defaultVideoModels()[0]`,
+11 typed fields (`duration:5`, `aspectRatio:'16:9'`, `resolution:''`,
+`enhancePrompt/enableUpsample/watermark/cameraFixed/generateAudio/useFrameRoles/multimodal: false`,
+`tempShLinks:[]`, `inputs:[]`, `running:false`). canvas.js deletes
+the local `function addVideoNode(point)` definition (-26 LOC);
+`ensureClassicNodeFactories()` host injects the 4 new ops
+(`videoApiProviders`, `providerVideoModels`, `videoModels: () => videoModels`,
+`defaultVideoModels: () => DEFAULT_VIDEO_MODELS` — the last is a
+constant-array-closing function so the seam's REQUIRED-op contract
+still treats it as a function); `createNodeByType`'s `'video'`
+dispatch rewrites from `return addVideoNode(point)` to
+`return ensureClassicNodeFactories().addVideo({point})`. R4-31
+inventory's `video-player` row is SPLIT — the factory half (Wave 3)
+becomes a `video-node-creation` MIGRATED entry with
+`evidence_target = 'static/js/workbench/canvas/classic-node-factories.js'`
+and evidence = `addVideo(`; the body half becomes a `video-card-body`
+COMPAT entry with evidence = `renderVideoBody` (page-side, target =
+Legacy execution seam / R8 — same disposition class as `provider-card-body`,
+because `renderVideoBody` constructs the same provider-param UI other
+provider card bodies do). Inventory total grows 13 → 14 capabilities;
+Summary block adjusted (`MIGRATED: 3`, `MIGRATE: 1`, `COMPAT: 9`,
+`DEFER-R8: 1`). Wave 2's
+`test_classic_editor_routes_provider_node_creation_through_classic_node_factories_seam`
+extended to also exercise all 12 REQUIRED host ops (success-case host
+mock plus missing-host-op TypeError loop) so the seam's REQUIRED
+validation stays strictly tested across the full host surface. New
+focused test
+`test_classic_editor_routes_video_node_creation_through_classic_node_factories_seam`
+(a) drives the seam's new `addVideo` in a vm sandbox with a mock host
+covering all 12 REQUIRED ops; (b) asserts the exact record shape
+(type='video', id='vid-test', apiProvider='test-vid',
+model='test-vid-model', duration=5, aspectRatio='16:9', x=222,
+y=333, inputs=[]); (c) source-contracts the canvas.js
+wrapper-deletion (`function addVideoNode` absent) + dispatcher
+seam-call (`ensureClassicNodeFactories().addVideo({point})`) + the
+4 host injections including the literal
+`defaultVideoModels: () => DEFAULT_VIDEO_MODELS` const-returning
+closure. R4-38 remains IN_PROGRESS — 11 of 14 Classic capabilities
+still need shrink waves (output-node MIGRATE + 8 COMPAT + 1
+DEFER-R8 + 1 split COMPAT video-card-body waiting for R8, since
+R4 forbids reimplementing COMPAT provider body rendering). Regression:
+`./scripts/agent-verify.sh` PASS at 346 Python unit tests (was 345
+after Wave 2; +1 from Wave 3's new focused test), PASS Python AST
+parse (76 files), PASS JavaScript syntax (72 files), PASS
+Architecture guards (4), PASS `git diff --check`.
+`AGENT VERIFY: PASS`.
+
 R4 Classic runtime shrink — Wave 2 of R4-38
 (card R4-38, Wave 2 done 2026-09-07T15:55+08:00, Owner authorization
 via in-conversation "继续 Wave 2"; implementer evidence, independent

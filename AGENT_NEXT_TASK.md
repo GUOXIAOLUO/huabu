@@ -38,10 +38,13 @@
   seam-call shapes; inventory `provider-node-creation` row updated
   disposition `MIGRATE → MIGRATED` + new schema field
   `evidence_target` pointing at the seam module — +1 → 345 tests PASS).
-  Next wave (recommended successor inside the same card): **Wave 3 —
-  video-player** MIGRATE (`addVideoNode` + `renderVideoBody` →
-  creation boundary + Video body delegation, likely a
-  `classic-video-factory.js` host seam following the Wave-2 pattern).
+Next wave (recommended successor inside the same card): **Wave 4 —
+output-node** MIGRATE (`addOutputNode` + `refreshOutputNodeContent` +
+`renderOutputGrid` + `bindOutputWrap` — factory half routed through
+`ensureClassicNodeFactories().addOutput(...)`, grid/lifecycle half
+extracted to a focused contract once the factory wave lands; likely
+will also split the inventory row into `output-node-creation` MIGRATED
++ `output-grid-renderer` COMPAT/R8 mirroring the Wave 3 split).
 
 ## Completed Tasks
 

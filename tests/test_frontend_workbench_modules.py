@@ -77,6 +77,10 @@ const host = {{
     defaultApiImageResolution: () => '1024x1024',
     resolveMidjourneyProviderId: () => 'test-mj',
     modelscopeImageModels: () => ['test-ms'],
+    videoApiProviders: () => [],
+    providerVideoModels: () => [],
+    videoModels: () => [],
+    defaultVideoModels: () => [],
 }};
 const api = sandbox.window.WorkbenchCanvasClassicNodeFactories.create(host);
 api.addGenerator({{point: {{x: 100, y: 50}}}});
@@ -93,7 +97,9 @@ console.log(JSON.stringify(calls));
         # Behavioral: missing host op throws TypeError on create.
         for missing in ('addNode', 'uid', 'defaultPoint', 'imageApiProviders',
                 'allImageModels', 'defaultApiImageResolution',
-                'resolveMidjourneyProviderId', 'modelscopeImageModels'):
+                'resolveMidjourneyProviderId', 'modelscopeImageModels',
+                'videoApiProviders', 'providerVideoModels',
+                'videoModels', 'defaultVideoModels'):
             partial_script = f"""
 const fs = require('fs'); const vm = require('vm');
 const sandbox = {{window: {{}}}};
@@ -103,6 +109,8 @@ const fullHost = {{
     imageApiProviders: () => [], allImageModels: () => [],
     defaultApiImageResolution: () => '', resolveMidjourneyProviderId: () => '',
     modelscopeImageModels: () => [],
+    videoApiProviders: () => [], providerVideoModels: () => [],
+    videoModels: () => [], defaultVideoModels: () => [],
 }};
 delete fullHost.{missing};
 try {{ sandbox.window.WorkbenchCanvasClassicNodeFactories.create(fullHost); console.log('no-throw'); }}
@@ -127,6 +135,58 @@ catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
         for seam_call in (".addGenerator({point})", ".addMidjourney({point})", ".addMsGen({point})"):
             self.assertIn(seam_call, editor_source,
                 msg=f"canvas.js dispatcher should call ensureClassicNodeFactories(){seam_call}")
+
+    def test_classic_editor_routes_video_node_creation_through_classic_node_factories_seam(self):
+        # Wave 3 follow-on: video-node-creation MIGRATED. Drives the seam's
+        # new addVideo method and pins the canvas.js dispatcher + wrapper-
+        # deletion source-contract for the video half specifically.
+        seam = ROOT / "static/js/workbench/canvas/classic-node-factories.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+const captured = {{}};
+const host = {{
+    addNode: (record) => {{ captured.record = record; return record; }},
+    uid: (prefix) => prefix + '-test',
+    defaultPoint: (dx, dy) => ({{x: dx, y: dy}}),
+    imageApiProviders: () => [], allImageModels: () => [],
+    defaultApiImageResolution: () => '', resolveMidjourneyProviderId: () => '',
+    modelscopeImageModels: () => [],
+    videoApiProviders: () => [{{id: 'test-vid'}}],
+    providerVideoModels: () => ['test-vid-model'],
+    videoModels: () => ['dynamic-vid-model'],
+    defaultVideoModels: () => ['fallback-vid-model'],
+}};
+const api = sandbox.window.WorkbenchCanvasClassicNodeFactories.create(host);
+api.addVideo({{point: {{x: 222, y: 333}}}});
+console.log(JSON.stringify({{
+  type: captured.record.type, id: captured.record.id,
+  apiProvider: captured.record.apiProvider, model: captured.record.model,
+  duration: captured.record.duration, aspectRatio: captured.record.aspectRatio,
+  x: captured.record.x, y: captured.record.y, inputs: captured.record.inputs,
+}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), {
+            "type": "video", "id": "vid-test",
+            "apiProvider": "test-vid", "model": "test-vid-model",
+            "duration": 5, "aspectRatio": "16:9",
+            "x": 222, "y": 333, "inputs": [],
+        })
+        # Source-contract: canvas.js no longer has the local factory
+        # definition and the dispatcher routes 'video' through the seam.
+        editor_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        self.assertNotIn("function addVideoNode", editor_source,
+            msg="canvas.js should no longer define function addVideoNode")
+        self.assertIn("ensureClassicNodeFactories().addVideo({point})", editor_source,
+            msg="canvas.js dispatcher should call ensureClassicNodeFactories().addVideo({point})")
+        self.assertIn("videoApiProviders", editor_source,
+            msg="ensureClassicNodeFactories host should still inject videoApiProviders")
+        self.assertIn("providerVideoModels", editor_source,
+            msg="ensureClassicNodeFactories host should still inject providerVideoModels")
+        self.assertIn("defaultVideoModels: () => DEFAULT_VIDEO_MODELS", editor_source,
+            msg="ensureClassicNodeFactories host should inject defaultVideoModels as a constant-returning function")
 
     def test_versioned_node_creation_is_default_on_loopback_with_an_explicit_rollback(self):
         client = ROOT / "static" / "js" / "workbench" / "canvas" / "node-creation-client.js"

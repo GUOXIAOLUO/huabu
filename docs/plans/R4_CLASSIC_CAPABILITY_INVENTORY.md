@@ -68,7 +68,8 @@ characterization deliverable — no code is deleted or migrated by this card
 
 | Capability | Disposition | Target owner | Key functions |
 |---|---|---|---|
-| Video node/player | MIGRATE | Unified media renderer | `addVideoNode`, `renderVideoBody` |
+| Video node creation | MIGRATED | Unified creation/mutation boundary | `addVideo(` (in `static/js/workbench/canvas/classic-node-factories.js` host seam) |
+| Video card body | COMPAT | Legacy execution seam (R8) | `renderVideoBody` |
 | Video provider/params | COMPAT | Legacy execution seam (R8) | `videoApiProviders`, `resolveVideoProviderId`, `providerVideoModels`, `renderVideoImageInputs` |
 
 ### 7. Output / log
@@ -92,9 +93,10 @@ characterization deliverable — no code is deleted or migrated by this card
 
 ## Summary
 
-- **13 capabilities**, 9 categories, all page-owned today (Classic-only).
-- **MIGRATE**: 4 — provider node creation, Comfy result normalization, video node/player, output node/grid.
-- **COMPAT**: 8 — provider card bodies, Comfy/RunningHub/MiniMax/LTX controls, video params, generation log, cascade.
+- **14 capabilities**, 9 categories, all page-owned today (Classic-only).
+- **MIGRATED**: 3 — provider node creation, Comfy result normalization, video node creation.
+- **MIGRATE**: 1 — output node/grid.
+- **COMPAT**: 9 — provider card bodies, Comfy/RunningHub/MiniMax/LTX controls, video card body, video params, generation log, cascade.
 - **DEFER-R8**: 1 — asset library/manager (forbidden in R4).
 - **KEEP / REMOVE**: none at capability granularity; the Classic runtime shell and Classic-entry deep-link are REMOVE (already tracked in the ownership matrix `Classic product runtime` row).
 
@@ -129,7 +131,8 @@ Machine-readable; anchored by `tests/test_classic_capability_inventory.py`.
 
     {"id": "ltx", "category": "LTX", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8)", "evidence": ["addLTXDirectorNode", "renderLTXDirectorBody", "destroyLTXEditor", "ltxParseTimeline", "ltxFlushTimelineToNode", "ltxBuildContiguousRelay"]},
 
-    {"id": "video-player", "category": "Video", "disposition": "MIGRATE", "target_owner": "Unified media renderer", "evidence": ["addVideoNode", "renderVideoBody"]},
+    {"id": "video-node-creation", "category": "Video", "disposition": "MIGRATED", "target_owner": "Unified creation/mutation boundary", "evidence_target": "static/js/workbench/canvas/classic-node-factories.js", "evidence": ["addVideo("]},
+    {"id": "video-card-body", "category": "Video", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8)", "evidence": ["renderVideoBody"]},
     {"id": "video-provider-params", "category": "Video", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8)", "evidence": ["videoApiProviders", "resolveVideoProviderId", "providerVideoModels", "renderVideoImageInputs"]},
 
     {"id": "output-node", "category": "Output / log", "disposition": "MIGRATE", "target_owner": "Unified media renderer / render runtime", "evidence": ["addOutputNode", "refreshOutputNodeContent", "renderOutputGrid", "bindOutputWrap"]},

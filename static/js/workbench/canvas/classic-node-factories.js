@@ -28,6 +28,10 @@
         defaultApiImageResolution: 'function',
         resolveMidjourneyProviderId: 'function',
         modelscopeImageModels: 'function',
+        videoApiProviders: 'function',
+        providerVideoModels: 'function',
+        videoModels: 'function',
+        defaultVideoModels: 'function',
     };
 
     function assertHost(host) {
@@ -109,6 +113,32 @@
                     msCustomHeight: '',
                     count: 1,
                     fitImage: false,
+                    inputs: [],
+                    running: false,
+                });
+            },
+            addVideo({point} = {}) {
+                const p = point || host.defaultPoint(160, 0);
+                const providerId = host.videoApiProviders()[0]?.id || 'comfly';
+                const models = host.providerVideoModels(providerId);
+                return host.addNode({
+                    id: host.uid('vid'),
+                    type: 'video',
+                    x: p.x,
+                    y: p.y,
+                    apiProvider: providerId,
+                    model: models[0] || host.videoModels()[0] || host.defaultVideoModels()[0],
+                    duration: 5,
+                    aspectRatio: '16:9',
+                    resolution: '',
+                    enhancePrompt: false,
+                    enableUpsample: false,
+                    watermark: false,
+                    cameraFixed: false,
+                    generateAudio: false,
+                    useFrameRoles: false,
+                    multimodal: false,
+                    tempShLinks: [],
                     inputs: [],
                     running: false,
                 });

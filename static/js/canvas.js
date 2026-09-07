@@ -2707,32 +2707,6 @@ function addLLMNode(point){
         running:false
     });
 }
-function addVideoNode(point){
-    const p = point || defaultPoint(160, 0);
-    const providerId = videoApiProviders()[0]?.id || 'comfly';
-    const models = providerVideoModels(providerId);
-    return addNode({
-        id:uid('vid'),
-        type:'video',
-        x:p.x,
-        y:p.y,
-        apiProvider:providerId,
-        model:models[0] || videoModels[0] || DEFAULT_VIDEO_MODELS[0],
-        duration:5,
-        aspectRatio:'16:9',
-        resolution:'',
-        enhancePrompt:false,
-        enableUpsample:false,
-        watermark:false,
-        cameraFixed:false,
-        generateAudio:false,
-        useFrameRoles:false,
-        multimodal:false,
-        tempShLinks:[],
-        inputs:[],
-        running:false
-    });
-}
 function addMiniMaxNode(point){
     const p = point || defaultPoint(170, 0);
     return addNode({
@@ -3819,7 +3793,7 @@ function createNodeByType(type, point){
     if(type === 'generator') return ensureClassicNodeFactories().addGenerator({point});
     if(type === 'midjourney') return ensureClassicNodeFactories().addMidjourney({point});
     if(type === 'msgen') return ensureClassicNodeFactories().addMsGen({point});
-    if(type === 'video') return addVideoNode(point);
+    if(type === 'video') return ensureClassicNodeFactories().addVideo({point});
     if(type === 'minimax') return addMiniMaxNode(point);
     if(type === 'rh') return addRhNode(point);
     if(type === 'comfy') return addComfyNode(point);
@@ -8443,6 +8417,10 @@ function ensureClassicNodeFactories(){
             defaultApiImageResolution,
             resolveMidjourneyProviderId,
             modelscopeImageModels,
+            videoApiProviders,
+            providerVideoModels,
+            videoModels: () => videoModels,
+            defaultVideoModels: () => DEFAULT_VIDEO_MODELS,
         });
     }
     return classicNodeFactories;
