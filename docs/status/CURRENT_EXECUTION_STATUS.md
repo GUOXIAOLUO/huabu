@@ -889,6 +889,26 @@ inside the same `WorkbenchInteractionController.createCreationController`
 singleton owner — no move, no duplicate owner to remove). Independent review
 pending.
 
+R4 generic connect command activation (card R4-24, 2026-09-07T08:55+08:00,
+Owner authorization via in-conversation): Card activated but **not yet
+executed**. R4-21.1 closed the pre-existing canvasId blocker earlier the
+same turn. The card foundation seam is in place per the R4-22 / R4-23 /
+R4-21.1 / R4-24 commit `1364d17`: backend `GraphMutationService.connect_nodes`
+service with `ConnectNodesCommand` / `ConnectNodesPersistence` /
+`NodesConnectedAuditEvent` datatypes and revision-CAS; new
+`POST /api/v1/canvases/{canvas_id}/graph/connect-nodes` route mapping
+`GraphMutationError` → 403/422 and `StaleCanvasRevisionError` → 409;
+`WorkbenchNodeClient.connectNodes(canvasId, command, actorId)` with
+`requirePositiveRevision` gating; legacy JSON repository implements
+`connect_nodes`. Ownership matrix updated to mark the connect drop path as
+"Resolved for the drop path (2026-09-07, card R4-24)". The remaining R4-24
+work — frontend migration of the actual connect drop to call the new
+`connectNodes` method instead of the page side-effect path, Smart target
+`inputNodeIds` sync in the same lock, and closing the remaining shared
+`connectInputNode` callers per the deferred-migration assessment — is left
+for the next iteration. Card file moved from `docs/tasks/backlog/` to
+`docs/tasks/active/`. Recommended successor: `R4-25` once R4-24 closes.
+
 R4 clipboard unified creation (card R4-23, 2026-09-07): single-node,
 connection-free clipboard paste of the losslessly persistable Legacy shapes —
 Classic `image` (url/name/mediaKind) and `prompt` (text), Smart `smart-prompt`

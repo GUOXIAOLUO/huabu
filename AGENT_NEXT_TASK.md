@@ -5,9 +5,17 @@
 
 ## Active Task
 
-- **None** (R4-21.1 closed 2026-09-07T08:55+08:00, see Completed Tasks). The
-  pre-existing R4-21 canvasId finding is rectified; the next card awaits
-  Owner activation (see Recommended Successor below).
+- `R4-24` — `Active` since 2026-09-07T08:55+08:00 (Owner authorization via
+  in-conversation "提交并激活"). Card:
+  `docs/tasks/active/R4-24-connect-command.md`. Generic connect mutation
+  boundary over the existing `GraphMutationService.connect_nodes` /
+  `WorkbenchNodeClient.connectNodes` seam — backend service / HTTP route /
+  audit / repository coverage is in place per the R4-24 foundation committed
+  today; the next iteration finishes the frontend migration of the actual
+  connect drop to call `WorkbenchNodeClient.connectNodes` instead of the page
+  side-effect path (Smart target `inputNodeIds` sync in the same lock,
+  closing the remaining shared `connectInputNode` callers per the
+  ownership-matrix deferred-migration assessment).
 
 > Pre-existing finding from R4-23 (2026-09-07) — RESOLVED by `R4-21.1`. The
 > R4-21 blank-create entry points in both pages now propagate
@@ -252,8 +260,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor after R4-21.1 (not activated, not executed):
+Expected successor after R4-24 (not activated, not executed):
 
-`R4-24 — Connect Command` (`docs/tasks/backlog/R4-24-connect-command.md`)
+`R4-25 — Legacy Graph Policy` (`docs/tasks/backlog/R4-25-legacy-graph-policy.md`)
 
 Actual successor must still be checked against the repository's current verified state.

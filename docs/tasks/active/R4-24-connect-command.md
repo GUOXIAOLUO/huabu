@@ -2,8 +2,10 @@
 
 - Round: R4
 - Priority: P1
-- Status: BACKLOG
-- Depends on: R4-23
+- Status: ACTIVE
+- Activated: 2026-09-07T08:55+08:00 (Owner authorization via in-conversation)
+- Depends on: R4-23 (DONE) — pre-blocker R4-21.1 canvasId rectification (DONE
+  2026-09-07T08:55+08:00) closed earlier today
 
 ## Goal
 
