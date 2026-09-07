@@ -5,17 +5,8 @@
 
 ## Active Task
 
-- `R4-24` — `Active` since 2026-09-07T08:55+08:00 (Owner authorization via
-  in-conversation "提交并激活"). Card:
-  `docs/tasks/active/R4-24-connect-command.md`. Generic connect mutation
-  boundary over the existing `GraphMutationService.connect_nodes` /
-  `WorkbenchNodeClient.connectNodes` seam — backend service / HTTP route /
-  audit / repository coverage is in place per the R4-24 foundation committed
-  today; the next iteration finishes the frontend migration of the actual
-  connect drop to call `WorkbenchNodeClient.connectNodes` instead of the page
-  side-effect path (Smart target `inputNodeIds` sync in the same lock,
-  closing the remaining shared `connectInputNode` callers per the
-  ownership-matrix deferred-migration assessment).
+- **None** (R4-24 closed 2026-09-07T09:02+08:00; the next card awaits Owner
+  activation — see Recommended Successor below).
 
 > Pre-existing finding from R4-23 (2026-09-07) — RESOLVED by `R4-21.1`. The
 > R4-21 blank-create entry points in both pages now propagate
@@ -25,6 +16,41 @@
 > and `docs/status/CURRENT_EXECUTION_STATUS.md` (R4-21.1 entry).
 
 ## Completed Tasks
+
+- `R4-24` — `DONE` 2026-09-07T09:02+08:00. Card:
+  `docs/tasks/active/R4-24-connect-command.md`. Implementer evidence
+  (independent review pending): the connect drop on both pages now
+  creates the durable edge atomically with revision CAS through the
+  application boundary — `GraphMutationService.connect_nodes` (backend
+  service in `workbench/application/graph_mutation.py`) with
+  `ConnectNodesCommand` / `ConnectNodesPersistence` /
+  `NodesConnectedAuditEvent`; HTTP route
+  `POST /api/v1/canvases/{canvas_id}/graph/connect-nodes` maps
+  `GraphMutationError` → 403/422 and `StaleCanvasRevisionError` → 409;
+  `WorkbenchNodeClient.connectNodes(canvasId, command, actorId)` is the
+  single versioned client entry point gating on `requirePositiveRevision`;
+  Legacy JSON repository implements `connect_nodes`; page-side
+  `createVersionedConnection` (Classic) and `connectInputNodeVersioned`
+  (Smart) route the connect drop through the new client method; the
+  retained `commitClassicConnection` / `connectInputNode` legacy helpers
+  stay as bounded fallback only. New behavioral test added to
+  `tests/test_frontend_workbench_modules.py`:
+  `test_versioned_connect_drops_land_at_the_application_command` —
+  end-to-end vm-sandbox proof that the actual page-side helpers land at
+  the versioned client with the right canvas id / project / expected
+  revision / edge id / kind and the projected edge appears in
+  `connections` / `canvas.connections` / target `inputNodeIds`. Combined
+  with the foundation tests (`test_registered_graph_route_connects_two_existing_nodes_atomically`,
+  `test_registered_graph_route_connects_smart_nodes_with_input_sync`,
+  `test_connect_drops_route_through_the_graph_connect_command`) the DoD
+  "atomic and revision-safe" is verified at four layers. Ownership matrix
+  deferred-migration assessment for the connect drop already marked
+  "Resolved for the drop path (2026-09-07, card R4-24)" — no further
+  ownership move on this card. The remaining shared `connectInputNode`
+  callers (auto-connect on drag, output flows, loop migration) stay
+  deferred per the matrix and become the explicit scope of `R4-25`.
+  `./scripts/agent-verify.sh` PASS at 370 tests (was 369; +1 from this
+  card's new behavioral test).
 
 - `R4-21.1` — `DONE` 2026-09-07T08:55+08:00. Card:
   `docs/tasks/active/R4-21.1-create-canvas-id-rectification.md`. Implementer
@@ -260,8 +286,9 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor after R4-24 (not activated, not executed):
+Expected successor after R4-24 close (not activated, not executed):
 
-`R4-25 — Legacy Graph Policy` (`docs/tasks/backlog/R4-25-legacy-graph-policy.md`)
+`R4-25 — Legacy Graph Compatibility Policy`
+(`docs/tasks/backlog/R4-25-legacy-graph-policy.md`)
 
 Actual successor must still be checked against the repository's current verified state.

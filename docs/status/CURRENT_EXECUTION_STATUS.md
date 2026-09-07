@@ -909,6 +909,39 @@ work — frontend migration of the actual connect drop to call the new
 for the next iteration. Card file moved from `docs/tasks/backlog/` to
 `docs/tasks/active/`. Recommended successor: `R4-25` once R4-24 closes.
 
+R4 generic connect command close (card R4-24, 2026-09-07T09:02+08:00,
+implementer evidence; independent review pending): card closed end-to-end
+on top of the foundation seam already committed in `1364d17`. The
+remaining behavioral / contractual gap — proving the actual
+`createVersionedConnection` (Classic) and `connectInputNodeVersioned`
+(Smart) page-side helpers land at the versioned client method with the
+right canvasId / project / expected revision / edge id / kind — is now
+pinned by a new end-to-end behavioral test in
+`tests/test_frontend_workbench_modules.py`:
+`test_versioned_connect_drops_land_at_the_application_command`. The test
+extracts both helpers from the page source via regex, loads
+`node-creation-client.js` into a vm sandbox with a stubbed `connectNodes`
+mock, invokes each helper end-to-end, and asserts the success path
+returns `true` (Classic) / `true` (Smart) with the projected edge in
+`connections`, the `canvasRevision` is adopted via
+`WorkbenchCanvasPersistence.adoptRevision`, Classic side effects fire,
+Smart target `inputNodeIds` includes the `fromId`, Smart `kind: 'input'`
+is propagated, the helper short-circuits to `null` on missing target
+without contacting the client, and the stale-revision path returns
+`false` after the underlying mock throws. Combined with the
+foundation-allocated tests
+(`test_registered_graph_route_connects_two_existing_nodes_atomically`,
+`test_registered_graph_route_connects_smart_nodes_with_input_sync`,
+`test_connect_drops_route_through_the_graph_connect_command`), the card's
+"DoD: Generic connect mutation is atomic and revision-safe" is verified
+at four layers: HTTP route atomicity, Smart input-node + audit sync
+under the same lock, frontend wiring contract, and end-to-end
+page-helper → application-command propagation. Regression: 370 tests
+PASS (was 369 baseline; +1 from this card's new behavioral test).
+`AGENT VERIFY: PASS`. The remaining shared `connectInputNode` callers
+(auto-connect on drag, output flows, loop migration) stay deferred per
+the ownership matrix and remain a future-card concern.
+
 R4 clipboard unified creation (card R4-23, 2026-09-07): single-node,
 connection-free clipboard paste of the losslessly persistable Legacy shapes —
 Classic `image` (url/name/mediaKind) and `prompt` (text), Smart `smart-prompt`

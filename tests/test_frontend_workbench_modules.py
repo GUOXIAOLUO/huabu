@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 import time
 import unittest
@@ -2271,6 +2272,179 @@ console.log(JSON.stringify({node, commands, appliedCount: applied.length, invali
         # No helper invoked a fallback path: every create call landed with the
         # expected canvasId — directly demonstrating that the rectification
         # removes the R4-21 runtime TypeError on the default loopback path.
+
+    def test_versioned_connect_drops_land_at_the_application_command(self):
+        # R4-24 end-to-end behavioral proof: drive the actual page-side
+        # `createVersionedConnection` (Classic) and `connectInputNodeVersioned`
+        # (Smart) through a sandbox with a stubbed `WorkbenchNodeClient`
+        # and verify the page call lands with the right canvasId, revision,
+        # edge id and kind, the projected edge appears in the page's
+        # connections store, the canvas revision is adopted, and the helper
+        # returns its success/failure value correctly.
+        client_module = ROOT / "static/js/workbench/canvas/node-creation-client.js"
+        client_source = client_module.read_text(encoding="utf-8")
+        classic_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        smart_source = (ROOT / "static/js/smart-canvas.js").read_text(encoding="utf-8")
+        classic_helper = re.search(
+            r"async function createVersionedConnection\(fromId, toId\)\{[\s\S]*?\n\}\n",
+            classic_source,
+        ).group(0)
+        smart_helper = re.search(
+            r"async function connectInputNodeVersioned\(fromId, toId\)\{[\s\S]*?\n\}\n",
+            smart_source,
+        ).group(0)
+
+        script = f"""
+const vm = require('vm');
+const clientSource = {json.dumps(client_source)};
+function bootSandbox() {{
+  const s = {{window: {{}}, console}};
+  vm.runInNewContext(clientSource, s);
+  return s;
+}}
+function replaceClient(boot, onConnect) {{
+  const original = boot.window.WorkbenchNodeClient;
+  boot.window.WorkbenchNodeClient = {{
+    isLoopback: original.isLoopback,
+    isEnabled: original.isEnabled,
+    applyCreationResult: original.applyCreationResult,
+    applyGraphCreationResult: original.applyGraphCreationResult,
+    create: original.create,
+    update: original.update,
+    remove: original.remove,
+    createNodeAndEdge: original.createNodeAndEdge,
+    connectNodes: onConnect,
+  }};
+}}
+
+const calls = [];
+const responses = [];
+const classicBoot = bootSandbox();
+replaceClient(classicBoot, async (canvasId, command, actorId) => {{
+  calls.push({{canvasId, command, actorId}});
+  const r = responses.shift();
+  if (r && r.throw) throw new Error(r.throw);
+  return {{edge: {{id: command.edge_id, from: {{node_id: command.from_node_id}}, to: {{node_id: command.to_node_id}}}}, canvas_revision: 1}};
+}});
+classicBoot.window.WorkbenchCanvasPersistence = {{adoptRevision: (canvas, rev, fallback) => rev}};
+classicBoot.window.WorkbenchCanvasCommands = {{graphCommand: () => true}};
+classicBoot.canvas = {{id: 'canvas-c1', project: 'p1', updated_at: 1}};
+classicBoot.connections = [];
+classicBoot.undoStack = [];
+classicBoot.CLIENT_ID = 'c-local';
+classicBoot.UNDO_MAX = 50;
+classicBoot.pushUndo = () => {{}};
+let classicSaveScheduled = 0; classicBoot.scheduleSave = () => {{classicSaveScheduled++;}};
+classicBoot.render = () => {{}};
+classicBoot.canUseVersionedImageCreation = () => true;
+let classicSideEffectsCalled = 0;
+classicBoot.applyClassicConnectionSideEffects = () => {{classicSideEffectsCalled++;}};
+classicBoot.setStatus = () => {{}};
+classicBoot.lastCanvasUpdatedAt = 1;
+classicBoot.serializableCanvasNodes = () => [];
+classicBoot.uid = (prefix) => prefix + '-test-abc';
+vm.runInNewContext({json.dumps(classic_helper)} + '\\nthis.createVersionedConnection = createVersionedConnection;', classicBoot);
+
+const smartBoot = bootSandbox();
+// Reuse the mock-calls queue but with a fresh per-page counter helper
+// so the smart side records correctly.
+const smartCalls = [];
+replaceClient(smartBoot, async (canvasId, command, actorId) => {{
+  smartCalls.push({{canvasId, command, actorId}});
+  return {{edge: {{id: command.edge_id, from: {{node_id: command.from_node_id}}, to: {{node_id: command.to_node_id}}}}, canvas_revision: 5}};
+}});
+smartBoot.window.WorkbenchCanvasPersistence = {{adoptRevision: (canvas, rev, fallback) => rev}};
+smartBoot.canvas = {{id: 'canvas-s1', project: 'p1', updated_at: 4, connections: []}};
+smartBoot.nodes = [{{id: 'p1', type: 'smart-prompt'}}, {{id: 'i1', type: 'smart-image', inputNodeIds: []}}];
+smartBoot.smartClientId = 's-local';
+smartBoot.UNDO_LIMIT = 50;
+let smartSaveScheduled = 0; smartBoot.scheduleSave = () => {{smartSaveScheduled++;}};
+smartBoot.render = () => {{}};
+smartBoot.canUseVersionedSmartImageCreation = () => true;
+smartBoot.resolveChatProviderId = () => 'mock';
+smartBoot.resolveChatModel = () => 'mock-model';
+smartBoot.imagesForNode = () => [];
+smartBoot.promptTextItemsForNode = () => [];
+smartBoot.isSmartGroupNode = () => false;
+smartBoot.isSmartImageNode = () => false;
+smartBoot.fitSmartLoopNode = () => {{}};
+smartBoot.snapshotForUndo = () => ({{}});
+smartBoot.serializableCanvasNodes = () => [];
+smartBoot.toast = () => {{}};
+smartBoot.uid = (prefix) => prefix + '-test-s';
+vm.runInNewContext({json.dumps(smart_helper)} + '\\nthis.connectInputNodeVersioned = connectInputNodeVersioned;', smartBoot);
+
+(async () => {{
+  const classicOk = await classicBoot.createVersionedConnection('a', 'b');
+  responses.push({{throw: 'stale revision'}});
+  const classicStale = await classicBoot.createVersionedConnection('a', 'b');
+  const smartOk = await smartBoot.connectInputNodeVersioned('p1', 'i1');
+  const smartFail = await smartBoot.connectInputNodeVersioned('p1', 'missing');
+  console.log(JSON.stringify({{
+    classicOk, classicStale,
+    smartOk, smartFail,
+    classicConnections: classicBoot.connections,
+    smartConnections: smartBoot.canvas.connections,
+    smartCanvasNodes: smartBoot.nodes,
+    classicCalls: calls.map(c => ({{canvasId: c.canvasId, project_id: c.command.project_id, from: c.command.from_node_id, to: c.command.to_node_id, kind: c.command.kind, expected_revision: c.command.expected_revision, edge_id_prefix: c.command.edge_id.slice(0, 2), actorId: c.actorId}})),
+    smartCalls: smartCalls.map(c => ({{canvasId: c.canvasId, project_id: c.command.project_id, from: c.command.from_node_id, to: c.command.to_node_id, kind: c.command.kind, expected_revision: c.command.expected_revision, edge_id_prefix: c.command.edge_id.slice(0, 2), actorId: c.actorId}})),
+    classicSideEffectsCalled, classicSaveScheduled, smartSaveScheduled,
+  }}));
+}})();
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        # Classic success path: helper returns true; calls the connect-nodes
+        # client exactly once per call, with canvas.id, the from/to, an edge
+        # id that starts with 'c-', and with the page's revision. Side
+        # effects fire, the projected edge lands in `connections`.
+        self.assertTrue(payload["classicOk"])
+        self.assertEqual(payload["classicStale"], False)
+        self.assertEqual(len(payload["classicConnections"]), 1)
+        classicEdge = payload["classicConnections"][0]
+        self.assertEqual(classicEdge["from"], "a")
+        self.assertEqual(classicEdge["to"], "b")
+        self.assertTrue(classicEdge["id"].startswith("c-"))
+        self.assertEqual(payload["classicSideEffectsCalled"], 1)
+        self.assertEqual(payload["classicSaveScheduled"], 1)
+        # Smart success path: helper returns true; call carries `kind: input`
+        # so the application boundary can apply inputNodeIds sync in the same
+        # lock. The target's `inputNodeIds` ends up containing the from id.
+        self.assertTrue(payload["smartOk"])
+        self.assertEqual(payload["smartFail"], None)
+        self.assertEqual(payload["smartConnections"], [{"from": "p1", "to": "i1", "kind": "input"}])
+        self.assertEqual(payload["smartCanvasNodes"][1]["inputNodeIds"], ["p1"])
+        # Classic calls: 2 (one ok, one that threw on stale). The smart
+        # failed call short-circuits before reaching the client because the
+        # helper returns null when the target is missing.
+        self.assertEqual(len(payload["classicCalls"]), 2)
+        self.assertEqual(len(payload["smartCalls"]), 1)
+        for call in payload["classicCalls"]:
+            self.assertEqual(call["canvasId"], "canvas-c1")
+            self.assertEqual(call["project_id"], "p1")
+            self.assertEqual(call["from"], "a")
+            self.assertEqual(call["to"], "b")
+            self.assertEqual(call["expected_revision"], 1)
+            self.assertEqual(call["edge_id_prefix"], "c-")
+            self.assertEqual(call["actorId"], "c-local")
+            # Classic helper omits `kind` (the application default `flow`
+            # applies). Pin the key's absence to lock the explicit Smart
+            # `kind:'input'` contract below.
+            self.assertNotIn("kind", call)
+        smart_call = payload["smartCalls"][0]
+        self.assertEqual(smart_call["canvasId"], "canvas-s1")
+        self.assertEqual(smart_call["project_id"], "p1")
+        self.assertEqual(smart_call["from"], "p1")
+        self.assertEqual(smart_call["to"], "i1")
+        self.assertEqual(smart_call["expected_revision"], 4)
+        self.assertEqual(smart_call["actorId"], "s-local")
+        self.assertEqual(smart_call["kind"], "input")
+        # Smart `scheduleSave` only fires when `loopTouched` is true (target
+        # is `smart-loop` AND its image-input / show-prompt flags moved).
+        # In this test the target is `smart-image`, so loopTouched stays
+        # false and the page-side save is intentionally not scheduled — the
+        # service-owned revision CAS is the durable write.
+        self.assertEqual(payload["smartSaveScheduled"], 0)
 
     def test_minimap_projection_scaling_stays_linear_at_100_and_300_nodes(self):
         # DoD: minimap performance remains acceptable at 100/300 nodes — the
