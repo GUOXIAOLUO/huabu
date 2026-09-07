@@ -5,10 +5,30 @@
 
 ## Active Task
 
-None. R4-26 closed 2026-09-07T10:53+08:00 (see Completed Tasks). Do not
-activate the successor (`R4-27`) without fresh Owner authorization.
+None. R4-27 closed 2026-09-07T11:05+08:00 (see Completed Tasks). Do not
+activate the successor (`R4-28`) without fresh Owner authorization.
 
 ## Completed Tasks
+
+- `R4-27` — `DONE` 2026-09-07T11:05+08:00. Card:
+  `docs/tasks/active/R4-27-smart-inventory.md`. Implementer evidence
+  (independent review pending): characterization-only card — classified every
+  Smart-only, product-relevant capability before the Smart runtime is retired.
+  Deliverable `docs/plans/R4_SMART_CAPABILITY_INVENTORY.md` inventories 31
+  capabilities across 7 categories (Composer; prompt presets/templates/skills;
+  asset UX; media edit/crop/draw/panorama; Smart group actions;
+  cascade/execution; provider/media/MiniMax dynamic controls), each marked
+  KEEP/MIGRATE/COMPAT/REMOVE/DEFER-R8 with a target owner and source-line
+  evidence. Split: MIGRATE 18 (prompt registry/card, media edit, group actions,
+  composer shell, video player, asset mention/drag), COMPAT 13 (execution /
+  provider / media controls whose real replacement is R8), DEFER-R8 5
+  (asset/collection runtime, forbidden in R4). Ownership matrix `Smart-only`
+  review table references the full inventory. Anchoring
+  `tests/test_smart_capability_inventory.py` (6 tests) parses the document's
+  evidence manifest and verifies dispositions are valid, target owners present,
+  every evidence function is grounded in `smart-canvas.js`, In-Scope coverage,
+  and non-trivial classification. No product code changed.
+  `./scripts/agent-verify.sh` PASS at 392 tests (was 386; +6).
 
 - `R4-26` — `DONE` 2026-09-07T10:53+08:00. Card:
   `docs/tasks/active/R4-26-group-mutation.md`. Implementer evidence
@@ -350,8 +370,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor after R4-26 close (not activated, not executed):
+Expected successor after R4-27 close (not activated, not executed):
 
-`R4-27 — Smart Inventory` (`docs/tasks/backlog/R4-27-smart-inventory.md`)
+`R4-28 — Smart Composer` (`docs/tasks/backlog/R4-28-smart-composer.md`)
 
 Actual successor must still be checked against the repository's current verified state.

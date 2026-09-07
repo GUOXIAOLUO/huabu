@@ -1075,6 +1075,32 @@ final owner is `GroupMembershipService` for the Smart member add plus
 PASS Python AST parse, PASS JavaScript syntax, PASS Architecture guards (4),
 PASS `git diff --check`. `AGENT VERIFY: PASS`.
 
+R4 Smart capability inventory (card R4-27, 2026-09-07T10:47+08:00, Owner
+authorization via in-conversation "提交并开发下一任务"; implementer evidence,
+independent review pending): characterization-only card (no code migrated or
+deleted). Produced `docs/plans/R4_SMART_CAPABILITY_INVENTORY.md` — a granular
+inventory of 31 Smart-only, product-relevant capabilities across 7 categories
+(Composer; prompt presets/templates/skills; asset UX; media
+edit/crop/draw/panorama; Smart group actions; cascade/execution; provider /
+media / MiniMax dynamic controls), each classified KEEP/MIGRATE/COMPAT/REMOVE/
+DEFER-R8 with a target owner and source-line evidence. Disposition split:
+MIGRATE 18 (prompt registry/card, media edit, group actions, composer shell,
+video player, asset mention/drag — Unified owners available in R4), COMPAT 13
+(execution/provider/media controls whose real replacement is R8
+`ExecutorRegistry`/`ExecutionRuntime`/`Provider`/`Model` registry), DEFER-R8 5
+(asset/collection runtime, forbidden in R4 per "Forbidden next actions"); no
+KEEP or REMOVE at capability granularity (the Smart runtime shell + Smart-entry
+deep-link are REMOVE, already tracked in the ownership matrix). Ownership matrix
+`Smart-only` review table now references the full inventory. Anchoring
+`tests/test_smart_capability_inventory.py` (6 tests) parses the document's
+machine-readable evidence manifest and verifies: every capability has a valid
+disposition + non-empty target owner, every evidence function name is actually
+present in `static/js/smart-canvas.js`, all In-Scope areas are covered, and the
+classification is non-trivial (MIGRATE + COMPAT + DEFER-R8 all used). No product
+code changed. Regression: `./scripts/agent-verify.sh` PASS at 392 Python unit
+tests (baseline 386; +6), PASS Python AST parse, PASS JavaScript syntax, PASS
+Architecture guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
+
 R4 clipboard unified creation (card R4-23, 2026-09-07): single-node,
 connection-free clipboard paste of the losslessly persistable Legacy shapes —
 Classic `image` (url/name/mediaKind) and `prompt` (text), Smart `smart-prompt`

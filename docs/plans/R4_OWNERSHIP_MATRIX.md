@@ -91,6 +91,12 @@ REMOVE       = 可删除/待删除
 | Smart media layout | Migrate | Unified media renderer lifecycle | layout math is shared; DOM lifecycle remains Smart-owned |
 | MiniMax compatibility | Compat | Legacy renderer/execution seam | must remain readable; not an R8 implementation |
 
+Full granular Smart-only capability inventory (R4-27): see
+`docs/plans/R4_SMART_CAPABILITY_INVENTORY.md` — 31 capabilities across 7
+categories, each with a KEEP/MIGRATE/COMPAT/REMOVE/DEFER-R8 disposition, a
+target owner, and source-line evidence, anchored by
+`tests/test_smart_capability_inventory.py`.
+
 ---
 
 # Feature Flag Lifecycle
