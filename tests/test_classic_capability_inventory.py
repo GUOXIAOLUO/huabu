@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INVENTORY = ROOT / "docs" / "plans" / "R4_CLASSIC_CAPABILITY_INVENTORY.md"
 CLASSIC_SOURCE = ROOT / "static" / "js" / "canvas.js"
 
-ALLOWED_DISPOSITIONS = {"KEEP", "MIGRATE", "COMPAT", "REMOVE", "DEFER-R8"}
+ALLOWED_DISPOSITIONS = {"KEEP", "MIGRATE", "MIGRATED", "COMPAT", "REMOVE", "DEFER-R8"}
 
 # The card's In-Scope areas, expressed as required category substrings.
 REQUIRED_CATEGORY_MARKERS = (
@@ -87,6 +87,14 @@ class ClassicCapabilityInventoryTests(unittest.TestCase):
         self.assertIn("MIGRATE", dispositions)
         self.assertIn("COMPAT", dispositions)
         self.assertIn("DEFER-R8", dispositions)
+        # MIGRATED is the post-R4-38 migration completion marker — it appears
+        # only after a MIGRATE capability has been promoted by a follow-up card.
+        # If present it must be paired with at least one MIGRATE so the
+        # classification still drives forward work, not just historical records.
+        migrated = {c["id"] for c in self.manifest.get("capabilities", []) if c["disposition"] == "MIGRATED"}
+        if migrated:
+            migrate = {c["id"] for c in self.manifest.get("capabilities", []) if c["disposition"] == "MIGRATE"}
+            self.assertTrue(migrate, "MIGRATED rows must coexist with at least one MIGRATE row")
 
     def test_no_duplicate_capability_ids(self):
         ids = [capability["id"] for capability in self.manifest.get("capabilities", [])]

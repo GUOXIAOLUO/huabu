@@ -12108,7 +12108,7 @@ async function runVideoNode(nodeId, opts={}){
         }, {cascadeTargetId}).then(async r => { if(!r.ok) throw new Error(await responseErrorMessage(r, tr('canvas.videoFailed'))); return r.json(); });
         const meta = collectRunMeta(out, pendingId);
         if(out) out._pending = (out._pending || []).filter(p => p.id !== pendingId);
-        const outputUrls = resultMediaUrls(result).map(item => {
+        const outputUrls = window.WorkbenchCanvasMediaResultNormalizer.extract(result).map(item => {
             const url = outputUrlValue(item);
             return item && typeof item === 'object' ? {...item, url, kind:item.kind || 'video'} : {url, kind:'video'};
         }).filter(item => item.url);
@@ -12293,7 +12293,7 @@ async function runMiniMaxRunningHub(node, media, options={}){
             return json.data || json;
         });
         if(data.status === 'SUCCESS'){
-            const outputs = resultMediaUrls(data.image_items?.length ? data.image_items : (data.urls || []));
+            const outputs = window.WorkbenchCanvasMediaResultNormalizer.extract(data.image_items?.length ? data.image_items : (data.urls || []));
             if(!outputs.length) throw new Error(tr('canvas.rhOutputsEmpty'));
             return {outputs, request:{task_id:taskId, workflowId, workflowTitle:runningHubEntryLabel(entry, 'workflow'), backend:'runninghub', mode:'workflow', useWallet:rhUseWallet(rhNode)}};
         }
@@ -12346,7 +12346,7 @@ async function runMiniMaxNode(nodeId, opts={}){
                 type:'minimax-h3',
                 client_id:CLIENT_ID
             }, {cascadeTargetId});
-            outputs = resultMediaUrls(result);
+            outputs = window.WorkbenchCanvasMediaResultNormalizer.extract(result);
             run.request = requestMetaFromResult(result);
         }
         const normalized = (outputs || []).map((item, i) => {
@@ -12419,12 +12419,6 @@ async function runComfyUpscale(imageUrl, resolution, options={}){
     if(upscale.error) throw new Error(actionFailed('studio.superResolution', upscale.error));
     if(!upscale.images?.length) throw new Error(noReturnedImage('studio.superResolution'));
     return upscale.images || [];
-}
-function comfyResultOutputs(result){
-    return resultMediaUrls(result);
-}
-function resultMediaUrls(result){
-    return window.WorkbenchCanvasMediaResultNormalizer.extract(result);
 }
 function ltxDirectorSyncSeconds(node){
     const fps = Math.max(1, Number(node?.frameRate) || 24);
@@ -12978,7 +12972,7 @@ async function runLTXDirectorNode(nodeId, opts={}){
         }, {cascadeTargetId});
         run.request = requestMetaFromResult(result);
         if(result.error) throw new Error(result.error);
-        const outputs = comfyResultOutputs(result);
+        const outputs = window.WorkbenchCanvasMediaResultNormalizer.extract(result);
         if(!outputs.length) throw new Error(tr('canvas.ltxNoOutput'));
         const meta = collectRunMeta(out, pendingId);
         if(out) out._pending = (out._pending || []).filter(p => p.id !== pendingId);
@@ -13051,7 +13045,7 @@ async function runComfyNode(nodeId, opts={}){
                 client_id:CLIENT_ID
             }, {cascadeTargetId});
             run.request = requestMetaFromResult(result);
-            images = comfyResultOutputs(result);
+            images = window.WorkbenchCanvasMediaResultNormalizer.extract(result);
         } else if(mode === 'enhance'){
             run.taskLabel = tr('canvas.comfyEnhance');
             const inputName = await comfyNameForRef(refs[0]);
@@ -13120,7 +13114,7 @@ async function runComfyNode(nodeId, opts={}){
             }, {cascadeTargetId});
             run.request = requestMetaFromResult(result);
             if(result.error) throw new Error(actionFailed('canvas.comfyCustom', result.error));
-            images = comfyResultOutputs(result);
+            images = window.WorkbenchCanvasMediaResultNormalizer.extract(result);
             if(!images.length) throw new Error(noReturnedImage('canvas.comfyCustom'));
         } else {
             run.taskLabel = tr('canvas.comfyEdit');

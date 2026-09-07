@@ -5,8 +5,24 @@
 
 ## Active Task
 
-- `None` — no active card. R4-37 closed 2026-09-07T15:23+08:00. Recommended
-  successor `R4-38` (see "Recommended Successor" below), not yet activated.
+- `R4-38` — `IN_PROGRESS` (umbrella shrink; multi-wave; closes only when
+  canvas.js is bootstrap/compat-only). Card:
+  `docs/tasks/active/R4-38-shrink-classic-runtime.md`. Activated
+  2026-09-07T15:30+08:00 (after R4-37 close, with Owner authorization
+  via in-conversation "提交并开发下一任务"). Goal: shrink the Classic
+  runtime (`canvas.js`, 17 001 lines) so it no longer owns Canvas
+  product runtime responsibilities. The R4-31 inventory's 13 Classic
+  capabilities partition into a 12-wave shrink plan (each wave = one
+  focused migration of one inventory capability into the corresponding
+  shared seam / bounded compat). **Wave 1 done** 2026-09-07T15:33+08:00
+  (comfy-result-normalization MIGRATED: deleted `comfyResultOutputs` /
+  `resultMediaUrls` wrappers in canvas.js, inlined 6 call sites through
+  `window.WorkbenchCanvasMediaResultNormalizer.extract`, focused test
+  `test_classic_editor_inlines_execution_result_extraction_through_the_shared_seam`
+  +1 → 344 tests PASS). Next wave (recommended successor inside the
+  same card): **Wave 2 — provider-node-creation** MIGRATE
+  (`addGeneratorNode` / `addMidjourneyNode` / `addMsGenNode` →
+  `classic-node-factories.js` host seam).
 
 ## Completed Tasks
 

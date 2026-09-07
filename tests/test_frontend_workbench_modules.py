@@ -49,6 +49,16 @@ console.log(JSON.stringify({{classic, smart}}));
             self.assertLess(page_source.index("workbench/canvas/media-result-normalizer.js"), page_source.index(editor))
             self.assertIn("WorkbenchCanvasMediaResultNormalizer.extract", editor_source)
 
+    def test_classic_editor_inlines_execution_result_extraction_through_the_shared_seam(self):
+        editor_source = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        self.assertNotIn("function comfyResultOutputs", editor_source)
+        self.assertNotIn("function resultMediaUrls", editor_source)
+        self.assertNotIn("comfyResultOutputs(", editor_source)
+        self.assertNotIn("resultMediaUrls(", editor_source)
+        extract_calls = re.findall(r"window\.WorkbenchCanvasMediaResultNormalizer\.extract\(", editor_source)
+        self.assertGreaterEqual(len(extract_calls), 6,
+            msg=f"expected >= 6 inlined seam calls in canvas.js, got {len(extract_calls)}")
+
     def test_versioned_node_creation_is_default_on_loopback_with_an_explicit_rollback(self):
         client = ROOT / "static" / "js" / "workbench" / "canvas" / "node-creation-client.js"
         script = f"""

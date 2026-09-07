@@ -1387,6 +1387,58 @@ new redundant ones, since the handoff helpers had no other consumers),
 PASS Python AST parse, PASS JavaScript syntax, PASS Architecture
 guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
 
+R4 Classic runtime shrink — Wave 1 of R4-38
+(card R4-38, activated 2026-09-07T15:30+08:00, Owner authorization via
+in-conversation "提交并开发下一任务"; implementer evidence, independent
+review pending): the first shrink wave of the Classic runtime closes
+the `comfy-result-normalization` MIGRATE capability. Inside canvas.js the
+two local helpers `comfyResultOutputs` and `resultMediaUrls` were
+thin pass-throughs — `comfyResultOutputs(result)` returned
+`resultMediaUrls(result)` which returned
+`window.WorkbenchCanvasMediaResultNormalizer.extract(result)` — so the
+real normalization has lived in the shared Canvas seam
+`static/js/workbench/canvas/media-result-normalizer.js` since
+`R4-25-R4_SMART_EXECUTION_COMPATIBILITY`-era migration; canvas.js
+contributed only two-layer indirection. Wave 1 deletes the indirection:
+all three direct `resultMediaUrls(...)` call sites and all three
+`comfyResultOutputs(...)` call sites in canvas.js are rewritten to call
+`window.WorkbenchCanvasMediaResultNormalizer.extract(...)` directly, the
+two wrapper function definitions (`comfyResultOutputs` and
+`resultMediaUrls`) are removed (canvas.js net -7 LOC at the seam-call
+boundary; 6 remaining inlined extract calls preserve the exact
+return-shape behavior — items can be strings or `{url, kind, name}`
+objects, exactly what the seam's `extract` returns). New focused test
+in `tests/test_frontend_workbench_modules.py`:
+`test_classic_editor_inlines_execution_result_extraction_through_the_shared_seam`
+— source-contract that pins (a) no `function comfyResultOutputs` /
+`function resultMediaUrls` definitions remain in canvas.js, (b) no
+`comfyResultOutputs(` / `resultMediaUrls(` call sites remain, and
+(c) canvas.js keeps `>= 6` direct seam calls. R4-31 inventory table
+and JSON evidence manifest updated for the `comfy-result-normalization`
+capability: disposition flipped from MIGRATE to **MIGRATED** (a new
+post-migration completion marker added to the disposition vocabulary
+in `tests/test_classic_capability_inventory.py`; the test asserts that
+MIGRATED rows coexist with at least one MIGRATE row so the inventory
+still drives forward work, not only historical records), evidence
+updated to `window.WorkbenchCanvasMediaResultNormalizer.extract` (the
+seam-call string, which is the substring still present at 6 sites in
+canvas.js so the existing evidence-grounding
+`assertIn(name, canvas.js_source)` contract still holds without any
+schema change). Ownership matrix
+`doc/plans/R4_OWNERSHIP_MATRIX.md` `execution result media extraction`
+row was already at UNIFIED after R4-25-R4_SMART_EXECUTION_COMPATIBILITY;
+no further move on this wave. R4-38 is an umbrella shrink card that
+remains IN_PROGRESS — 12 of 13 Classic capabilities still need shrink
+waves (provider-node-creation, video-player, output-node, plus the 8
+COMPAT ones and the 1 DEFER-R8 asset library) before canvas.js can be
+reduced to bootstrap/compat-only for the eventual R4-39 deletion.
+Regression: `./scripts/agent-verify.sh` PASS at 344 Python unit tests
+(was 343 after R4-36; +1 from this wave's new
+`test_classic_editor_inlines_execution_result_extraction_through_the_shared_seam`
+test), PASS Python AST parse (76 files), PASS JavaScript syntax (71 files),
+PASS Architecture guards (4), PASS `git diff --check`.
+`AGENT VERIFY: PASS`.
+
 R4 Smart product-runtime retirement (card R4-37, 2026-09-07T15:23+08:00,
 Owner authorization via in-conversation "提交并开发下一任务"; pre-empted by
 R4-36, accounting close; implementer evidence, independent review pending):

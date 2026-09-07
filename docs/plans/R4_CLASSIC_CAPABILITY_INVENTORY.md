@@ -44,7 +44,7 @@ characterization deliverable — no code is deleted or migrated by this card
 | Capability | Disposition | Target owner | Key functions |
 |---|---|---|---|
 | Comfy workflow/field controls | COMPAT | Legacy execution seam (R8) | `addComfyNode`, `renderComfyBody`, `renderComfySettings`, `updateComfyField`, `comfyWorkflowOptions` |
-| Comfy result normalization | MIGRATE | Unified media-result normalizer | `comfyResultOutputs` |
+| Comfy result normalization | MIGRATED | Unified media-result normalizer | `window.WorkbenchCanvasMediaResultNormalizer.extract` (6 inline call sites in `canvas.js`) |
 
 ### 3. RunningHub
 
@@ -121,7 +121,7 @@ Machine-readable; anchored by `tests/test_classic_capability_inventory.py`.
     {"id": "provider-card-body", "category": "Provider cards", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8 Provider/Model registry)", "evidence": ["renderGeneratorBody", "renderMidjourneyBody", "renderMsGenBody", "renderLLMBody"]},
 
     {"id": "comfy-controls", "category": "Comfy", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8)", "evidence": ["addComfyNode", "renderComfyBody", "renderComfySettings", "updateComfyField", "comfyWorkflowOptions"]},
-    {"id": "comfy-result-normalization", "category": "Comfy", "disposition": "MIGRATE", "target_owner": "Unified media-result normalizer", "evidence": ["comfyResultOutputs"]},
+    {"id": "comfy-result-normalization", "category": "Comfy", "disposition": "MIGRATED", "target_owner": "Unified media-result normalizer", "evidence": ["window.WorkbenchCanvasMediaResultNormalizer.extract"]},
 
     {"id": "runninghub", "category": "RunningHub", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8)", "evidence": ["addRhNode", "renderRhBody", "runningHubProvider", "currentRunningHubWorkflow", "currentRunningHubWorkflowConfig", "renderRhParams"]},
 
