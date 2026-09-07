@@ -55,14 +55,14 @@ class RepositoryIndependenceTests(unittest.TestCase):
         self.assertNotIn("checkForUpdates();", source)
 
     def test_workbench_runtime_does_not_embed_github_hosting_urls(self):
+        # R4-36: smart-canvas.html / smart-canvas.js retired; canvas.html is
+        # the sole Canvas page.
         paths = [
             ROOT / "main.py",
             ROOT / "static" / "index.html",
             ROOT / "static" / "canvas.html",
-            ROOT / "static" / "smart-canvas.html",
             ROOT / "static" / "js" / "canvas-list.js",
             ROOT / "static" / "js" / "canvas.js",
-            ROOT / "static" / "js" / "smart-canvas.js",
             *(ROOT / "static" / "js" / "workbench" / "canvas").rglob("*.js"),
         ]
         for path in paths:

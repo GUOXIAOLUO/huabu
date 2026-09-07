@@ -92,12 +92,15 @@ After this card:
   client, and the user never navigates to `smart-canvas.html`.
 - Creating a new Smart canvas lands the user on `canvas.html` with the
   same unified runtime.
-- The Smart product runtime files stay on disk (`out of scope: do not
-  delete`) so any direct deep-link to `smart-canvas.html` continues to
-  work; `R4-36` is the card that retires them.
+- The Smart product runtime files stay on disk (`out of scope` at
+  R4-34; `R4-36` retired `smart-canvas.html` / `smart-canvas.js` /
+  `static/css/smart-canvas.css` and the Smart i18n bundle; the
+  remaining Smart runtime modules — `composer.js`, `media-tools.js`,
+  `execution-host.js` — are now consumed only by the unified page and
+  are retired by `R4-37`).
 - The `WorkbenchCanvasEntryCompatibility` handoff helpers
-  (`requiresLegacySmartHandoff`, `legacySmartCanvasUrl`) stay exported;
-  `R4-35` is the card that retires the handoff module.
+  (`requiresLegacySmartHandoff`, `legacySmartCanvasUrl`) were retired
+  by `R4-35`.
 
 ## Inventory
 

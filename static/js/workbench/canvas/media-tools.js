@@ -3,16 +3,19 @@
    label numbering, pointer-to-canvas point mapping, grid split/join rectangle
    computation, and crop aspect-ratio parsing/fitting.
 
-   This is the seam for card R4-29: smart-canvas.js keeps the editor modal,
-   the canvas 2D rendering, the mode/state machine and the node mutation, but
-   the product-neutral geometry below is no longer Smart-owned. The page reads
-   its own DOM/state and passes plain values in — the module never touches the
-   DOM, `window`, or any Smart adapter detail. */
+   This is the seam for card R4-29: the Smart page used to keep the editor
+   modal, the canvas 2D rendering, the mode/state machine and the node
+   mutation, but the product-neutral geometry below is no longer page-owned.
+   R4-34 made canvas.html the single entry, so the unified page now owns the
+   editor modal and the node mutation; R4-36 retired the Smart page entirely
+   and the geometry is consumed by the unified runtime. The module never
+   touches the DOM, `window`, or any adapter detail. */
 (function exposeWorkbenchCanvasMediaTools(global) {
     'use strict';
 
     /* Clamp an image-resize scale to [0.05, 1]; non-finite input defaults to
-       0.5. Mirrors the former `clampImageResizeScale` in smart-canvas.js. */
+       0.5. (History: was the former `clampImageResizeScale` in smart-canvas.js,
+       retired by R4-36.) */
     function clampResizeScale(value) {
         const num = Number(value);
         if (!Number.isFinite(num)) return 0.5;

@@ -98,10 +98,10 @@ console.log(JSON.stringify({{
     def test_no_smart_product_page_routing_remains_in_static_js(self):
         # R4-35: with the handoff helpers removed from the compatibility
         # module, no JS file constructs a navigation to smart-canvas.html.
-        # The smart-canvas.html product page still exists on disk and is
-        # reachable only by direct navigation (R4-36 retires it after the
-        # Smart-capability migration is verified).
-        for name in ("canvas-entry-compatibility.js", "canvas-list.js", "asset-manager.js", "canvas.js", "smart-canvas.js"):
+        # R4-36 retired the smart-canvas.html product page itself, so it
+        # is no longer a routable target — the URL is absent from every
+        # remaining JS file.
+        for name in ("canvas-entry-compatibility.js", "canvas-list.js", "asset-manager.js", "canvas.js"):
             source = (ROOT / "static" / "js" / "workbench" / "canvas" / name).read_text(encoding="utf-8") if name == "canvas-entry-compatibility.js" else (ROOT / "static" / "js" / name).read_text(encoding="utf-8")
             self.assertNotIn("/static/smart-canvas.html", source, f"{name} must not construct a smart-canvas.html URL (R4-35)")
 

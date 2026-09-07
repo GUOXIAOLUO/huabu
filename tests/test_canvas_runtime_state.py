@@ -128,30 +128,24 @@ console.log(JSON.stringify({{left:G.portAnchor(r,'left'),right:G.portAnchor(r,'r
         self.assertEqual(payload["left"], {"x": 10, "y": 60})
         self.assertEqual(payload["right"], {"x": 110, "y": 60})
         self.assertTrue(payload["path"].startswith("M110 60 C"))
-    def test_both_page_adapters_use_the_shared_runtime_only_when_opted_in(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        for source, enabled, zoom, selection, zoomCommand in (
-            (classic, "canvasUnifiedRuntimeEnabled", "ensureCanvasViewportController", "applyCanvasRuntimeSelection", "canvasViewportController.zoomAt("),
-            (smart, "smartUnifiedRuntimeEnabled", "applySmartRuntimeViewport", "applySmartRuntimeSelection", "VIEWPORT_ZOOM_AT"),
-        ):
-            self.assertIn("unified_canvas') !== '0'", source)
-            self.assertIn(enabled, source)
-            self.assertIn(zoom, source)
-            self.assertIn(selection, source)
-            self.assertIn(zoomCommand, source)
+    def test_page_adapter_uses_the_shared_runtime_only_when_opted_in(self):
+        # R4-36: smart-canvas.js retired. The unified runtime is owned by
+        # canvas.html only.
+        source = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        self.assertIn("unified_canvas') !== '0'", source)
+        self.assertIn("canvasUnifiedRuntimeEnabled", source)
+        self.assertIn("ensureCanvasViewportController", source)
+        self.assertIn("applyCanvasRuntimeSelection", source)
+        self.assertIn("canvasViewportController.zoomAt(", source)
 
-    def test_both_page_adapters_write_drag_and_resize_through_runtime_commands(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        for source, move, resize in (
-            (classic, "applyCanvasRuntimeNodeMove", "applyCanvasRuntimeNodeResize"),
-            (smart, "applySmartRuntimeNodeMove", "applySmartRuntimeNodeResize"),
-        ):
-            self.assertIn(move, source)
-            self.assertIn(resize, source)
-            self.assertIn("COMMANDS.NODE_MOVE", source)
-            self.assertIn("COMMANDS.NODE_RESIZE", source)
+    def test_page_adapter_writes_drag_and_resize_through_runtime_commands(self):
+        # R4-36: smart-canvas.js retired. The unified runtime drag/resize
+        # commands are owned by canvas.html only.
+        source = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        self.assertIn("applyCanvasRuntimeNodeMove", source)
+        self.assertIn("applyCanvasRuntimeNodeResize", source)
+        self.assertIn("COMMANDS.NODE_MOVE", source)
+        self.assertIn("COMMANDS.NODE_RESIZE", source)
 
     def test_viewport_coordinates_and_anchor_zoom_are_shared(self):
         result = run_runtime("""

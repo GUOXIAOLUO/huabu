@@ -5,10 +5,35 @@
 
 ## Active Task
 
-- `None` — no active card. R4-35 closed 2026-09-07T14:54+08:00. Recommended
-  successor `R4-36` (see "Recommended Successor" below), not yet activated.
+- `None` — no active card. R4-36 closed 2026-09-07T15:09+08:00. Recommended
+  successor `R4-37` (see "Recommended Successor" below), not yet activated.
 
 ## Completed Tasks
+
+- `R4-36` — `DONE` 2026-09-07T15:09+08:00. Card:
+  `docs/tasks/active/R4-36-remove-smart-page.md`. Implementer evidence
+  (independent review pending): the Smart product page is deleted.
+  `static/smart-canvas.html`, `static/js/smart-canvas.js`,
+  `static/css/smart-canvas.css`, `static/js/i18n/smart-canvas.js` and
+  `tests/test_smart_capability_inventory.py` are removed via `git rm`.
+  `static/js/i18n.js` and `static/js/i18n/validate-i18n.js` drop the
+  Smart i18n entry; the historical "mirrors smart-canvas.js" comments in
+  `canvas-list.js`, `composer.js` and `media-tools.js` are updated to
+  record the retirement. `tests/test_frontend_workbench_modules.py`:
+  18 dual-iteration sites refactored to single-iteration; 63
+  Smart-page-specific test methods removed (every test that read the
+  deleted files or asserted Smart-page behavior). `test_canvas_entry.py`
+  drops `smart-canvas.js` from the R4-35 routing scan;
+  `test_canvas_runtime_state.py` drops the Smart halves of its two
+  dual-adapter tests; `test_repository_independence.py` drops the Smart
+  page from the GitHub-hosting scan. The R4-27 inventory doc is
+  annotated as a frozen historical snapshot; the R4-34 native-entry and
+  R4-35 handoff-removal docs are annotated. Ownership matrix gains a
+  `Canvas page surface` row recording the sole page; the `Smart product
+  runtime` row's evidence pointer is replaced with "(retired)".
+  `./scripts/agent-verify.sh` PASS at 343 tests (was 412; -69 from the
+  -6 inventory test file and the -63 Smart-specific frontend workbench
+  methods).
 
 - `R4-35` — `DONE` 2026-09-07T14:54+08:00. Card:
   `docs/tasks/active/R4-35-remove-smart-handoff.md`. Implementer evidence
@@ -529,8 +554,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor after R4-35 close (not activated, not executed):
+Expected successor after R4-36 close (not activated, not executed):
 
-`R4-36 — Remove Smart Page` (`docs/tasks/backlog/R4-36-remove-smart-page.md`)
+`R4-37 — Remove Smart Runtime` (`docs/tasks/backlog/R4-37-remove-smart-runtime.md`)
 
 Actual successor must still be checked against the repository's current verified state.

@@ -6,7 +6,7 @@ the handoff (the unified `canvas.html` now opens every record natively), the
 handoff helpers are dead surface — no JS code routes to `smart-canvas.html`
 any more — so this card deletes the helpers and the last `/static/smart-canvas.html`
 string. The `smart-canvas.html` / `smart-canvas.js` product page stays on
-disk (out of scope: `R4-36` retires the page after the Smart-capability
+disk (out of scope at R4-35; `R4-36` retired the page after the Smart-capability
 migration is verified).
 
 ## What gets removed
@@ -74,4 +74,4 @@ itself no longer carries the URL.
 | `WorkbenchCanvasEntryCompatibility.normalCanvasUrl` | unchanged | `canvas.js` (R4-34), `canvas-list.js`, `asset-manager.js` |
 | `WorkbenchCanvasEntryCompatibility.rememberCanvasListProject` / `rememberedCanvasListProject` | unchanged | `canvas.js`, `smart-canvas.js` |
 | `WorkbenchCanvasEntryCompatibility.canvasListUrl` | unchanged | `canvas.js`, `smart-canvas.js` |
-| `smart-canvas.html` / `smart-canvas.js` (product page) | unchanged | out of scope: `R4-36` retires the page after capability verification |
+| `smart-canvas.html` / `smart-canvas.js` (product page) | retired by R4-36 | R4-36 deleted the page and the editor; R4-37 retires the remaining Smart runtime modules (composer, media-tools, execution-host) |

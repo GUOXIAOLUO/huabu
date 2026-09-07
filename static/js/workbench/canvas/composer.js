@@ -1,11 +1,14 @@
 /* Mountable composer lifecycle. Owns the floating composer card's container,
    open/close state, node-relative positioning, and debounced update
    scheduling. Subject resolution and the dynamic provider/media/prompt
-   rendering stay with the caller (the Smart page), which injects them as
+   rendering stay with the caller (the unified page), which injects them as
    callbacks — the composer shell is product-neutral; the controls are not.
 
-   This is the lifecycle seam for card R4-28: smart-canvas.js keeps rendering
-   `updateComposer`, but the shell mechanics below are no longer Smart-owned. */
+   This is the lifecycle seam for card R4-28: the Smart page used to keep
+   rendering `updateComposer`, but the shell mechanics below are no longer
+   page-owned. R4-34 made canvas.html the single entry, so the unified
+   page now injects the subject binding; R4-36 retired the Smart page
+   entirely and the composer is consumed by the unified runtime. */
 (function exposeWorkbenchCanvasComposer(global) {
     'use strict';
 

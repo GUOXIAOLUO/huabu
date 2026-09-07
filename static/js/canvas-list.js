@@ -87,7 +87,7 @@ function setStatus(text){
     statusTimer = setTimeout(() => statusEl.classList.remove('show'), 2200);
 }
 
-/* ===== Viewport math (mirrors smart-canvas.js) ===== */
+/* ===== Viewport math (history: also lived in smart-canvas.js, retired by R4-36) ===== */
 function applyViewport(){
     boardWorld.style.transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`;
     board.style.backgroundSize = `${120 * viewport.scale}px ${120 * viewport.scale}px, ${120 * viewport.scale}px ${120 * viewport.scale}px, ${24 * viewport.scale}px ${24 * viewport.scale}px`;

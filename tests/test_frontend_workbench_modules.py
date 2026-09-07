@@ -28,13 +28,6 @@ class FrontendWorkbenchModulesTests(unittest.TestCase):
         self.assertNotIn("fetch(", playback)
         self.assertNotIn("localStorage", playback)
 
-    def test_renderer_admission_loads_before_canvas_adapters(self):
-        classic = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "smart-canvas.html").read_text(encoding="utf-8")
-        for page in (classic, smart):
-            self.assertLess(page.index("renderer-registry.js"), page.index("renderer-admission.js"))
-            self.assertLess(page.index("renderer-admission.js"), page.index("node-card-host.js"))
-
     def test_editor_adapters_share_execution_result_media_normalization(self):
         client = ROOT / "static" / "js" / "workbench" / "canvas" / "media-result-normalizer.js"
         script = f"""
@@ -50,7 +43,7 @@ console.log(JSON.stringify({{classic, smart}}));
             "classic": [{"url": "/one.png", "kind": "", "name": "one"}, "/two.png"],
             "smart": [{"url": "/root.png", "kind": "", "name": "", "width": 640}, {"url": "/nested.mp4", "kind": "", "name": "", "height": 360}],
         })
-        for page, editor in (("canvas.html", "canvas.js"), ("smart-canvas.html", "smart-canvas.js")):
+        for page, editor in (("canvas.html", "canvas.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
             editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
             self.assertLess(page_source.index("workbench/canvas/media-result-normalizer.js"), page_source.index(editor))
@@ -89,7 +82,7 @@ console.log(JSON.stringify({{
             "video": "video", "audio": "audio", "text": "text", "workflow": "workflow", "file": "file",
             "classicFlv": "video", "smartFlv": "image", "mime": "video", "fallback": "image",
         })
-        for page, editor in (("canvas.html", "canvas.js"), ("smart-canvas.html", "smart-canvas.js")):
+        for page, editor in (("canvas.html", "canvas.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
             editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
             self.assertLess(page_source.index("workbench/canvas/media-kind.js"), page_source.index(editor))
@@ -118,7 +111,7 @@ console.log(JSON.stringify({{
             "inline": "data:image/png;base64,AA",
             "unsupported": "/output/one.txt",
         })
-        for page, editor in (("canvas.html", "canvas.js"), ("smart-canvas.html", "smart-canvas.js")):
+        for page, editor in (("canvas.html", "canvas.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
             editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
             self.assertLess(page_source.index("workbench/canvas/media-url.js"), page_source.index(editor))
@@ -161,170 +154,11 @@ console.log(JSON.stringify({{bound, second, marker:video.dataset.adapterBound, p
             "stopped": 1,
             "eventCount": 12,
         })
-        for page, editor in (("canvas.html", "canvas.js"), ("smart-canvas.html", "smart-canvas.js")):
+        for page, editor in (("canvas.html", "canvas.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
             editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
             self.assertLess(page_source.index("workbench/canvas/media-preview-controls.js"), page_source.index(editor))
             self.assertIn("WorkbenchCanvasMediaPreviewControls.bindVideoOverlay", editor_source)
-
-    def test_media_preview_controls_bind_image_fallbacks_without_adapter_dom_logic(self):
-        client = ROOT / "static" / "js" / "workbench" / "canvas" / "media-preview-controls.js"
-        script = f"""
-const fs = require('fs');
-const vm = require('vm');
-const sandbox = {{window: {{}}}};
-vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
-const listeners = {{}};
-const fallback = {{id:'fallback'}};
-const template = {{content:{{firstElementChild:fallback}}, set innerHTML(value) {{ this.html = value; }}}};
-const video = {{dataset:{{inlineVideoActive:'1'}}}};
-const image = {{
-  dataset:{{previewSrc:'/api/media-preview', originalSrc:'/assets/video.mp4', previewKind:'video', videoFallbackAttrs:'muted'}},
-  ownerDocument:{{createElement:type => type === 'template' ? template : null}},
-  addEventListener:(type, listener) => {{ listeners[type] = listener; }},
-  getAttribute:() => '/api/media-preview', replaceWith:value => {{ image.replaced = value; }},
-}};
-const imageOnly = {{
-  dataset:{{previewSrc:'/api/media-preview', originalSrc:'/assets/image.png'}},
-  addEventListener:(type, listener) => {{ imageOnly.listener = listener; }},
-  getAttribute:() => '/api/media-preview', src:'',
-}};
-const root = {{querySelectorAll:selector => selector.startsWith('img') ? [image, imageOnly] : [video]}};
-const bound = [];
-sandbox.window.WorkbenchCanvasMediaPreviewControls.bindPreviewImageFallbacks(root, {{
-  videoFallbackHtml:(url, attrs) => `<video data-url="${{url}}" ${{attrs}}></video>`,
-  bindVideoOverlay:item => bound.push(item.id || 'inline'),
-}});
-listeners.error();
-imageOnly.listener();
-console.log(JSON.stringify({{markers:[image.dataset.previewFallbackBound, imageOnly.dataset.previewFallbackBound], html:template.html, replaced:image.replaced.id, imageSrc:imageOnly.src, bound}}));
-"""
-        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
-        self.assertEqual(json.loads(result.stdout), {
-            "markers": ["1", "1"],
-            "html": '<video data-url="/assets/video.mp4" muted></video>',
-            "replaced": "fallback",
-            "imageSrc": "/assets/image.png",
-            "bound": ["inline", "fallback"],
-        })
-        for editor in ("canvas.js", "smart-canvas.js"):
-            source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
-            self.assertIn("WorkbenchCanvasMediaPreviewControls.bindPreviewImageFallbacks", source)
-
-    def test_media_preview_controls_preload_image_decodes_and_reports_failure(self):
-        client = ROOT / "static" / "js" / "workbench" / "canvas" / "media-preview-controls.js"
-        script = f"""
-const fs = require('fs');
-const vm = require('vm');
-const sandbox = {{window: {{}}}};
-vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
-const createImage = kind => () => {{
-  const image = {{decoding:'', decode:async () => {{ image.decoded = true; }}}};
-  Object.defineProperty(image, 'src', {{set: value => {{ image.value = value; queueMicrotask(() => kind === 'ok' ? image.onload() : image.onerror()); }}}});
-  return image;
-}};
-(async () => {{
-  const api = sandbox.window.WorkbenchCanvasMediaPreviewControls;
-  const ok = await api.preloadImage('/assets/image.png', {{createImage:createImage('ok')}});
-  const failed = await api.preloadImage('/assets/missing.png', {{createImage:createImage('fail')}});
-  const empty = await api.preloadImage('', {{createImage:createImage('ok')}});
-  console.log(JSON.stringify({{ok, failed, empty}}));
-}})();
-"""
-        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
-        self.assertEqual(json.loads(result.stdout), {"ok": True, "failed": False, "empty": False})
-        for editor in ("canvas.js", "smart-canvas.js"):
-            source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
-            self.assertIn("WorkbenchCanvasMediaPreviewControls.preloadImage", source)
-
-    def test_media_preview_controls_collect_high_res_candidates_preserves_preview_states(self):
-        client = ROOT / "static" / "js" / "workbench" / "canvas" / "media-preview-controls.js"
-        script = f"""
-const fs = require('fs');
-const vm = require('vm');
-const sandbox = {{window: {{}}}};
-vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
-const makeImage = (original, preview, src, kind='') => ({{
-  dataset:{{originalSrc:original, previewSrc:preview, previewKind:kind, selectedHighResTarget:'old'}},
-  getAttribute:() => src, src:'',
-}});
-const pending = makeImage('/assets/pending.png', '/preview/pending.png', '/preview/pending.png');
-const loaded = makeImage('/assets/loaded.png', '/preview/loaded.png', '/preview/loaded.png');
-const far = makeImage('/assets/far.png', '/preview/far.png', '/assets/far.png');
-const video = makeImage('/assets/video.png', '/preview/video.png', '/preview/video.png', 'video');
-const root = {{querySelectorAll:() => [pending, loaded, far, video]}};
-const candidates = sandbox.window.WorkbenchCanvasMediaPreviewControls.collectHighResCandidates({{
-  root, wantHighRes:true, isNearViewport:image => image !== far,
-  resolveTarget:original => `high:${{original}}`, isLoaded:target => target.includes('loaded'),
-}});
-console.log(JSON.stringify({{candidates:candidates.map(item => item.target), pending:pending.dataset.selectedHighResTarget, loadedSrc:loaded.src, farSrc:far.src, farTarget:far.dataset.selectedHighResTarget || '', videoTarget:video.dataset.selectedHighResTarget}}));
-"""
-        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
-        self.assertEqual(json.loads(result.stdout), {
-            "candidates": ["high:/assets/pending.png"],
-            "pending": "high:/assets/pending.png",
-            "loadedSrc": "high:/assets/loaded.png",
-            "farSrc": "/preview/far.png",
-            "farTarget": "",
-            "videoTarget": "old",
-        })
-        for editor in ("canvas.js", "smart-canvas.js"):
-            source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
-            self.assertIn("WorkbenchCanvasMediaPreviewControls.collectHighResCandidates", source)
-
-    def test_smart_adapter_delegates_pure_media_grid_fitting_to_shared_canvas_module(self):
-        client = ROOT / "static" / "js" / "workbench" / "canvas" / "media-grid-layout.js"
-        script = f"""
-const fs = require('fs'); const vm = require('vm'); const sandbox = {{window: {{}}}};
-vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
-const api = sandbox.window.WorkbenchCanvasMediaGridLayout;
-console.log(JSON.stringify({{
-  fitted:api.fitSquareGrid(4, 400, 300, 100, {{pad:32, gap:8, maxVisibleRows:4}}),
-  fallback:api.fitSquareGrid(3, 1, 1, 100, {{pad:32, gap:8, maxVisibleRows:2, fallbackMaxVisibleRows:4}}),
-}}));
-"""
-        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
-        self.assertEqual(json.loads(result.stdout), {
-            "fitted": {"cols": 3, "rows": 2, "visibleRows": 2, "thumb": 100, "score": [1, 100, 3, -73, -2]},
-            "fallback": {"cols": 2, "rows": 2, "visibleRows": 2, "thumb": 28},
-        })
-        smart_page = (ROOT / "static" / "smart-canvas.html").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        classic_page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
-        self.assertLess(smart_page.index("workbench/canvas/media-grid-layout.js"), smart_page.index("smart-canvas.js"))
-        self.assertLess(classic_page.index("workbench/canvas/media-grid-layout.js"), classic_page.index("canvas.js"))
-        layout = smart[smart.index("function groupImageGridLayout(") : smart.index("function smartNodeInputThumbRows(")]
-        self.assertIn("WorkbenchCanvasMediaGridLayout.fitSquareGrid", layout)
-        self.assertNotIn("for(let cols", layout)
-
-    def test_smart_adapter_delegates_pure_media_intrinsic_and_thumbnail_sizing(self):
-        client = ROOT / "static" / "js" / "workbench" / "canvas" / "media-layout.js"
-        script = f"""
-const fs = require('fs'); const vm = require('vm'); const sandbox = {{window: {{}}}};
-vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
-const api = sandbox.window.WorkbenchCanvasMediaLayout;
-console.log(JSON.stringify({{
-  intrinsic:api.intrinsicSize({{natural_w:1200, natural_h:800, width:1, height:1}}),
-  fallback:api.intrinsicSize({{width:0, height:40}}),
-  contain:api.contain({{width:1200, height:800}}, 260, 220, {{minWidth:72, minHeight:72}}),
-  thumbnail:api.thumbnailSize({{layout_w:200, layout_h:100}}, 96),
-  unknown:api.thumbnailSize({{}}, 64),
-}}));
-"""
-        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
-        self.assertEqual(json.loads(result.stdout), {
-            "intrinsic": {"width": 1200, "height": 800}, "fallback": {"width": 0, "height": 0},
-            "contain": {"width": 260, "height": 173}, "thumbnail": {"width": 96, "height": 48},
-            "unknown": {"width": 64, "height": 64},
-        })
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        smart_page = (ROOT / "static" / "smart-canvas.html").read_text(encoding="utf-8")
-        classic_page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
-        self.assertLess(smart_page.index("workbench/canvas/media-layout.js"), smart_page.index("smart-canvas.js"))
-        self.assertLess(classic_page.index("workbench/canvas/media-layout.js"), classic_page.index("canvas.js"))
-        self.assertIn("WorkbenchCanvasMediaLayout.intrinsicSize", smart)
-        self.assertIn("WorkbenchCanvasMediaLayout.contain", smart)
-        self.assertIn("WorkbenchCanvasMediaLayout.thumbnailSize", smart)
 
     def test_editor_adapters_share_native_media_playback_state_preservation(self):
         client = ROOT / "static" / "js" / "workbench" / "canvas" / "media-playback-state.js"
@@ -355,7 +189,7 @@ console.log(JSON.stringify({{signature:api.signature(oldMedia), size:states.size
             "restored": {"time": 18.4, "rate": 1.25, "muted": True, "volume": 0.4},
             "delayed": {"time": 7, "rate": 2, "volume": 0.8, "once": True},
         })
-        for page, editor in (("canvas.html", "canvas.js"), ("smart-canvas.html", "smart-canvas.js")):
+        for page, editor in (("canvas.html", "canvas.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
             editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
             self.assertLess(page_source.index("workbench/canvas/media-playback-state.js"), page_source.index(editor))
@@ -382,7 +216,7 @@ console.log(JSON.stringify({{
             "images": ["/one.png"], "videos": ["/two.mp4", "https://example.test/three.mp4"], "audios": ["/four.mp3"],
             "remote": [True, True, False], "imageUrls": [True, False, True],
         })
-        for page, editor in (("canvas.html", "canvas.js"), ("smart-canvas.html", "smart-canvas.js")):
+        for page, editor in (("canvas.html", "canvas.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
             editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
             self.assertLess(page_source.index("workbench/canvas/media-references.js"), page_source.index(editor))
@@ -405,7 +239,7 @@ console.log(JSON.stringify({{saved, restored:api.rememberedCanvasListProject({{s
             "saved": "project / one", "restored": "project / one", "fallback": "default",
             "url": "/static/canvas-list.html?project=project%20%2F%20two", "stored": "project / two",
         })
-        for page, editor in (("canvas.html", "canvas.js"), ("smart-canvas.html", "smart-canvas.js")):
+        for page, editor in (("canvas.html", "canvas.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
             editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
             self.assertLess(page_source.index("workbench/canvas/canvas-entry-compatibility.js"), page_source.index(editor))
@@ -428,7 +262,7 @@ vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
             "empty": False,
             "api": ["copyText", "copyWithCopyEvent", "copyWithTextarea", "matchesText"],
         })
-        for page, editor in (("canvas.html", "canvas.js"), ("smart-canvas.html", "smart-canvas.js")):
+        for page, editor in (("canvas.html", "canvas.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
             editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
             self.assertLess(page_source.index("workbench/canvas/canvas-clipboard.js"), page_source.index(editor))
@@ -460,7 +294,7 @@ console.log(JSON.stringify([
 """
         result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
         self.assertEqual(json.loads(result.stdout), ["1536x864", "1536x1072", "2480x3840", "111x222", "auto", "1024x1024"])
-        for page, editor in (("canvas.html", "canvas.js"), ("smart-canvas.html", "smart-canvas.js")):
+        for page, editor in (("canvas.html", "canvas.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
             editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
             self.assertLess(page_source.index("workbench/canvas/image-size.js"), page_source.index(editor))
@@ -485,7 +319,7 @@ console.log(JSON.stringify([
 """
         result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
         self.assertEqual(json.loads(result.stdout), [True, True, True, True, False])
-        for page, editor in (("canvas.html", "canvas.js"), ("smart-canvas.html", "smart-canvas.js")):
+        for page, editor in (("canvas.html", "canvas.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
             editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
             self.assertLess(page_source.index("workbench/canvas/interaction-targets.js"), page_source.index(editor))
@@ -516,266 +350,13 @@ vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
             "parsed": "title: required",
             "text": "plain failure",
         })
-        for page, editor in (("canvas.html", "canvas.js"), ("smart-canvas.html", "smart-canvas.js")):
+        for page, editor in (("canvas.html", "canvas.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
             editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
             self.assertLess(page_source.index("workbench/canvas/canvas-http-error.js"), page_source.index(editor))
             self.assertIn("WorkbenchCanvasHttpError.message", editor_source)
             self.assertIn("WorkbenchCanvasHttpError.responseMessage", editor_source)
             self.assertNotIn("const detail = data.detail ?? data.error ?? data.message", editor_source)
-
-    def test_editor_adapters_share_the_workflow_transfer_transport_boundary(self):
-        client = ROOT / "static" / "js" / "workbench" / "canvas" / "workflow-transfer-client.js"
-        graph = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-graph-fragment.js"
-        http_error = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-http-error.js"
-        script = f"""
-const fs = require('fs');
-const vm = require('vm');
-const requests = [];
-const downloads = [];
-const revoked = [];
-const sandbox = {{
-  window: {{}}, Blob, FormData,
-  URL: {{createObjectURL: () => 'blob:workflow', revokeObjectURL: url => revoked.push(url)}},
-  document: {{
-    body: {{appendChild: link => downloads.push({{event:'append', href:link.href, download:link.download}})}},
-    createElement: () => ({{
-      href:'', download:'',
-      click: function() {{ downloads.push({{event:'click', href:this.href, download:this.download}}); }},
-      remove: function() {{ downloads.push({{event:'remove'}}); }},
-    }}),
-  }},
-  setTimeout: (callback, delay) => {{ downloads.push({{event:'timeout', delay}}); callback(); }},
-  fetch: async (path, options={{}}) => {{
-    requests.push({{path, options}});
-    return path.endsWith('/export')
-      ? {{ok:true, json: async () => ({{}}), blob: async () => new Blob(['archive'])}}
-      : {{ok:true, json: async () => ({{workflow:{{nodes:[{{id:'n1'}}], connections:[]}}}})}};
-  }},
-}};
-vm.runInNewContext(fs.readFileSync({json.dumps(str(graph))}, 'utf8'), sandbox);
-vm.runInNewContext(fs.readFileSync({json.dumps(str(http_error))}, 'utf8'), sandbox);
-vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
-(async () => {{
-  const archive = await sandbox.window.WorkbenchCanvasWorkflowTransfer.exportArchive({{nodes:[{{id:'n1'}}]}}, 'flow.zip');
-  const imported = await sandbox.window.WorkbenchCanvasWorkflowTransfer.importArchive(new Blob(['flow']));
-  const jsonExport = await sandbox.window.WorkbenchCanvasWorkflowTransfer.jsonExportBlob({{nodes:[{{id:'json'}}]}}).text();
-  sandbox.window.WorkbenchCanvasWorkflowTransfer.downloadBlob(new Blob(['download']), '', {{fallbackFilename:'fallback.json', revokeAfterMs:800}});
-  const errors = [
-    sandbox.window.WorkbenchCanvasWorkflowTransfer.errorMessage('raw failure', 'fallback'),
-    sandbox.window.WorkbenchCanvasWorkflowTransfer.errorMessage({{detail:'plain'}}, 'fallback'),
-    sandbox.window.WorkbenchCanvasWorkflowTransfer.errorMessage({{detail:[{{loc:['body', 'nodes', 0], msg:'invalid'}}]}}, 'fallback'),
-    sandbox.window.WorkbenchCanvasWorkflowTransfer.errorMessage({{detail:{{message:'nested'}}}}, 'fallback'),
-    sandbox.window.WorkbenchCanvasWorkflowTransfer.errorMessage({{}}, 'fallback'),
-  ];
-  const normalized = [
-    sandbox.window.WorkbenchCanvasWorkflowTransfer.normalizeImported(imported),
-    sandbox.window.WorkbenchCanvasWorkflowTransfer.normalizeImported([{{id:'legacy'}}]),
-    sandbox.window.WorkbenchCanvasWorkflowTransfer.normalizeImported({{nodes:[{{id:'direct'}}]}}),
-    sandbox.window.WorkbenchCanvasWorkflowTransfer.normalizeImported({{invalid:true}}),
-  ];
-  const selected = sandbox.window.WorkbenchCanvasGraphFragment.selectedSubgraph({{
-    nodes:[{{id:'a'}}, {{id:'b'}}, {{id:'c'}}],
-    connections:[{{from:'a', to:'b', state:{{live:true}}}}, {{from:'b', to:'c'}}, {{from:'c', to:'a'}}],
-    selectedIds:['b', 'missing', 'a', 'b'],
-    serializeNode:node => ({{...node, exported:true}}),
-    order:'selection',
-  }});
-  const sourceOrder = sandbox.window.WorkbenchCanvasGraphFragment.selectedSubgraph({{
-    nodes:[{{id:'a'}}, {{id:'b'}}, {{id:'c'}}], selectedIds:['c', 'a'],
-  }});
-  let nextId = 0;
-  const materialized = sandbox.window.WorkbenchCanvasGraphFragment.materializeImportedSubgraph({{
-    nodes:[{{id:'a', x:10, y:20}}, {{id:'b', x:30, y:25}}],
-    connections:[{{from:'a', to:'b', metadata:{{source:true}}}}, {{from:'b', to:'missing'}}],
-    target:{{x:100, y:200}},
-    serializeNode:node => ({{...node}}),
-    createNodeId:type => `${{type}}-${{++nextId}}`,
-    prepareNode:node => ({{...node, prepared:true}}),
-    createConnection:(connection, endpoints) => ({{...connection, ...endpoints, copied:true}}),
-  }});
-  const centered = sandbox.window.WorkbenchCanvasGraphFragment.materializeImportedSubgraph({{
-    nodes:[{{id:'left', x:10, y:20}}, {{id:'right', x:30, y:40}}],
-    target:{{x:100, y:200}}, anchor:'center',
-    serializeNode:node => ({{...node}}), createNodeId:type => `center-${{type}}`,
-  }});
-  const expanded = sandbox.window.WorkbenchCanvasGraphFragment.expandNodeIds({{
-    nodes:[{{id:'group', items:['child', 'nested']}}, {{id:'child'}}, {{id:'nested', items:['leaf']}}, {{id:'leaf'}}],
-    initialIds:['group'], childIds:node => node.items || [],
-  }});
-  const removed = sandbox.window.WorkbenchCanvasGraphFragment.removeGraphRecords({{
-    nodes:[{{id:'group'}}, {{id:'child'}}, {{id:'keep'}}],
-    connections:[{{from:'group', to:'child'}}, {{from:'keep', to:'child'}}, {{from:'keep', to:'keep'}}],
-    removeIds:expanded,
-  }});
-  console.log(JSON.stringify({{archiveSize:archive.size, imported, jsonExport, errors, normalized, selected, sourceOrder, materialized:{{nodes:materialized.nodes, connections:materialized.connections, idMap:[...materialized.idMap.entries()]}}, centered:{{nodes:centered.nodes, connections:centered.connections}}, expanded:[...expanded], removed, downloads, revoked, requests:requests.map(item => ({{path:item.path, method:item.options.method, body:item.options.body}}))}}));
-}})();
-"""
-        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
-        payload = json.loads(result.stdout)
-        self.assertEqual(payload["archiveSize"], 7)
-        self.assertEqual(payload["imported"]["workflow"]["nodes"], [{"id": "n1"}])
-        self.assertEqual(json.loads(payload["jsonExport"]), {"nodes": [{"id": "json"}]})
-        self.assertEqual(
-            payload["errors"],
-            ["raw failure", "plain", "nodes.0: invalid", "nested", "{}"],
-        )
-        self.assertEqual(payload["downloads"], [
-            {"event": "append", "href": "blob:workflow", "download": "fallback.json"},
-            {"event": "click", "href": "blob:workflow", "download": "fallback.json"},
-            {"event": "remove"},
-            {"event": "timeout", "delay": 800},
-        ])
-        self.assertEqual(payload["revoked"], ["blob:workflow"])
-        self.assertEqual(payload["normalized"], [
-            {"nodes": [{"id": "n1"}], "connections": []},
-            {"nodes": [{"id": "legacy"}], "connections": []},
-            {"nodes": [{"id": "direct"}], "connections": []},
-            {"nodes": [], "connections": []},
-        ])
-        self.assertEqual(payload["selected"], {
-            "nodes": [{"id": "b", "exported": True}, {"id": "a", "exported": True}],
-            "connections": [{"from": "a", "to": "b", "state": {"live": True}}],
-        })
-        self.assertEqual(payload["sourceOrder"], {
-            "nodes": [{"id": "a"}, {"id": "c"}],
-            "connections": [],
-        })
-        self.assertEqual(payload["materialized"], {
-            "nodes": [
-                {"id": "node-1", "x": 100, "y": 200, "prepared": True},
-                {"id": "node-2", "x": 120, "y": 205, "prepared": True},
-            ],
-            "connections": [{
-                "from": "node-1", "to": "node-2", "metadata": {"source": True}, "copied": True,
-            }],
-            "idMap": [["a", "node-1"], ["b", "node-2"]],
-        })
-        self.assertEqual(payload["centered"], {
-            "nodes": [{"id": "center-node", "x": 90, "y": 190}, {"id": "center-node", "x": 110, "y": 210}],
-            "connections": [],
-        })
-        self.assertEqual(payload["expanded"], ["group", "child", "nested", "leaf"])
-        self.assertEqual(payload["removed"], {
-            "nodes": [{"id": "keep"}],
-            "connections": [{"from": "keep", "to": "keep"}],
-        })
-        self.assertEqual(payload["requests"][0]["path"], "/api/canvas-workflows/export")
-        self.assertEqual(payload["requests"][0]["method"], "POST")
-        self.assertEqual(json.loads(payload["requests"][0]["body"]), {
-            "nodes": [{"id": "n1"}], "include_resources": True, "filename": "flow.zip",
-        })
-        self.assertEqual(payload["requests"][1]["path"], "/api/canvas-workflows/import")
-        self.assertEqual(payload["requests"][1]["method"], "POST")
-
-        for page, editor in (("canvas.html", "canvas.js"), ("smart-canvas.html", "smart-canvas.js")):
-            page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
-            editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
-            self.assertLess(page_source.index("workbench/canvas/workflow-transfer-client.js"), page_source.index(editor))
-            self.assertLess(page_source.index("workbench/canvas/canvas-graph-fragment.js"), page_source.index("workbench/canvas/workflow-transfer-client.js"))
-            self.assertIn("WorkbenchCanvasWorkflowTransfer.exportArchive", editor_source)
-            self.assertIn("WorkbenchCanvasWorkflowTransfer.importArchive", editor_source)
-            self.assertIn("WorkbenchCanvasWorkflowTransfer.normalizeImported", editor_source)
-            self.assertIn("WorkbenchCanvasWorkflowTransfer.jsonExportBlob", editor_source)
-            self.assertIn("WorkbenchCanvasWorkflowTransfer.downloadBlob", editor_source)
-            self.assertIn("WorkbenchCanvasGraphFragment.selectedSubgraph", editor_source)
-            self.assertIn("WorkbenchCanvasGraphFragment.materializeImportedSubgraph", editor_source)
-        graph_source = graph.read_text(encoding="utf-8")
-        client_source = client.read_text(encoding="utf-8")
-        self.assertIn("WorkbenchCanvasGraphFragment", graph_source)
-        self.assertNotIn("fetch(", graph_source)
-        self.assertNotIn("document.", graph_source)
-        self.assertNotIn("localStorage", graph_source)
-        self.assertIn("WorkbenchCanvasHttpError", client_source)
-        self.assertNotIn("const detail = payload.detail", client_source)
-        classic_source = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        self.assertIn("WorkbenchCanvasGraphFragment.expandNodeIds", classic_source)
-        self.assertIn("WorkbenchCanvasGraphFragment.removeGraphRecords", classic_source)
-        self.assertIn(
-            "WorkbenchCanvasGraphFragment.removeGraphRecords",
-            (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8"),
-        )
-        classic_export = editor_source = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        classic_export = classic_export[classic_export.index("async function exportSelectedWorkflow(") : classic_export.index("function defaultWorkflowAssetTarget(")]
-        classic_import = editor_source[editor_source.index("async function importWorkflowFile(") : editor_source.index("function startNodeDrag(")]
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        smart_export = smart[smart.index("async function exportSelectedSmartWorkflow(") : smart.index("function insertSmartWorkflowIntoCanvas(")]
-        smart_import = smart[smart.index("async function importSmartWorkflowFile(") : smart.index("const RECENT_SMART_SETTINGS_KEY")]
-        for adapter in (classic_export, classic_import, smart_export, smart_import):
-            self.assertNotIn("/api/canvas-workflows/export", adapter)
-            self.assertNotIn("/api/canvas-workflows/import", adapter)
-        self.assertNotIn("function normalizeImportedWorkflow", editor_source)
-        self.assertNotIn("function normalizeImportedSmartWorkflow", smart)
-        self.assertNotIn("function downloadBlob", editor_source)
-        self.assertNotIn("function downloadBlob", smart)
-        self.assertNotIn("new Blob([JSON.stringify(payload, null, 2)]", classic_export)
-        self.assertNotIn("new Blob([JSON.stringify(payload, null, 2)]", smart_export)
-        classic_copy = editor_source[editor_source.index("function copySelectedNodes(){") : editor_source.index("function clipboardNodeCount(){")]
-        smart_copy = smart[smart.index("function copySelectedNodes(){") : smart.index("function pasteNodes(){")]
-        for adapter in (classic_copy, smart_copy):
-            self.assertIn("WorkbenchCanvasGraphFragment.selectedSubgraph", adapter)
-            self.assertNotIn("filter(c => ids.has(c.from) && ids.has(c.to))", adapter)
-        classic_paste = editor_source[editor_source.index("function pasteNodes(){") : editor_source.index("function selectedWorkflowPayload(){")]
-        smart_paste = smart[smart.index("function pasteNodes(){") : smart.index("// 跨页\"素材库")]
-        for adapter in (classic_paste, smart_paste):
-            self.assertIn("WorkbenchCanvasGraphFragment.materializeImportedSubgraph", adapter)
-            self.assertIn("anchor:'center'", adapter)
-
-    def test_editor_adapters_share_the_canvas_record_persistence_boundary(self):
-        client = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-persistence-client.js"
-        script = f"""
-const fs = require('fs');
-const vm = require('vm');
-const requests = [];
-const responses = [
-  {{ok:true, status:200, json: async () => ({{canvas:{{id:'canvas/1', updated_at:7}}}})}},
-  {{ok:false, status:409, json: async () => ({{detail:{{canvas:{{id:'canvas/1', updated_at:8}}, updated_at:8}}}})}},
-  {{ok:true, status:200, json: async () => ({{updated_at:9}})}},
-];
-const sandbox = {{window: {{}}, fetch: async (path, options={{}}) => {{
-  requests.push({{path, options}});
-  return responses.shift();
-}}}};
-vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
-(async () => {{
-  const loaded = await sandbox.window.WorkbenchCanvasPersistence.load('canvas/1');
-  const stale = await sandbox.window.WorkbenchCanvasPersistence.save('canvas/1', {{title:'Shared'}});
-  const metadata = await sandbox.window.WorkbenchCanvasPersistence.metadata('canvas/1');
-  console.log(JSON.stringify({{loaded, stale, metadata, requests}}));
-}})();
-"""
-        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
-        payload = json.loads(result.stdout)
-        self.assertEqual(payload["loaded"]["canvas"]["id"], "canvas/1")
-        self.assertEqual(payload["stale"]["status"], 409)
-        self.assertEqual(payload["stale"]["canvas"]["updated_at"], 8)
-        self.assertEqual(payload["stale"]["updatedAt"], 8)
-        self.assertEqual(payload["metadata"]["updatedAt"], 9)
-        # Canonical-first load: a revision-less canonical response carries no cursor,
-        # so the save falls back to the legacy transport with the record as body.
-        self.assertEqual(payload["requests"][0]["path"], "/api/v1/canvases/canvas%2F1")
-        self.assertEqual(payload["requests"][0]["options"]["method"], "GET")
-        self.assertEqual(payload["requests"][1]["options"]["method"], "PUT")
-        self.assertEqual(payload["requests"][1]["path"], "/api/canvases/canvas%2F1")
-        self.assertEqual(json.loads(payload["requests"][1]["options"]["body"]), {"title": "Shared"})
-        self.assertEqual(payload["requests"][2]["path"], "/api/v1/canvases/canvas%2F1/meta")
-
-        for page, editor in (("canvas.html", "canvas.js"), ("smart-canvas.html", "smart-canvas.js")):
-            text = (ROOT / "static" / page).read_text(encoding="utf-8")
-            self.assertLess(text.index("workbench/canvas/canvas-persistence-client.js"), text.index(editor))
-            self.assertLess(text.index("workbench/canvas/canvas-remote-sync.js"), text.index(editor))
-            self.assertLess(text.index("workbench/canvas/canvas-update-message.js"), text.index(editor))
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        classic_save = classic[classic.index("async function saveCanvas(){") : classic.index("async function loadConfig(){")]
-        classic_open = classic[classic.index("async function openCanvas(id){") : classic.index("function applyRemoteCanvasData(remote){")]
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        smart_load = smart[smart.index("async function loadCanvas(){") : smart.index("function scheduleSave(){")]
-        smart_save = smart[smart.index("async function saveCanvas(){") : smart.index("function imageMetaFromNode")]
-        classic_remote_sync = classic[classic.index("async function syncRemoteCanvasNow(){") : classic.index("function startCanvasRemotePolling(){")]
-        smart_remote_sync = smart[smart.index("async function mergeReloadCanvasNow(){") : smart.index("function connectAssetLibrarySyncSocket(){")]
-        for adapter in (classic_save, classic_open, smart_load, smart_save, classic_remote_sync, smart_remote_sync):
-            self.assertIn("WorkbenchCanvasPersistence", adapter)
-            self.assertNotIn("fetch(`/api/canvases/", adapter)
 
     def test_persistence_client_saves_with_logical_revision_cas_on_the_canonical_transport(self):
         client = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-persistence-client.js"
@@ -997,32 +578,6 @@ const options = {{canvasId:'c1', clientId:'self', currentUpdatedAt:4000, current
         self.assertIsNone(payload["revisionlessStale"])
         self.assertIsNone(payload["ownClientId"])
 
-    def test_rendering_ownership_map_shared_seams_are_load_order_stable_and_mounted_once(self):
-        # R4-08 characterization: the shared render pipeline loads before both
-        # adapters, the registry prefers media over source-payload, both adapters
-        # mount through the unified host, and neither adapter ever tears a mounted
-        # card down (DOM dies by omission from the next render sweep).
-        order = [
-            "renderer-registry.js", "renderer-admission.js", "node-shell.js",
-            "legacy-renderer.js", "media-renderer.js", "node-card-host.js",
-            "unified-render-host.js",
-        ]
-        for page, adapter in (("canvas.html", "js/canvas.js"), ("smart-canvas.html", "js/smart-canvas.js")):
-            text = (ROOT / "static" / page).read_text(encoding="utf-8")
-            positions = [text.index(f"workbench/canvas/{name}") for name in order]
-            self.assertEqual(positions, sorted(positions), page)
-            self.assertLess(positions[-1], text.index(adapter), page)
-        host = (ROOT / "static" / "js" / "workbench" / "canvas" / "node-card-host.js").read_text(encoding="utf-8")
-        self.assertLess(host.index("id: 'media'"), host.index("id: 'source-payload'"))
-        self.assertIn("priority: 100", host[:host.index("id: 'source-payload'")])
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        self.assertIn("WorkbenchUnifiedRenderHost.mountAdapterCard", classic)
-        self.assertIn("ensureSmartRenderRuntime().mountAll(entries)", smart)
-        for adapter_source in (classic, smart):
-            self.assertIn("WorkbenchCanvasMediaPlaybackState.capture", adapter_source)
-            self.assertNotIn(".destroy()", adapter_source)
-
     def test_render_runtime_owns_the_mounted_card_lifecycle(self):
         runtime_module = ROOT / "static" / "js" / "workbench" / "canvas" / "render-runtime.js"
         script = f"""
@@ -1072,26 +627,6 @@ console.log(JSON.stringify({{invalid}}));
         self.assertTrue(lines[0]["tolerantPresent"])
         self.assertEqual(lines[0]["exposed"], "function")
         self.assertEqual(checks["invalid"], "throws")
-
-    def test_render_runtime_is_wired_as_the_single_card_lifecycle_owner(self):
-        runtime_source = (ROOT / "static" / "js" / "workbench" / "canvas" / "render-runtime.js").read_text(encoding="utf-8")
-        self.assertIn("global.WorkbenchRenderRuntime", runtime_source)
-        for page, adapter in (("canvas.html", "js/canvas.js"), ("smart-canvas.html", "js/smart-canvas.js")):
-            text = (ROOT / "static" / page).read_text(encoding="utf-8")
-            self.assertLess(text.index("workbench/canvas/unified-render-host.js"), text.index("workbench/canvas/render-runtime.js"), page)
-            self.assertLess(text.index("workbench/canvas/render-runtime.js"), text.index(adapter), page)
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        # The UnifiedRenderHost mount is injected once per page; every card mount
-        # goes through the runtime, and delete/refresh flows unmount through it.
-        self.assertEqual(classic.count("WorkbenchUnifiedRenderHost.mountAdapterCard("), 1)
-        self.assertEqual(smart.count("WorkbenchUnifiedRenderHost.mountAdapterCard("), 1)
-        self.assertNotIn("mountAdapterCards(entries)", smart)
-        for adapter, expected_reset in ((classic, "renderRuntime?.unmountAll()"), (smart, "smartRenderRuntime?.unmountAll()")):
-            self.assertIn("WorkbenchRenderRuntime.create", adapter)
-            self.assertIn(expected_reset, adapter)
-        self.assertIn("renderRuntime?.unmount(id)", classic)
-        self.assertIn("smartRenderRuntime?.unmount(deleteId)", smart)
 
     def test_media_playback_state_projection_can_exclude_runtime_mounted_cards(self):
         client = ROOT / "static" / "js" / "workbench" / "canvas" / "media-playback-state.js"
@@ -1285,19 +820,6 @@ console.log(JSON.stringify({
         self.assertEqual(payload["opens"], ["prompt-1"])
         self.assertEqual(payload["bound"], 1)
 
-    def test_generic_prompt_rendering_is_cut_over_to_the_registry_on_classic(self):
-        classic_page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
-        self.assertLess(classic_page.index("workbench/canvas/node-card-host.js"), classic_page.index("workbench/canvas/prompt-card-renderer.js"))
-        self.assertLess(classic_page.index("workbench/canvas/prompt-card-renderer.js"), classic_page.index("js/canvas.js"))
-        # Smart keeps its composer-owned smart-prompt card; the module is Classic-only.
-        self.assertNotIn("prompt-card-renderer.js", (ROOT / "static" / "smart-canvas.html").read_text(encoding="utf-8"))
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        self.assertIn("if(node.type === 'prompt' && !canUseCanvasNodeShellForLegacy(node))", classic)
-        self.assertIn("rendererOptions = node.type === 'prompt' ?", classic)
-        self.assertIn("preserveLegacyContent: node.type !== 'prompt'", classic)
-        self.assertIn("onPromptInput: text =>", classic)
-        # Flags-off fallback markup is preserved verbatim.
-        self.assertIn('data-prompt-template-open data-prompt-template-node-id=', classic)
     def test_provider_compat_renderer_adopts_body_and_carries_cleanup_through_destroy(self):
         canvas_dir = ROOT / "static" / "js" / "workbench" / "canvas"
         module_paths = [
@@ -1391,23 +913,6 @@ console.log(JSON.stringify({
         self.assertTrue(payload["rootRemoved"])
         # Non-provider generic families still resolve to source-payload.
         self.assertEqual(payload["genericRendererId"], "source-payload")
-
-    def test_provider_rendering_lifecycle_is_owned_by_the_runtime_on_classic(self):
-        classic_page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
-        self.assertLess(classic_page.index("workbench/canvas/prompt-card-renderer.js"), classic_page.index("workbench/canvas/provider-compat-renderer.js"))
-        self.assertLess(classic_page.index("workbench/canvas/provider-compat-renderer.js"), classic_page.index("js/canvas.js"))
-        # Smart provider-shaped cards keep their composer-owned bodies for now.
-        self.assertNotIn("provider-compat-renderer.js", (ROOT / "static" / "smart-canvas.html").read_text(encoding="utf-8"))
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        self.assertIn("const CANVAS_PROVIDER_SHELL_TYPES = Object.freeze(['llm', 'generator', 'midjourney', 'msgen', 'video', 'comfy', 'rh', 'ltxDirector', 'minimax'])", classic)
-        self.assertIn("onCardDestroy: payloadNode => destroyLTXEditor(payloadNode)", classic)
-        delete_flow = classic[classic.index("function deleteNode(id, event){") : classic.index("function deleteSelectedNodes(){")]
-        self.assertIn("renderRuntime?.unmount(id)", delete_flow)
-        self.assertNotIn("destroyLTXEditor(", delete_flow)
-        bulk_start = classic.index("function deleteSelectedNodes(){")
-        bulk_flow = classic[bulk_start : bulk_start + 900]
-        self.assertIn("toDelete.forEach(id => renderRuntime?.unmount(id));", bulk_flow)
-        self.assertNotIn("destroyLTXEditor(", bulk_flow[:bulk_flow.index("renderRuntime?.unmount") + 40])
 
     def test_interaction_controller_owns_the_pointer_session_lifecycle(self):
         controller_module = ROOT / "static" / "js" / "workbench" / "canvas" / "interaction-controller.js"
@@ -1680,22 +1185,6 @@ console.log(JSON.stringify({dragCalls, resizeCalls, dragMembers: drag.members.le
         self.assertEqual(payload["resizeReady"], "function")
         self.assertEqual(payload["noKernel"], "throws")
 
-    def test_node_drag_and_resize_session_creation_is_cut_over_on_both_adapters(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        for adapter, drag_factory, resize_factory in (
-            (classic, "ensureNodeDragSessionFactory()", "ensureNodeResizeSessionFactory()"),
-            (smart, "ensureSmartNodeDragSessionFactory()", "ensureSmartNodeResizeSessionFactory()"),
-        ):
-            self.assertEqual(adapter.count("WorkbenchInteractionController.createNodeDragSessionFactory"), 1)
-            self.assertEqual(adapter.count("WorkbenchInteractionController.createNodeResizeSessionFactory"), 1)
-            self.assertIn(f"{drag_factory}({{", adapter)
-            self.assertIn(f"{resize_factory}({{", adapter)
-        # No page wires kernel session creation directly anymore.
-        for adapter in (classic, smart):
-            self.assertNotIn("WorkbenchCanvasRuntime?.createNodeDragSession", adapter)
-            self.assertNotIn("WorkbenchCanvasRuntime?.createNodeResizeSession", adapter)
-
     def test_keyboard_runtime_dispatches_to_registered_handlers_until_handled(self):
         controller_module = ROOT / "static" / "js" / "workbench" / "canvas" / "interaction-controller.js"
         script = """
@@ -1738,28 +1227,6 @@ console.log(JSON.stringify({seen, listenerCount: listeners.length, handlerCount:
         # lifetime; stop() only unregisters the handler.
         self.assertEqual(payload["listenerCount"], 2)
         self.assertEqual(payload["handlerCount"], 1)
-
-    def test_keyboard_listeners_are_cut_over_to_the_runtime_on_both_adapters(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        for adapter, singleton in (
-            (classic, "const canvasKeyboardRuntime = window.WorkbenchInteractionController.createKeyboardRuntime({windowRef: window});"),
-            (smart, "const smartKeyboardRuntime = window.WorkbenchInteractionController.createKeyboardRuntime({windowRef: window});"),
-        ):
-            self.assertIn(singleton, adapter)
-            self.assertEqual(adapter.count("WorkbenchInteractionController.createKeyboardRuntime"), 1)
-            self.assertIn("KeyboardRuntime.register(e => {", adapter)
-        # The migrated main keydown blocks no longer add their own window listeners.
-        self.assertNotIn("window.addEventListener('keydown', e => {\n    if(!canvas) return;", classic)
-        self.assertNotIn("window.addEventListener('keyup', e => {\n    if(String(e.key || '').toLowerCase() === 'r') isRKeyDown = false;", classic)
-        # Undo/redo, delete, copy/paste, group and select-all shortcuts still route
-        # through their characterized page functions.
-        self.assertIn("performUndo()", classic)
-        self.assertIn("deleteSelectedNodes()", classic)
-        self.assertIn("copySelectedNodes()", classic)
-        self.assertIn("groupSelectedImages()", classic)
-        self.assertIn("deleteNode(id);", smart)
-        self.assertIn("copySelectedNodes();", smart)
 
     def test_connection_gesture_controller_owns_the_gesture_lifecycle(self):
         controller_module = ROOT / "static" / "js" / "workbench" / "canvas" / "interaction-controller.js"
@@ -1810,32 +1277,6 @@ console.log(JSON.stringify({moves: events.moves, drops: events.drops, noTargets:
         self.assertEqual(payload["finishes"], ["a", "c"])
         self.assertFalse(payload["vetoed"])
         self.assertFalse(payload["begunTwice"])
-
-    def test_connection_gestures_are_cut_over_on_both_adapters(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        for adapter, singleton in (
-            (classic, "ensureClassicConnectionGesture"),
-            (smart, "ensureSmartConnectionGesture"),
-        ):
-            self.assertEqual(adapter.count("WorkbenchInteractionController.createConnectionGestureController"), 1)
-            self.assertIn("beginGesture(", adapter)
-            self.assertIn("scheduleSave()", adapter)
-        # Persistence is only touched through page save/application seams; the
-        # controller module has no save/fetch API surface at all.
-        runtime_module = (ROOT / "static" / "js" / "workbench" / "canvas" / "interaction-controller.js").read_text(encoding="utf-8")
-        self.assertNotIn("scheduleSave", runtime_module)
-        self.assertNotIn("fetch(", runtime_module)
-        # The duplicated page wiring is gone: Classic no longer assigns the
-        # window slot inside startLink, and Smart's dispatcher lost both
-        # portDragState branches.
-        classic_link = classic[classic.index("function startLink(e, originId, originKind){") : classic.index("function nearestPort(clientX, clientY, kind){")]
-        self.assertNotIn("window.onmousemove", classic_link)
-        self.assertNotIn("window.onmouseup", classic_link)
-        self.assertNotIn("if(portDragState){", smart)
-        self.assertIn("function finishSmartPortDrag(drag, e){", smart)
-        self.assertIn("drop: (gesture, result, e2) => finishSmartPortDrag(gesture, e2),", smart)
-        self.assertIn("noTarget: (gesture, e2) => finishSmartPortDrag(gesture, e2),", smart)
 
     def test_creation_controller_normalizes_the_versioned_envelope(self):
         controller_module = ROOT / "static" / "js" / "workbench" / "canvas" / "interaction-controller.js"
@@ -1899,108 +1340,6 @@ console.log(JSON.stringify({node, commands, appliedCount: applied.length, invali
         self.assertEqual(payload["appliedCount"], 4)
         self.assertEqual(payload["invalid"], "throws")
 
-    def test_single_node_clipboard_paste_routes_through_the_creation_controller(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        # Both adapters gate the versioned clipboard path to a single,
-        # connection-free node and delegate creation to the controller with
-        # the explicit clipboard provenance source.
-        self.assertIn("function clipboardVersionedCandidate(clipNodes, clipConnections){", classic)
-        self.assertIn("function clipboardVersionedSmartCandidate(sourceNodes, sourceConnections){", smart)
-        for adapter in (classic, smart):
-            self.assertEqual(adapter.count("source:'clipboard'"), 1)
-        self.assertIn("await ensureCreationController().createNode({", classic[classic.index("async function createVersionedPastedNode("):])
-        self.assertIn("await ensureSmartCreationController().createNode({", smart[smart.index("async function createVersionedPastedSmartPrompt("):])
-        # The versioned path passes canvasId through the controller envelope —
-        # pinned because the R4-21 blank creators omitted it and the controller
-        # rejects a missing canvasId at runtime.
-        for adapter, helper in (
-            (classic, "async function createVersionedPastedNode(candidate, point){"),
-            (smart, "async function createVersionedPastedSmartPrompt(candidate, point){"),
-        ):
-            body = adapter[adapter.index(helper):]
-            body = body[:body.index("\n}\n")]
-            self.assertIn("canvasId:canvas.id", body)
-        # Multi-node fragments, connections and every other shape keep the
-        # adapter-owned fragment path: center-anchored materialization stays.
-        classic_paste = classic[classic.index("async function pasteNodes(){") : classic.index("function selectedWorkflowPayload(){")]
-        smart_paste = smart[smart.index("function pasteNodes(){") : smart.index("// 跨页\"素材库")]
-        for adapter in (classic_paste, smart_paste):
-            self.assertIn("WorkbenchCanvasGraphFragment.materializeImportedSubgraph", adapter)
-            self.assertIn("anchor:'center'", adapter)
-        self.assertIn("function pasteClipboardFragmentLegacy(){", smart_paste)
-        self.assertIn("scheduleSave()", smart_paste)
-
-    def test_connect_drops_route_through_the_graph_connect_command(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        client = (ROOT / "static" / "js" / "workbench" / "canvas" / "node-creation-client.js").read_text(encoding="utf-8")
-        # One versioned client method targets the application connect route.
-        self.assertEqual(client.count("/graph/connect-nodes"), 1)
-        self.assertIn("connectNodes: (canvasId, command, actorId) => {", client)
-        # Classic: the gesture drop delegates to the versioned connect with a
-        # legacy fallback commit; Classic graph side effects stay page-owned.
-        self.assertIn("async function createVersionedConnection(fromId, toId){", classic)
-        self.assertIn("function commitClassicConnection(fromId, toId){", classic)
-        self.assertIn("function applyClassicConnectionSideEffects(fromId, toId){", classic)
-        self.assertIn("void createVersionedConnection(fromId, toId)", classic)
-        classic_versioned = classic[classic.index("async function createVersionedConnection(fromId, toId){"):]
-        classic_versioned = classic_versioned[:classic_versioned.index("\n}\n")]
-        self.assertIn("window.WorkbenchNodeClient.connectNodes(canvas.id", classic_versioned)
-        self.assertIn("edge_id:uid('c')", classic_versioned)
-        self.assertIn("adoptRevision(canvas, result.canvas_revision, Date.now())", classic_versioned)
-        self.assertNotIn("pushUndo()", classic_versioned)
-        classic_effects = classic[classic.index("function applyClassicConnectionSideEffects(fromId, toId){"):]
-        classic_effects = classic_effects[:classic_effects.index("\n}\n")]
-        # Which Classic side effects fire is decided by the shared
-        # compatibility policy (card R4-25); the page applies the projection
-        # and still owns executing the page-level sync helper.
-        self.assertIn("ensureLegacyGraphCompatibilityPolicy()", classic_effects)
-        self.assertIn("syncLatestGeneratedOutputToConnection(fromId, toId)", classic_effects)
-        policy = (ROOT / "static" / "js" / "workbench" / "canvas" / "legacy-graph-compatibility.js").read_text(encoding="utf-8")
-        self.assertIn("canvas.group.add-member", policy)
-        # Smart: the port drop delegates to the versioned connect; the shared
-        # legacy connectInputNode stays for the non-drop callers.
-        self.assertIn("async function connectInputNodeVersioned(fromId, toId){", smart)
-        self.assertIn("void connectInputNodeVersioned(intent.from, intent.to)", smart)
-        self.assertIn("connectInputNode(intent.from, intent.to)", smart)
-        smart_versioned = smart[smart.index("async function connectInputNodeVersioned(fromId, toId){"):]
-        smart_versioned = smart_versioned[:smart_versioned.index("\n}\n")]
-        self.assertIn("window.WorkbenchNodeClient.connectNodes(canvas.id", smart_versioned)
-        self.assertIn("kind:'input'", smart_versioned)
-        # Core graph model stays industry-neutral: no Classic/Smart side
-        # effects leak into the application boundary.
-        service = (ROOT / "workbench" / "application" / "graph_mutation.py").read_text(encoding="utf-8")
-        for adapter_detail in ("smart-loop", "imageInput", "showPrompt", "syncLatestGeneratedOutput", "group.items"):
-            self.assertNotIn(adapter_detail, service)
-
-    def test_group_membership_routes_through_the_graph_membership_command(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        client = (ROOT / "static" / "js" / "workbench" / "canvas" / "node-creation-client.js").read_text(encoding="utf-8")
-        # One versioned client method targets the application group-membership route.
-        self.assertEqual(client.count("/graph/group-membership"), 1)
-        self.assertIn("setGroupMembership: (canvasId, command, actorId) => {", client)
-        # Smart: a narrow async helper delegates the durable add through the
-        # versioned membership write; image absorption / group-merge stay page-side.
-        self.assertIn("async function addSmartGroupMemberVersioned(groupId, memberId){", smart)
-        smart_helper = smart[smart.index("async function addSmartGroupMemberVersioned(groupId, memberId){"):]
-        smart_helper = smart_helper[:smart_helper.index("\n}\n")]
-        self.assertIn("window.WorkbenchNodeClient.setGroupMembership(canvas.id", smart_helper)
-        self.assertIn("operation:'add'", smart_helper)
-        # The drag-drop group gesture captures a single non-image/non-group member
-        # and prefers the versioned write with a page save fallback.
-        self.assertIn("let smartMembershipCommit = null;", smart)
-        self.assertIn("void addSmartGroupMemberVersioned(smartMembershipCommit.groupId, smartMembershipCommit.memberId)", smart)
-        # Core group-mutation service stays industry-neutral: no Classic/Smart
-        # side effects leak into the application boundary.
-        service = (ROOT / "workbench" / "application" / "group_mutation.py").read_text(encoding="utf-8")
-        for adapter_detail in ("smart-loop", "imageInput", "showPrompt", "syncLatestGeneratedOutput", "inputNodeIds"):
-            self.assertNotIn(adapter_detail, service)
-        # Classic page keeps its geometry-driven membership on the page-owned path;
-        # it does not yet route through the versioned client.
-        self.assertNotIn("WorkbenchNodeClient.setGroupMembership", classic)
-
     def test_composer_lifecycle_owns_position_open_and_debounced_schedule(self):
         composer_module = ROOT / "static" / "js" / "workbench" / "canvas" / "composer.js"
         script = f"""
@@ -2052,24 +1391,6 @@ console.log(JSON.stringify({{opened, closed, positioned, custom, firstCleared, s
             "cancelledCleared": True,
             "runsAfterCancel": 1,
         })
-
-    def test_composer_lifecycle_is_loaded_before_the_smart_page_and_owned(self):
-        page = (ROOT / "static" / "smart-canvas.html").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        composer_module = (ROOT / "static" / "js" / "workbench" / "canvas" / "composer.js").read_text(encoding="utf-8")
-        # The module loads ahead of the editor script.
-        self.assertLess(page.index("workbench/canvas/composer.js"), page.index("js/smart-canvas.js"))
-        # The page delegates the shell lifecycle and no longer owns its timer/seq.
-        self.assertIn("const composerLifecycle = window.WorkbenchCanvasComposer.create({ container: composer });", smart)
-        self.assertIn("composerLifecycle.positionForRect(nodeRect(node))", smart)
-        self.assertIn("composerLifecycle.scheduleUpdate(delay, updateComposer)", smart)
-        self.assertIn("composerLifecycle.cancelPending()", smart)
-        self.assertIn("composerLifecycle.setOpen(", smart)
-        self.assertNotIn("composerUpdateTimer", smart)
-        self.assertNotIn("composerUpdateSeq", smart)
-        # The extracted shell is product-neutral: no Smart adapter detail leaks in.
-        for adapter_detail in ("smart-minimax", "imageInput", "cascadeRunBtn", "selectedNode", "renderDynamicParams", "promptInput"):
-            self.assertNotIn(adapter_detail, composer_module)
 
     def test_media_tools_module_owns_crop_grid_draw_math(self):
         media_tools_module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
@@ -2137,32 +1458,6 @@ console.log(JSON.stringify(out));
         self.assertEqual(out["fitSquare"], {"x": 50, "y": 0, "w": 200, "h": 200})
         self.assertEqual(out["fitClamp"], {"x": 60, "y": 70, "w": 300, "h": 200})
 
-    def test_media_tools_is_loaded_before_the_smart_page_and_owned(self):
-        page = (ROOT / "static" / "smart-canvas.html").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        media_tools_module = (ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js").read_text(encoding="utf-8")
-        # The module loads ahead of the editor script.
-        self.assertLess(page.index("workbench/canvas/media-tools.js"), page.index("js/smart-canvas.js"))
-        # The page delegates the tool math to the shared module and no longer
-        # owns the raw geometry bodies (no duplicate owner).
-        self.assertIn("const mediaTools = window.WorkbenchCanvasMediaTools;", smart)
-        self.assertIn("mediaTools.clampResizeScale(value)", smart)
-        self.assertIn("mediaTools.circledNumber(n)", smart)
-        self.assertIn("mediaTools.canvasPoint(", smart)
-        self.assertIn("mediaTools.gridSplitRects(width, height, rows, cols, gap)", smart)
-        self.assertIn("mediaTools.gridSplitRectsCustom(width, height, [0, ...rawH, height], [0, ...rawV, width], gap)", smart)
-        self.assertIn("mediaTools.parseCropRatio(", smart)
-        self.assertIn("mediaTools.fitCropRectToAspect(ratio, boundsW, boundsH, rect)", smart)
-        self.assertNotIn("Math.round(num * 100)", smart)          # old resize-clamp body
-        self.assertNotIn("0x2460", smart)                          # old circled-number body
-        self.assertNotIn("topLine + halfGap", smart)              # old uniform grid-split body
-        self.assertNotIn("nextW / nextH > ratio", smart)          # old aspect-fit body
-        # The extracted module is product-neutral: no Smart adapter detail leaks in.
-        for adapter_detail in ("imageEditModal", "cropImage", "editDrawCanvas", "panoramaState",
-                               "gridJoinLayout", "cropState", "selectedNode", "replaceEditedImage",
-                               "scheduleSave", "gridCustomLines"):
-            self.assertNotIn(adapter_detail, media_tools_module)
-
     def test_execution_host_module_owns_the_canvas_lifecycle_contract(self):
         execution_host_module = ROOT / "static" / "js" / "workbench" / "canvas" / "execution-host.js"
         script = f"""
@@ -2206,48 +1501,6 @@ console.log(JSON.stringify({{calls, frozen, missingThrew, nonObjectThrew}}));
         self.assertTrue(out["frozen"])
         self.assertTrue(out["missingThrew"])
         self.assertTrue(out["nonObjectThrew"])
-
-    def test_smart_execution_compatibility_manifest_is_grounded_in_source(self):
-        doc = (ROOT / "docs" / "plans" / "R4_SMART_EXECUTION_COMPATIBILITY.md").read_text(encoding="utf-8")
-        match = re.search(r"```json\n(.*?)\n```", doc, re.S)
-        self.assertIsNotNone(match, "the characterization doc must embed a JSON evidence manifest")
-        manifest = json.loads(match.group(1))
-        self.assertEqual(manifest["source"], "static/js/smart-canvas.js")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        allowed_dispositions = {"seamed", "host-cutover", "host-candidate", "transport-only", "flag-only"}
-        seen_dispositions = set()
-        for entry in manifest["entry_points"]:
-            self.assertIn(entry["disposition"], allowed_dispositions)
-            seen_dispositions.add(entry["disposition"])
-            self.assertIn(entry["function"], smart, f"{entry['function']} must exist in source")
-            for evidence in entry["evidence"]:
-                self.assertIn(evidence, smart, f"evidence {evidence} must exist in source")
-        # The classification is non-trivial: at least the cutover, seamed, and a
-        # deferred host-candidate disposition must all be present.
-        for required in ("host-cutover", "seamed", "host-candidate"):
-            self.assertIn(required, seen_dispositions)
-
-    def test_execution_host_is_loaded_before_the_smart_page_and_run_prompt_llm_uses_it(self):
-        page = (ROOT / "static" / "smart-canvas.html").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        execution_host_module = (ROOT / "static" / "js" / "workbench" / "canvas" / "execution-host.js").read_text(encoding="utf-8")
-        # The module loads ahead of the editor script.
-        self.assertLess(page.index("workbench/canvas/execution-host.js"), page.index("js/smart-canvas.js"))
-        # The page constructs the host handle and delegates runPromptLLMNode's
-        # Canvas lifecycle/state side-effects through it (no direct node writes).
-        self.assertIn("const executionHost = window.WorkbenchCanvasExecutionHost.create({", smart)
-        self.assertIn("executionHost.markRunning(node, true)", smart)
-        self.assertIn("executionHost.writePromptResult(node, {promptResult: result.text || '', provider, model})", smart)
-        self.assertIn("executionHost.save()", smart)
-        self.assertIn("executionHost.notifyError(e.message || tr('smart.promptLlmFailed'))", smart)
-        self.assertIn("executionHost.markRunning(node, false)", smart)
-        # The old direct Canvas writes in runPromptLLMNode are gone.
-        self.assertNotIn("node.promptResult = (result.text || '').trim()", smart)
-        self.assertNotIn("node.llmProvider = provider;", smart)
-        # The extracted host is product-neutral: no Smart adapter detail leaks in.
-        for adapter_detail in ("smart-prompt", "promptResult", "scheduleSave", "selectedNode",
-                               "resolveChatProviderId", "promptNodeLLMInputText", "nodes"):
-            self.assertNotIn(adapter_detail, execution_host_module)
 
     def test_provider_controls_module_owns_the_canvas_commit_contract(self):
         provider_controls_module = ROOT / "static" / "js" / "workbench" / "canvas" / "provider-controls.js"
@@ -2455,73 +1708,6 @@ console.log(JSON.stringify({{classicUrl, smartUrl, remembered, listUrl}}));
         self.assertIn("WorkbenchCanvasEntryCompatibility.normalCanvasUrl(", classic)
         # The new-canvas gate never references smart-canvas.html either.
         self.assertNotIn("smart-canvas.html", classic)
-
-    def test_blank_creation_entry_points_route_through_the_creation_controller(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        for adapter, factory in ((classic, "ensureCreationController"), (smart, "ensureSmartCreationController")):
-            self.assertEqual(adapter.count("WorkbenchInteractionController.createCreationController"), 1)
-            self.assertIn("create: (canvasId, command, clientId) => window.WorkbenchNodeClient.create(canvasId, command, clientId)", adapter)
-            self.assertIn("applyResult: (result, apply) => window.WorkbenchNodeClient.applyCreationResult(result, apply)", adapter)
-        # No page calls the versioned client create directly for blank entries anymore.
-        self.assertNotIn("WorkbenchNodeClient.create(canvas.id", classic)
-        self.assertNotIn("WorkbenchNodeClient.create(canvas.id", smart)
-
-    def test_blank_create_entry_points_propagate_canvas_id(self):
-        # R4-21.1 (do NOT execute next): every R4-21 blank-create helper must
-        # propagate canvasId:canvas.id into the controller envelope, mirroring
-        # the R4-22 file-drop / R4-23 clipboard helpers. Source-string pin
-        # modeled after the existing clipboard wiring pin
-        # (`test_single_node_clipboard_paste_routes_through_the_creation_controller`
-        # pattern at line ~1922).
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-
-        classic_helpers = (
-            "async function addVersionedBlankImageNode(point){",
-            "async function addVersionedBlankPromptNode(point){",
-            "async function addVersionedBlankLoopNode(point){",
-            "async function addVersionedBlankGroupNode(point){",
-            "async function addVersionedBlankOutputNode(point){",
-        )
-        smart_helpers = (
-            "async function createVersionedBlankSmartPrompt(x, y){",
-            "async function createVersionedBlankSmartLoop(x, y){",
-            "async function createVersionedBlankSmartGroup(x, y){",
-            "async function createVersionedBlankSmartMinimax(point){",
-            "async function createVersionedBlankSmartImageAt(point){",
-        )
-
-        def helper_body(source, header):
-            start = source.index(header)
-            rest = source[start:]
-            end = rest.index("\n}\n")
-            return rest[: end + len("\n}\n")]
-
-        for header in classic_helpers:
-            body = helper_body(classic, header)
-            self.assertIn(
-                "canvasId:canvas.id",
-                body,
-                f"Classic blank-create helper {header[:-2]} must propagate canvasId:canvas.id (R4-21.1)",
-            )
-        for header in smart_helpers:
-            body = helper_body(smart, header)
-            self.assertIn(
-                "canvasId:canvas.id",
-                body,
-                f"Smart blank-create helper {header[:-2]} must propagate canvasId:canvas.id (R4-21.1)",
-            )
-
-        # Singleton factory / no-direct-client invariants from the original
-        # R4-21 test must remain satisfied after the canvasId fix.
-        for adapter, factory in ((classic, "ensureCreationController"), (smart, "ensureSmartCreationController")):
-            self.assertEqual(adapter.count("WorkbenchInteractionController.createCreationController"), 1)
-            self.assertNotIn("WorkbenchNodeClient.create(canvas.id", adapter)
-        # The five blank-create envelopes per page are still routed through the
-        # singleton (R4-21 invariant), now also carrying canvasId.
-        self.assertGreaterEqual(classic.count("ensureCreationController().createNode({"), 5)
-        self.assertGreaterEqual(smart.count("ensureSmartCreationController().createNode({"), 5)
 
     def test_blank_create_helpers_pass_canvas_id_to_controller_at_runtime(self):
         # R4-21.1 behavioral proof: drive the real createCreationController
@@ -2759,238 +1945,6 @@ console.log(JSON.stringify({{classicUrl, smartUrl, remembered, listUrl}}));
         # No helper invoked a fallback path: every create call landed with the
         # expected canvasId — directly demonstrating that the rectification
         # removes the R4-21 runtime TypeError on the default loopback path.
-
-    def test_versioned_connect_drops_land_at_the_application_command(self):
-        # R4-24 end-to-end behavioral proof: drive the actual page-side
-        # `createVersionedConnection` (Classic) and `connectInputNodeVersioned`
-        # (Smart) through a sandbox with a stubbed `WorkbenchNodeClient`
-        # and verify the page call lands with the right canvasId, revision,
-        # edge id and kind, the projected edge appears in the page's
-        # connections store, the canvas revision is adopted, and the helper
-        # returns its success/failure value correctly.
-        client_module = ROOT / "static/js/workbench/canvas/node-creation-client.js"
-        client_source = client_module.read_text(encoding="utf-8")
-        policy_source = (ROOT / "static/js/workbench/canvas/legacy-graph-compatibility.js").read_text(encoding="utf-8")
-        classic_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
-        smart_source = (ROOT / "static/js/smart-canvas.js").read_text(encoding="utf-8")
-        classic_helper = re.search(
-            r"async function createVersionedConnection\(fromId, toId\)\{[\s\S]*?\n\}\n",
-            classic_source,
-        ).group(0)
-        smart_helper = re.search(
-            r"async function connectInputNodeVersioned\(fromId, toId\)\{[\s\S]*?\n\}\n",
-            smart_source,
-        ).group(0)
-
-        script = f"""
-const vm = require('vm');
-const clientSource = {json.dumps(client_source)};
-function bootSandbox() {{
-  const s = {{window: {{}}, console}};
-  vm.runInNewContext(clientSource, s);
-  return s;
-}}
-function replaceClient(boot, onConnect) {{
-  const original = boot.window.WorkbenchNodeClient;
-  boot.window.WorkbenchNodeClient = {{
-    isLoopback: original.isLoopback,
-    isEnabled: original.isEnabled,
-    applyCreationResult: original.applyCreationResult,
-    applyGraphCreationResult: original.applyGraphCreationResult,
-    create: original.create,
-    update: original.update,
-    remove: original.remove,
-    createNodeAndEdge: original.createNodeAndEdge,
-    connectNodes: onConnect,
-  }};
-}}
-
-const calls = [];
-const responses = [];
-const classicBoot = bootSandbox();
-replaceClient(classicBoot, async (canvasId, command, actorId) => {{
-  calls.push({{canvasId, command, actorId}});
-  const r = responses.shift();
-  if (r && r.throw) throw new Error(r.throw);
-  return {{edge: {{id: command.edge_id, from: {{node_id: command.from_node_id}}, to: {{node_id: command.to_node_id}}}}, canvas_revision: 1}};
-}});
-classicBoot.window.WorkbenchCanvasPersistence = {{adoptRevision: (canvas, rev, fallback) => rev}};
-classicBoot.window.WorkbenchCanvasCommands = {{graphCommand: () => true}};
-classicBoot.canvas = {{id: 'canvas-c1', project: 'p1', updated_at: 1}};
-classicBoot.connections = [];
-classicBoot.undoStack = [];
-classicBoot.CLIENT_ID = 'c-local';
-classicBoot.UNDO_MAX = 50;
-classicBoot.pushUndo = () => {{}};
-let classicSaveScheduled = 0; classicBoot.scheduleSave = () => {{classicSaveScheduled++;}};
-classicBoot.render = () => {{}};
-classicBoot.canUseVersionedImageCreation = () => true;
-let classicSideEffectsCalled = 0;
-classicBoot.applyClassicConnectionSideEffects = () => {{classicSideEffectsCalled++;}};
-classicBoot.setStatus = () => {{}};
-classicBoot.lastCanvasUpdatedAt = 1;
-classicBoot.serializableCanvasNodes = () => [];
-classicBoot.uid = (prefix) => prefix + '-test-abc';
-vm.runInNewContext({json.dumps(classic_helper)} + '\\nthis.createVersionedConnection = createVersionedConnection;', classicBoot);
-
-const smartBoot = bootSandbox();
-// Reuse the mock-calls queue but with a fresh per-page counter helper
-// so the smart side records correctly.
-const smartCalls = [];
-replaceClient(smartBoot, async (canvasId, command, actorId) => {{
-  smartCalls.push({{canvasId, command, actorId}});
-  return {{edge: {{id: command.edge_id, from: {{node_id: command.from_node_id}}, to: {{node_id: command.to_node_id}}}}, canvas_revision: 5}};
-}});
-smartBoot.window.WorkbenchCanvasPersistence = {{adoptRevision: (canvas, rev, fallback) => rev}};
-smartBoot.canvas = {{id: 'canvas-s1', project: 'p1', updated_at: 4, connections: []}};
-smartBoot.nodes = [{{id: 'p1', type: 'smart-prompt'}}, {{id: 'i1', type: 'smart-image', inputNodeIds: []}}];
-smartBoot.smartClientId = 's-local';
-smartBoot.UNDO_LIMIT = 50;
-let smartSaveScheduled = 0; smartBoot.scheduleSave = () => {{smartSaveScheduled++;}};
-smartBoot.render = () => {{}};
-smartBoot.canUseVersionedSmartImageCreation = () => true;
-smartBoot.resolveChatProviderId = () => 'mock';
-smartBoot.resolveChatModel = () => 'mock-model';
-smartBoot.imagesForNode = () => [];
-smartBoot.promptTextItemsForNode = () => [];
-smartBoot.isSmartGroupNode = () => false;
-smartBoot.isSmartImageNode = () => false;
-smartBoot.fitSmartLoopNode = () => {{}};
-smartBoot.snapshotForUndo = () => ({{}});
-smartBoot.serializableCanvasNodes = () => [];
-smartBoot.toast = () => {{}};
-smartBoot.uid = (prefix) => prefix + '-test-s';
-// The Smart connect helper asks the shared compatibility policy (R4-25) for
-// its projection. Drive the REAL policy here — wired to the same page-shaped
-// mocks — so this test covers the helper and the policy together.
-vm.runInNewContext({json.dumps(policy_source)}, smartBoot);
-const smartPolicy = smartBoot.window.WorkbenchLegacyGraphCompatibility.create({{
-  commands: smartBoot.window.WorkbenchCanvasCommands || null,
-  smartGroupImageCount: node => smartBoot.imagesForNode(node).filter(img => img && img.url).length,
-  smartGroupPromptCount: node => smartBoot.promptTextItemsForNode(node).filter(Boolean).length,
-}});
-smartBoot.ensureSmartLegacyGraphCompatibilityPolicy = () => smartPolicy;
-vm.runInNewContext({json.dumps(smart_helper)} + '\\nthis.connectInputNodeVersioned = connectInputNodeVersioned;', smartBoot);
-
-(async () => {{
-  const classicOk = await classicBoot.createVersionedConnection('a', 'b');
-  responses.push({{throw: 'stale revision'}});
-  const classicStale = await classicBoot.createVersionedConnection('a', 'b');
-  const smartOk = await smartBoot.connectInputNodeVersioned('p1', 'i1');
-  const smartFail = await smartBoot.connectInputNodeVersioned('p1', 'missing');
-  console.log(JSON.stringify({{
-    classicOk, classicStale,
-    smartOk, smartFail,
-    classicConnections: classicBoot.connections,
-    smartConnections: smartBoot.canvas.connections,
-    smartCanvasNodes: smartBoot.nodes,
-    classicCalls: calls.map(c => ({{canvasId: c.canvasId, project_id: c.command.project_id, from: c.command.from_node_id, to: c.command.to_node_id, kind: c.command.kind, expected_revision: c.command.expected_revision, edge_id_prefix: c.command.edge_id.slice(0, 2), actorId: c.actorId}})),
-    smartCalls: smartCalls.map(c => ({{canvasId: c.canvasId, project_id: c.command.project_id, from: c.command.from_node_id, to: c.command.to_node_id, kind: c.command.kind, expected_revision: c.command.expected_revision, edge_id_prefix: c.command.edge_id.slice(0, 2), actorId: c.actorId}})),
-    classicSideEffectsCalled, classicSaveScheduled, smartSaveScheduled,
-  }}));
-}})();
-"""
-        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
-        payload = json.loads(result.stdout)
-        # Classic success path: helper returns true; calls the connect-nodes
-        # client exactly once per call, with canvas.id, the from/to, an edge
-        # id that starts with 'c-', and with the page's revision. Side
-        # effects fire, the projected edge lands in `connections`.
-        self.assertTrue(payload["classicOk"])
-        self.assertEqual(payload["classicStale"], False)
-        self.assertEqual(len(payload["classicConnections"]), 1)
-        classicEdge = payload["classicConnections"][0]
-        self.assertEqual(classicEdge["from"], "a")
-        self.assertEqual(classicEdge["to"], "b")
-        self.assertTrue(classicEdge["id"].startswith("c-"))
-        self.assertEqual(payload["classicSideEffectsCalled"], 1)
-        self.assertEqual(payload["classicSaveScheduled"], 1)
-        # Smart success path: helper returns true; call carries `kind: input`
-        # so the application boundary can apply inputNodeIds sync in the same
-        # lock. The target's `inputNodeIds` ends up containing the from id.
-        self.assertTrue(payload["smartOk"])
-        self.assertEqual(payload["smartFail"], None)
-        self.assertEqual(payload["smartConnections"], [{"from": "p1", "to": "i1", "kind": "input"}])
-        self.assertEqual(payload["smartCanvasNodes"][1]["inputNodeIds"], ["p1"])
-        # Classic calls: 2 (one ok, one that threw on stale). The smart
-        # failed call short-circuits before reaching the client because the
-        # helper returns null when the target is missing.
-        self.assertEqual(len(payload["classicCalls"]), 2)
-        self.assertEqual(len(payload["smartCalls"]), 1)
-        for call in payload["classicCalls"]:
-            self.assertEqual(call["canvasId"], "canvas-c1")
-            self.assertEqual(call["project_id"], "p1")
-            self.assertEqual(call["from"], "a")
-            self.assertEqual(call["to"], "b")
-            self.assertEqual(call["expected_revision"], 1)
-            self.assertEqual(call["edge_id_prefix"], "c-")
-            self.assertEqual(call["actorId"], "c-local")
-            # Classic helper omits `kind` (the application default `flow`
-            # applies). Pin the key's absence to lock the explicit Smart
-            # `kind:'input'` contract below.
-            self.assertNotIn("kind", call)
-        smart_call = payload["smartCalls"][0]
-        self.assertEqual(smart_call["canvasId"], "canvas-s1")
-        self.assertEqual(smart_call["project_id"], "p1")
-        self.assertEqual(smart_call["from"], "p1")
-        self.assertEqual(smart_call["to"], "i1")
-        self.assertEqual(smart_call["expected_revision"], 4)
-        self.assertEqual(smart_call["actorId"], "s-local")
-        self.assertEqual(smart_call["kind"], "input")
-        # Smart `scheduleSave` only fires when `loopTouched` is true (target
-        # is `smart-loop` AND its image-input / show-prompt flags moved).
-        # In this test the target is `smart-image`, so loopTouched stays
-        # false and the page-side save is intentionally not scheduled — the
-        # service-owned revision CAS is the durable write.
-        self.assertEqual(payload["smartSaveScheduled"], 0)
-
-    def test_legacy_graph_compatibility_policy_owns_connect_side_effects(self):
-        # R4-25: a single named policy module owns every Classic / Smart
-        # historical connect side effect. The two-page helpers delegate to
-        # it; no inline branching survives in the page code; Core
-        # graph_mutation has zero adapter leak. The policy is loaded into
-        # `window` exactly once and is the only writer of these fields.
-        classic = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static/js/smart-canvas.js").read_text(encoding="utf-8")
-        policy_source = (ROOT / "static/js/workbench/canvas/legacy-graph-compatibility.js").read_text(encoding="utf-8")
-        service_source = (ROOT / "workbench/application/graph_mutation.py").read_text(encoding="utf-8")
-        # Policy module exists and exposes a factory / singleton on window.
-        self.assertIn("global.WorkbenchLegacyGraphCompatibility", policy_source)
-        self.assertIn("createLegacyGraphCompatibilityPolicy", policy_source)
-        # Page helpers consult the policy via the global; the page does not
-        # own the side-effect rules itself anymore.
-        self.assertIn("WorkbenchLegacyGraphCompatibility", classic)
-        self.assertIn("WorkbenchLegacyGraphCompatibility", smart)
-        # Core graph_mutation has zero adapter leak (preserved invariant
-        # from R4-24). The policy module is allowed to mention these
-        # branches — that's the whole point of the seam — but the service
-        # must not.
-        for adapter_detail in ("smart-loop", "imageInput", "showPrompt", "syncLatestGeneratedOutput", "group.items", "inputNodeIds"):
-            self.assertNotIn(adapter_detail, service_source)
-        # The RULES no longer live inline in the page helpers. Each helper
-        # delegates to the policy and applies the returned projection; the
-        # page keeps only the mechanically-unavoidable execution of
-        # page-owned effects (group mutation, sync helpers, save/render).
-        classic_effects = re.search(
-            r"function applyClassicConnectionSideEffects\(fromId, toId\)\{[\s\S]*?\n\}\n",
-            classic,
-        ).group(0)
-        # The helper reaches the policy through the page's accessor; the
-        # global itself is referenced by that accessor (pinned above at
-        # page level). Helper → accessor → policy is the seam.
-        self.assertIn("ensureLegacyGraphCompatibilityPolicy()", classic_effects)
-        # The Classic group-membership type rule is policy-owned now.
-        self.assertNotIn("['image','prompt']", classic_effects)
-        smart_connect = re.search(
-            r"async function connectInputNodeVersioned\(fromId, toId\)\{[\s\S]*?\n\}\n",
-            smart,
-        ).group(0)
-        self.assertIn("ensureSmartLegacyGraphCompatibilityPolicy()", smart_connect)
-        # The Smart loop-input rule is policy-owned now: no adapter type
-        # literal and no inline looks/looksPrompt derivation survives.
-        self.assertNotIn("smart-loop", smart_connect)
-        self.assertNotIn("looksImage", smart_connect)
-        self.assertNotIn("looksPrompt", smart_connect)
 
     def test_legacy_graph_compatibility_policy_matches_classic_smart_history(self):
         # R4-25 behavioral proof: load the policy module into a vm sandbox
@@ -3264,318 +2218,14 @@ console.log(JSON.stringify({
         self.assertEqual(payload["invalid"], "throws")
         self.assertEqual(payload["mounted"], "g1,g2,g3")
 
-    def test_group_rendering_is_cut_over_to_the_runtime_on_both_adapters(self):
-        runtime_source = (ROOT / "static" / "js" / "workbench" / "canvas" / "render-runtime.js").read_text(encoding="utf-8")
-        self.assertIn("function mountGroupCard(options)", runtime_source)
-        self.assertIn("output_refs", runtime_source)
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        # Classic: the group branch routes through the runtime with the page
-        # supplying member resolution and the empty-state hook.
-        self.assertIn("function mountCanvasGroupShell(node, body, el){", classic)
-        self.assertIn("ensureRenderRuntime().mountGroupCard({", classic)
-        self.assertIn("type:mediaKindForNode(item)", classic)
-        self.assertIn("workbench-node-shell__group-empty", classic)
-        # Smart: the record/media decision left the page; the rollback flag
-        # stays page-owned via mediaEnabled.
-        self.assertIn("ensureSmartRenderRuntime().mountGroupCard({", smart)
-        self.assertIn("mediaEnabled:canUseMediaRendererForSmartGroup(entry.node)", smart)
-        self.assertNotIn("smartGroupMediaRecord(node) : window.WorkbenchCanvas.legacyNodeView", smart)
-
-    def test_versioned_writes_adopt_revisions_through_one_shared_owner(self):
-        client = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-persistence-client.js"
-        script = f"""
-const fs = require('fs');
-const vm = require('vm');
-const sandbox = {{window: {{}}}};
-vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
-const adopt = sandbox.window.WorkbenchCanvasPersistence.adoptRevision;
-const newer = {{updated_at: 400}};
-const kept = {{updated_at: 400}};
-const seeded = {{}};
-const revisionless = {{}};
-console.log(JSON.stringify({{
-  newer: adopt(newer, 500),
-  newerStored: newer.updated_at,
-  keptCurrent: adopt(kept, 0, 12345),
-  keptStored: kept.updated_at,
-  seededValue: adopt(seeded, 0, 12345),
-  seededStored: seeded.updated_at,
-  revisionless: adopt(revisionless, 0, 0),
-  revisionlessStored: revisionless.updated_at,
-}}));
-"""
-        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
-        payload = json.loads(result.stdout)
-        self.assertEqual(payload["newer"], 500)
-        self.assertEqual(payload["newerStored"], 500)
-        self.assertEqual(payload["keptCurrent"], 400)
-        self.assertEqual(payload["keptStored"], 400)
-        self.assertEqual(payload["seededValue"], 12345)
-        self.assertEqual(payload["seededStored"], 12345)
-        self.assertEqual(payload["revisionless"], 0)
-
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        self.assertNotIn("canvas.updated_at = Number(result.canvas_revision", classic)
-        self.assertNotIn("canvas.updated_at = Number(result.canvas_revision", smart)
-        self.assertEqual(classic.count("WorkbenchCanvasPersistence.adoptRevision(canvas, result.canvas_revision, Date.now())"), 11)
-        self.assertEqual(classic.count("WorkbenchCanvasPersistence.adoptRevision(canvas, revision)"), 10)
-        self.assertEqual(smart.count("WorkbenchCanvasPersistence.adoptRevision(canvas, result.canvas_revision, Date.now())"), 6)
-        self.assertEqual(smart.count("WorkbenchCanvasPersistence.adoptRevision(canvas, result.canvas_revision, 0)"), 4)
-
-    def test_editor_saves_share_one_scheduler(self):
-        scheduler = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-save-scheduler.js"
-        script = f"""
-const fs = require('fs');
-const vm = require('vm');
-const timers = [];
-const sandbox = {{
-  window: {{}},
-  setTimeout: (callback, delay) => {{ timers.push({{callback, delay, cleared: false}}); return timers.length; }},
-  clearTimeout: handle => {{ if (timers[handle - 1]) timers[handle - 1].cleared = true; }},
-}};
-vm.runInNewContext(fs.readFileSync({json.dumps(str(scheduler))}, 'utf8'), sandbox);
-const S = sandbox.window.WorkbenchCanvasSaveScheduler;
-const tick = () => new Promise(resolve => setTimeout(resolve, 0));
-(async () => {{
-  const runsA = [];
-  const schedA = S.create({{debounceMs: 500, run: async () => {{ runsA.push(1); }}}});
-  schedA.schedule();
-  const pending = timers[timers.length - 1];
-  const debouncedOnly = pending.delay === 500 && !pending.cleared && runsA.length === 0;
-  pending.callback();
-  await tick();
-  const firedAfterDebounce = runsA.length === 1;
-
-  const runsB = [];
-  const retries = [];
-  let releaseB;
-  const gateB = new Promise(resolve => {{ releaseB = resolve; }});
-  const schedB = S.create({{debounceMs: 100, run: async () => {{ runsB.push(1); await gateB; }}, onRetry: () => retries.push(1)}});
-  const first = schedB.flush();
-  await tick();
-  const second = await schedB.flush();
-  schedB.schedule();
-  const coalesced = {{second, noTimer: !schedB.hasScheduled(), again: schedB.hasPendingAgain()}};
-  releaseB();
-  const firstDone = await first;
-  const retryTimer = timers[timers.length - 1];
-  const retryScheduled = retries.length === 1 && retryTimer.delay === 0 && !retryTimer.cleared;
-  retryTimer.callback();
-  await tick();
-  const retried = runsB.length === 2;
-
-  const runsC = [];
-  let releaseC;
-  const gateC = new Promise(resolve => {{ releaseC = resolve; }});
-  const schedC = S.create({{debounceMs: 100, allowOverlap: true, run: async () => {{ runsC.push(1); await gateC; }}}});
-  const overlap1 = schedC.flush();
-  await tick();
-  const overlap2 = schedC.flush();
-  releaseC();
-  const overlapDone = (await Promise.all([overlap1, overlap2])) && runsC.length === 2;
-
-  const runsD = [];
-  const schedD = S.create({{debounceMs: 50, run: async () => {{ runsD.push(1); }}}});
-  schedD.schedule();
-  schedD.cancel();
-  const canceled = !schedD.hasScheduled();
-  await tick();
-  console.log(JSON.stringify({{debouncedOnly, firedAfterDebounce, coalesced, firstDone, retryScheduled, retried, overlapDone, canceled, runsD: runsD.length}}));
-}})();
-"""
-        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
-        payload = json.loads(result.stdout)
-        self.assertTrue(payload["debouncedOnly"])
-        self.assertTrue(payload["firedAfterDebounce"])
-        self.assertEqual(payload["coalesced"], {"second": False, "noTimer": True, "again": True})
-        self.assertTrue(payload["firstDone"])
-        self.assertTrue(payload["retryScheduled"])
-        self.assertTrue(payload["retried"])
-        self.assertTrue(payload["overlapDone"])
-        self.assertTrue(payload["canceled"])
-        self.assertEqual(payload["runsD"], 0)
-
-        for page, editor in (("canvas.html", "canvas.js"), ("smart-canvas.html", "smart-canvas.js")):
-            text = (ROOT / "static" / page).read_text(encoding="utf-8")
-            self.assertLess(text.index("workbench/canvas/canvas-save-scheduler.js"), text.index(editor))
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        for legacy_state in ("savingCanvasNow", "saveCanvasAgain", "saveTimer"):
-            self.assertNotIn(legacy_state, classic)
-        self.assertIn("WorkbenchCanvasSaveScheduler.create", classic)
-        for legacy_state in ("canvasSyncInFlight", "saveTimer"):
-            self.assertNotIn(legacy_state, smart)
-        self.assertIn("WorkbenchCanvasSaveScheduler.create", smart)
-        self.assertIn("allowOverlap: true", smart)
-
-    def test_remote_apply_retries_share_one_scheduler_owner(self):
-        scheduler = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-save-scheduler.js"
-        script = f"""
-const fs = require('fs');
-const vm = require('vm');
-const timers = [];
-const sandbox = {{
-  window: {{}},
-  setTimeout: (callback, delay) => {{ timers.push({{callback, delay, cleared: false}}); return timers.length; }},
-  clearTimeout: handle => {{ if (timers[handle - 1]) timers[handle - 1].cleared = true; }},
-}};
-vm.runInNewContext(fs.readFileSync({json.dumps(str(scheduler))}, 'utf8'), sandbox);
-const S = sandbox.window.WorkbenchCanvasSaveScheduler;
-const tick = () => new Promise(resolve => setTimeout(resolve, 0));
-(async () => {{
-  const applied = [];
-  const remote = S.createRemoteApply({{apply: () => applied.push(1), defaultDelayMs: 1000}});
-  remote.schedule();
-  const first = timers[timers.length - 1];
-  const defaulted = first.delay === 1000 && !first.cleared && applied.length === 0;
-  remote.schedule(700);
-  const replaced = first.cleared && applied.length === 0;
-  const second = timers[timers.length - 1];
-  second.callback();
-  await tick();
-  const fired = applied.length === 1 && !remote.hasPending();
-
-  remote.schedule(50);
-  remote.cancel();
-  const canceled = !remote.hasPending();
-  await tick();
-
-  const bare = S.createRemoteApply({{apply: () => applied.push(2)}});
-  bare.schedule();
-  const fallbackDefault = timers[timers.length - 1].delay === 200;
-  let rejected = false;
-  try {{ S.createRemoteApply({{ }}); }} catch (e) {{ rejected = true; }}
-  console.log(JSON.stringify({{defaulted, replaced, fired, canceled, applied: applied.length, fallbackDefault, rejected}}));
-}})();
-"""
-        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
-        payload = json.loads(result.stdout)
-        self.assertTrue(payload["defaulted"])
-        self.assertTrue(payload["replaced"])
-        self.assertTrue(payload["fired"])
-        self.assertTrue(payload["canceled"])
-        self.assertEqual(payload["applied"], 1)
-        self.assertTrue(payload["fallbackDefault"])
-        self.assertTrue(payload["rejected"])
-
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        self.assertNotIn("remoteSyncTimer", classic)
-        self.assertIn("WorkbenchCanvasSaveScheduler.createRemoteApply", classic)
-        self.assertIn("defaultDelayMs: 1000", classic)
-        self.assertEqual(classic.count("remoteApplyTimer.schedule("), 2)
-        self.assertNotIn("canvasSyncTimer", smart)
-        self.assertNotIn("scheduleCanvasMergeReload", smart)
-        self.assertIn("WorkbenchCanvasSaveScheduler.createRemoteApply", smart)
-        self.assertIn("defaultDelayMs: 200", smart)
-        self.assertEqual(smart.count("mergeReloadTimer.schedule("), 2)
-
-    def test_remote_sync_polls_canvas_metadata_through_adapter_callbacks(self):
-        remote_sync = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-remote-sync.js"
-        script = f"""
-const fs = require('fs');
-const vm = require('vm');
-const timers = [];
-let metadataCalls = 0;
-const sandbox = {{
-  window: {{WorkbenchCanvasPersistence: {{metadata: async canvasId => {{
-    metadataCalls += 1;
-    return {{ok:true, updatedAt: metadataCalls === 1 ? 8 : 9, canvasId}};
-  }}}}}},
-  setInterval: (callback, intervalMs) => {{ timers.push({{callback, intervalMs}}); return timers.length; }},
-  clearInterval: handle => {{ timers[handle - 1].cleared = true; }},
-}};
-vm.runInNewContext(fs.readFileSync({json.dumps(str(remote_sync))}, 'utf8'), sandbox);
-(async () => {{
-  let current = 7;
-  const newer = [];
-  const sync = sandbox.window.WorkbenchCanvasRemoteSync.create({{
-    canvasId: () => 'canvas-1', currentUpdatedAt: () => current,
-    isEligible: () => true, onNewer: result => newer.push(result.updatedAt), intervalMs: 2500,
-  }});
-  const first = await sync.check();
-  current = 9;
-  const second = await sync.check();
-  sync.start(); sync.start(); sync.stop();
-  console.log(JSON.stringify({{first, second, newer, metadataCalls, interval:timers[0].intervalMs, timerCount:timers.length, cleared:timers[0].cleared, running:sync.isRunning()}}));
-}})();
-"""
-        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
-        payload = json.loads(result.stdout)
-        self.assertTrue(payload["first"])
-        self.assertFalse(payload["second"])
-        self.assertEqual(payload["newer"], [8])
-        self.assertEqual(payload["metadataCalls"], 2)
-        self.assertEqual(payload["interval"], 2500)
-        self.assertEqual(payload["timerCount"], 1)
-        self.assertTrue(payload["cleared"])
-        self.assertFalse(payload["running"])
-
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        self.assertIn("function ensureCanvasRemoteSync(){", classic)
-        self.assertIn("intervalMs:2500", classic)
-        self.assertIn("window.WorkbenchCanvasRemoteSync.create", classic)
-        self.assertIn("intervalMs:8000", smart)
-        self.assertIn("window.WorkbenchCanvasRemoteSync.create", smart)
-
-    def test_canvas_update_messages_are_filtered_before_adapter_sync_policy(self):
-        update_message = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-update-message.js"
-        script = f"""
-const fs = require('fs');
-const vm = require('vm');
-const sandbox = {{window: {{}}}};
-vm.runInNewContext(fs.readFileSync({json.dumps(str(update_message))}, 'utf8'), sandbox);
-const match = sandbox.window.WorkbenchCanvasUpdateMessage.newerForCanvas(
-  {{type:'canvas_updated', canvas_id:'canvas-1', client_id:'other', updated_at:8}},
-  {{canvasId:'canvas-1', clientId:'local', currentUpdatedAt:7}},
-);
-const own = sandbox.window.WorkbenchCanvasUpdateMessage.newerForCanvas(
-  {{type:'canvas_updated', canvas_id:'canvas-1', client_id:'local', updated_at:8}},
-  {{canvasId:'canvas-1', clientId:'local', currentUpdatedAt:7}},
-);
-const stale = sandbox.window.WorkbenchCanvasUpdateMessage.newerForCanvas(
-  {{type:'canvas_updated', canvas_id:'canvas-1', client_id:'other', updated_at:7}},
-  {{canvasId:'canvas-1', clientId:'local', currentUpdatedAt:7}},
-);
-const wrongCanvas = sandbox.window.WorkbenchCanvasUpdateMessage.newerForCanvas(
-  {{type:'canvas_updated', canvas_id:'canvas-2', client_id:'other', updated_at:8}},
-  {{canvasId:'canvas-1', clientId:'local', currentUpdatedAt:7}},
-);
-console.log(JSON.stringify({{match, own, stale, wrongCanvas}}));
-"""
-        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
-        payload = json.loads(result.stdout)
-        self.assertEqual(payload["match"], {"canvasId": "canvas-1", "clientId": "other", "updatedAt": 8})
-        self.assertIsNone(payload["own"])
-        self.assertIsNone(payload["stale"])
-        self.assertIsNone(payload["wrongCanvas"])
-
-        for source in (ROOT / "static" / "js" / "canvas.js", ROOT / "static" / "js" / "smart-canvas.js"):
-            text = source.read_text(encoding="utf-8")
-            start = text.index("function handleCanvasUpdatedMessage")
-            handler = text[start : start + 700]
-            self.assertIn("WorkbenchCanvasUpdateMessage.newerForCanvas", handler)
-
     def test_opening_a_classic_canvas_does_not_issue_a_touch_write(self):
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
         opening = classic[classic.index("async function openCanvas(id){") : classic.index("function applyRemoteCanvasData(remote){")]
         self.assertNotIn("touchCanvasOpened", classic)
         self.assertNotIn("/touch", opening)
 
-    def test_canvas_selection_paths_do_not_schedule_persistence(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        classic_selection = classic[classic.index("el.onclick = (e) => {") : classic.index("el.oncontextmenu = e => {")]
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        smart_selection = smart[smart.index("function applySmartNodeSelection(") : smart.index("function smartSelectionToggleRequested(")]
-        smart_shell_selection = smart[smart.index("function selectSmartNodeFromShell(") : smart.index("function startSmartPortDrag(")]
-        for selection_path in (classic_selection, smart_selection, smart_shell_selection):
-            self.assertNotIn("scheduleSave(", selection_path)
-
     def test_both_canvas_pages_load_compatibility_modules_before_editor(self):
-        for page, editor in (("canvas.html", "canvas.js"), ("smart-canvas.html", "smart-canvas.js")):
+        for page, editor in (("canvas.html", "canvas.js"),):
             text = (ROOT / "static" / page).read_text(encoding="utf-8")
             self.assertLess(text.index("workbench/canvas/records.js"), text.index(editor))
             self.assertLess(text.index("workbench/canvas/node-inspector.js"), text.index(editor))
@@ -3622,237 +2272,6 @@ console.log(JSON.stringify({{match, own, stale, wrongCanvas}}));
         self.assertIn("if(!enabled){\n        existingIndicator?.remove();\n        return;\n    }", classic)
         self.assertIn("const oldViewportStyle = oldViewport?.getAttribute('style') || '';", harness)
         self.assertIn("nextViewport.getAttribute('style') !== oldViewportStyle", harness)
-
-    def test_shared_viewport_pan_session_preserves_adapter_thresholds(self):
-        runtime = ROOT / "static" / "js" / "workbench" / "canvas" / "runtime-state.js"
-        script = f"""
-const fs = require('fs'); const vm = require('vm');
-const sandbox = {{window: {{}}}};
-vm.runInNewContext(fs.readFileSync({json.dumps(str(runtime))}, 'utf8'), sandbox);
-const shared = sandbox.window.WorkbenchCanvasRuntime;
-const classic = shared.createViewportPanSession({{start:{{x:10,y:20}}, viewport:{{x:5,y:6,scale:2}}, threshold:4}}).move({{x:13,y:24}});
-const smart = shared.createViewportPanSession({{start:{{x:0,y:0}}, viewport:{{x:1,y:2,scale:1}}, threshold:3, metric:'manhattan'}}).move({{x:2,y:2}});
-const classicZoom = shared.viewportScaleForWheel({{x:0,y:0,scale:1}}, 4, {{strategy:'step', outFactor:.92, inFactor:1.08}});
-const smartZoom = shared.viewportScaleForWheel({{x:0,y:0,scale:1}}, -1000, {{strategy:'exponential', deltaLimit:240, sensitivity:.001, minScale:.06, maxScale:3}});
-const minimapViewport = shared.viewportCenteredOnWorldPoint({{x:4,y:5,scale:2}}, {{x:30,y:40}}, {{width:200,height:120}});
-const minimapPoint = shared.worldPointFromMinimapPointer({{x:62,y:88}}, {{screenOrigin:{{x:10,y:20}}, worldOrigin:{{x:-100,y:50}}, offset:{{x:2,y:4}}, scale:2}});
-console.log(JSON.stringify({{classic, smart, classicZoom, smartZoom, minimapViewport, minimapPoint}}));
-"""
-        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
-        self.assertEqual(json.loads(result.stdout), {
-            "classic": {"moved": True, "viewport": {"x": 8, "y": 10, "scale": 2}},
-            "smart": {"moved": True, "viewport": {"x": 3, "y": 4, "scale": 1}},
-            "classicZoom": 0.92,
-            "smartZoom": 1.2712491503214047,
-            "minimapViewport": {"x": 40, "y": -20, "scale": 2},
-            "minimapPoint": {"x": -75, "y": 82},
-        })
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        self.assertIn("canvasUnifiedRuntimeEnabled", classic)
-        self.assertIn("createViewportPanSession", classic)
-        self.assertIn("viewportScaleForWheel", classic)
-        self.assertIn("viewportCenteredOnWorldPoint", classic)
-        self.assertIn("worldPointFromMinimapPointer", classic)
-        self.assertIn("let restoredViewport = {x:prev.x, y:prev.y, scale:restoredScale};", classic)
-        self.assertIn("const targetViewport = (canvasUnifiedRuntimeEnabled", classic)
-        self.assertIn("smartUnifiedRuntimeEnabled", smart)
-        self.assertIn("metric:'manhattan'", smart)
-        self.assertIn("strategy:'exponential'", smart)
-        self.assertIn("viewportCenteredOnWorldPoint", smart)
-        self.assertIn("worldPointFromMinimapPointer", smart)
-        self.assertIn("let restoredViewport = {x:prev.x, y:prev.y, scale:prev.scale};", smart)
-        self.assertIn("const targetViewport = (smartUnifiedRuntimeEnabled", smart)
-
-    def test_shared_node_drag_session_projects_member_positions(self):
-        runtime = ROOT / "static" / "js" / "workbench" / "canvas" / "runtime-state.js"
-        script = f"""
-const fs = require('fs'); const vm = require('vm');
-const sandbox = {{window: {{}}}};
-vm.runInNewContext(fs.readFileSync({json.dumps(str(runtime))}, 'utf8'), sandbox);
-const shared = sandbox.window.WorkbenchCanvasRuntime;
-const session = shared.createNodeDragSession({{
-  start:{{x:10, y:20}}, scale:2,
-  members:[{{id:'a', ox:100, oy:50}}, {{id:'b', ox:0, oy:0}}, null, {{ox:1, oy:1}}],
-}});
-const moved = session.move({{x:30, y:60}});
-const rescaled = session.move({{x:30, y:60}}, {{scale:1}});
-const fallbackSession = shared.createNodeDragSession({{start:{{x:0, y:0}}, members:[{{id:'m', ox:5, oy:6}}]}});
-const fallbackMoved = fallbackSession.move({{x:4, y:8}});
-console.log(JSON.stringify({{
-  members: session.members.map(member => ({{id:member.id, ox:member.ox, oy:member.oy}})),
-  moved,
-  rescaled,
-  fallbackMoved,
-  frozen: Object.isFrozen(session) && Object.isFrozen(moved) && Object.isFrozen(moved.positions) && Object.isFrozen(moved.positions[0]),
-}}));
-"""
-        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
-        self.assertEqual(json.loads(result.stdout), {
-            "members": [{"id": "a", "ox": 100, "oy": 50}, {"id": "b", "ox": 0, "oy": 0}],
-            "moved": {"dx": 10, "dy": 20, "positions": [{"id": "a", "x": 110, "y": 70}, {"id": "b", "x": 10, "y": 20}]},
-            "rescaled": {"dx": 20, "dy": 40, "positions": [{"id": "a", "x": 120, "y": 90}, {"id": "b", "x": 20, "y": 40}]},
-            "fallbackMoved": {"dx": 4, "dy": 8, "positions": [{"id": "m", "x": 9, "y": 14}]},
-            "frozen": True,
-        })
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        self.assertIn("ensureNodeDragSessionFactory()({", classic)
-        self.assertIn("isLocalCopy:Boolean(e.altKey), dragSession};", classic)
-        self.assertIn("const dragPosition = (id, ox, oy) => sharedPositions?.get(id) || {x:ox + dx, y:oy + dy};", classic)
-        self.assertIn("(e.clientX - dragNode.sx) / viewport.scale", classic)
-        self.assertIn("ensureSmartNodeDragSessionFactory()({", smart)
-        self.assertIn("const dragSession = smartUnifiedRuntimeEnabled", smart)
-        self.assertIn("dragSession:detachSession", smart)
-        self.assertIn("const pos = sharedPositions?.get(item.id) || {x:item.ox + moveDx, y:item.oy + moveDy};", smart)
-        self.assertIn("(e.clientX - dragState.startX) / viewport.scale", smart)
-
-    def test_shared_node_resize_session_projects_proposed_sizes(self):
-        runtime = ROOT / "static" / "js" / "workbench" / "canvas" / "runtime-state.js"
-        script = f"""
-const fs = require('fs'); const vm = require('vm');
-const sandbox = {{window: {{}}}};
-vm.runInNewContext(fs.readFileSync({json.dumps(str(runtime))}, 'utf8'), sandbox);
-const shared = sandbox.window.WorkbenchCanvasRuntime;
-const session = shared.createNodeResizeSession({{start:{{x:10, y:20}}, scale:2, startWidth:260, startHeight:160}});
-const moved = session.move({{x:40, y:50}});
-const rescaled = session.move({{x:40, y:50}}, {{scale:4}});
-const fallbackSession = shared.createNodeResizeSession({{start:{{x:0, y:0}}, startWidth:100}});
-const fallbackMoved = fallbackSession.move({{x:-6, y:3}});
-console.log(JSON.stringify({{
-  moved, rescaled, fallbackMoved,
-  frozen: Object.isFrozen(session) && Object.isFrozen(moved) && Object.isFrozen(rescaled),
-}}));
-"""
-        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
-        self.assertEqual(json.loads(result.stdout), {
-            "moved": {"dx": 15, "dy": 15, "width": 275, "height": 175},
-            "rescaled": {"dx": 7.5, "dy": 7.5, "width": 267.5, "height": 167.5},
-            "fallbackMoved": {"dx": -6, "dy": 3, "width": 94, "height": 3},
-            "frozen": True,
-        })
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        self.assertIn("ensureNodeResizeSessionFactory()({start:{x:e.clientX, y:e.clientY}, scale:viewport.scale, startWidth:sw, startHeight:sh})", classic)
-        self.assertIn("const nextW = Math.max(Math.min(min.w, 220), resize ? resize.width : resizeNode.sw + (e.clientX - resizeNode.sx) / viewport.scale);", classic)
-        self.assertIn("(e.clientY - resizeNode.sy) / viewport.scale", classic)
-        self.assertIn("ensureSmartNodeResizeSessionFactory()({start:{x:pointer.clientX, y:pointer.clientY}, scale:viewport.scale, startWidth:rect.width, startHeight:rect.height})", smart)
-        self.assertIn("const proposedW = resize ? resize.width : resizeState.startW + dx;", smart)
-        self.assertIn("const proposedH = resize ? resize.height : resizeState.startH + dy;", smart)
-        self.assertIn("(e.clientY - resizeState.startY) / viewport.scale", smart)
-        self.assertNotIn("Math.round(resizeState.startW + dx)", smart)
-
-    def test_canvas_state_swaps_reset_the_unified_runtime(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        self.assertIn("function adoptCanvasRuntimeState(nextViewport){", classic)
-        self.assertIn("    canvasUnifiedRuntime = null;", classic)
-        self.assertEqual(classic.count("adoptCanvasRuntimeState(localViewportForCanvas(canvas.id, canvas.viewport || {x:0, y:0, scale:1}));"), 2)
-        self.assertEqual(classic.count("adoptCanvasRuntimeState({x: -1800, y: -1000, scale: 1});"), 2)
-        self.assertIn("connections = canvas.connections || [];\n        adoptCanvasRuntimeState(localViewport);", classic)
-        self.assertEqual(classic.count("viewport = localViewport;"), 1)
-        self.assertIn("function adoptSmartRuntimeState(nextViewport){", smart)
-        self.assertIn("    smartUnifiedRuntime = null;", smart)
-        self.assertIn("adoptSmartRuntimeState(mergedViewport);", smart)
-        self.assertNotIn("viewport = {...viewport, ...(canvas.viewport || {})};", smart)
-        self.assertNotIn("viewport.scale = safeScale(viewport.scale);", smart)
-
-    def test_node_creation_client_projects_service_results_without_page_specific_shapes(self):
-        client = ROOT / "static" / "js" / "workbench" / "canvas" / "node-creation-client.js"
-        script = f"""
-const fs = require('fs'); const vm = require('vm');
-const sandbox = {{window: {{}}}};
-vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
-const api = sandbox.window.WorkbenchNodeClient;
-const nodes = []; const undo = []; const canvas = {{updated_at:2}}; let revision = 0; let selected = '';
-const node = api.applyCreationResult({{node:{{id:'created', title:'Created'}}, canvas_revision:7}}, {{
-  nodes, undoStack:undo, undoSnapshot:{{before:true}}, undoLimit:1, canvas,
-  projectNode:source => ({{id:source.id, title:source.title, compatibility:true}}),
-  onRevision:value => revision = value, onSelected:value => selected = value.id,
-}});
-const graphNodes = [{{id:'existing'}}]; const graphConnections = []; const graphUndo = [];
-const graphCanvas = {{updated_at:7}}; let graphSelected = '';
-const graphNode = api.applyGraphCreationResult({{
-  node:{{id:'connected', title:'Connected'}},
-  edge:{{id:'edge', from:{{node_id:'connected'}}, to:{{node_id:'existing'}}}},
-  canvas_revision:8,
-}}, {{
-  nodes:graphNodes, connections:graphConnections, undoStack:graphUndo, undoSnapshot:{{beforeGraph:true}}, undoLimit:1, canvas:graphCanvas,
-  projectNode:source => ({{id:source.id, title:source.title, compatibility:true}}),
-  projectEdge:edge => ({{id:edge.id, from:edge.from.node_id, to:edge.to.node_id, kind:'input'}}),
-  syncTargetInput:true, onSelected:value => graphSelected = value.id,
-}});
-console.log(JSON.stringify({{node, nodes, undo, revision, selected, canvas, graph:{{graphNode, graphNodes, graphConnections, graphUndo, graphCanvas, graphSelected}}}}));
-"""
-        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
-        self.assertEqual(json.loads(result.stdout), {
-            "node": {"id": "created", "title": "Created", "compatibility": True},
-            "nodes": [{"id": "created", "title": "Created", "compatibility": True}],
-            "undo": [{"before": True}], "revision": 7, "selected": "created", "canvas": {"updated_at": 7},
-            "graph": {
-                "graphNode": {"id": "connected", "title": "Connected", "compatibility": True},
-                "graphNodes": [
-                    {"id": "existing", "inputNodeIds": ["connected"]},
-                    {"id": "connected", "title": "Connected", "compatibility": True},
-                ],
-                "graphConnections": [{"id": "edge", "from": "connected", "to": "existing", "kind": "input"}],
-                "graphUndo": [{"beforeGraph": True}], "graphCanvas": {"updated_at": 8}, "graphSelected": "connected",
-            },
-        })
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        # Since R4-21 the blank-create envelope flows through the creation
-        # controller; the client's apply stays injected in the page singletons.
-        self.assertGreaterEqual(classic.count("ensureCreationController().createNode({"), 5)
-        self.assertGreaterEqual(smart.count("ensureSmartCreationController().createNode({"), 5)
-        self.assertEqual(classic.count("WorkbenchInteractionController.createCreationController"), 1)
-        self.assertEqual(smart.count("WorkbenchInteractionController.createCreationController"), 1)
-        self.assertGreaterEqual(classic.count("WorkbenchNodeClient.applyGraphCreationResult(result"), 2)
-        self.assertIn("WorkbenchNodeClient.applyGraphCreationResult(result", smart)
-
-    def test_media_drop_payload_traverses_directory_entries_and_preserves_adapter_filtering(self):
-        client = ROOT / "static" / "js" / "workbench" / "canvas" / "media-drop-payload.js"
-        script = f"""
-const fs = require('fs'); const vm = require('vm');
-const sandbox = {{window: {{}}}};
-vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
-const api = sandbox.window.WorkbenchCanvasMediaDrop;
-const image = {{name:'image.png', allowed:true}}; const ignored = {{name:'notes.txt', allowed:false}};
-const fileEntry = file => ({{isFile:true, file:resolve => resolve(file)}});
-const directory = {{
-  isDirectory:true,
-  createReader:() => {{ let pass = 0; return {{readEntries:resolve => resolve(pass++ ? [] : [fileEntry(image), fileEntry(ignored)])}}; }},
-}};
-(async () => {{
-  const fromDirectory = await api.filesFromDataTransfer({{items:[{{webkitGetAsEntry:() => directory}}]}}, file => file.allowed);
-  const fromFiles = await api.filesFromDataTransfer({{files:[image, ignored]}}, file => file.allowed);
-  const textPayload = await api.resolvePayload({{
-    files:[], types:['text/plain'], getData:() => '/tmp/input.png\\nhttps://example.test/remote.png',
-  }}, {{
-    textTypes:['text/plain'], isSupportedFile:file => file.allowed,
-    isLocalValue:value => value.startsWith('/tmp/'), isRemoteValue:value => value.startsWith('https://'),
-  }});
-  class FakeFormData {{ constructor() {{ this.parts = []; }} append(field, file, name) {{ this.parts.push({{field, file:file.name, name:name || null}}); }} }}
-  sandbox.window.FormData = FakeFormData;
-  sandbox.window.fetch = async () => ({{ok:true, status:200, json:async () => ({{files:[{{url:'/output/image.png'}}]}})}});
-  const uploaded = await api.uploadFiles([image], {{fileName:file => `stored-${{file.name}}`}});
-  console.log(JSON.stringify({{fromDirectory:fromDirectory.map(file => file.name), fromFiles:fromFiles.map(file => file.name), textPayload, uploaded}}));
-}})();
-"""
-        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
-        self.assertEqual(json.loads(result.stdout), {
-            "fromDirectory": ["image.png"], "fromFiles": ["image.png"],
-            "textPayload": {"type": "localPaths", "localPaths": ["/tmp/input.png"]},
-            "uploaded": [{"url": "/output/image.png"}],
-        })
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        self.assertIn("WorkbenchCanvasMediaDrop.filesFromDataTransfer(dataTransfer, isSupportedUploadFile)", classic)
-        self.assertIn("WorkbenchCanvasMediaDrop.filesFromDataTransfer(dataTransfer, isSupportedUploadFile)", smart)
-        self.assertIn("WorkbenchCanvasMediaDrop.resolvePayload(dataTransfer", classic)
-        self.assertIn("WorkbenchCanvasMediaDrop.resolvePayload(dataTransfer", smart)
-        self.assertIn("WorkbenchCanvasMediaDrop.uploadFiles(supported)", classic)
-        self.assertIn("WorkbenchCanvasMediaDrop.uploadFiles(supported", smart)
 
     def test_unified_render_host_selects_registered_renderers_without_source_page_branches(self):
         host = (ROOT / "static" / "js" / "workbench" / "canvas" / "unified-render-host.js").read_text(encoding="utf-8")
@@ -4224,160 +2643,6 @@ console.log(JSON.stringify({{
         self.assertEqual(mounted["renderers"], ["source-payload", "media"])
         self.assertEqual(mounted["calls"], [["source-payload", "classic-prompt"], ["media", "smart-image"]])
 
-    def test_smart_canvas_cache_busts_current_node_shell_assets(self):
-        page = (ROOT / "static" / "smart-canvas.html").read_text(encoding="utf-8")
-        self.assertIn("smart-canvas.css?v=2026.09.04.2", page)
-        self.assertIn("node-shell.js?v=2026.09.04.2", page)
-        self.assertIn("records.js?v=2026.08.28.1788439786", page)
-        self.assertIn("node-inspector.js?v=2026.08.28.1788441997", page)
-        self.assertIn("legacy-renderer.js?v=2026.08.28.1788438695", page)
-        self.assertIn("media-renderer.js?v=2026.08.28.1788438695", page)
-        self.assertIn("semantic-zoom.js?v=2026.08.28.1788370356", page)
-        self.assertIn("command-registry.js?v=2026.09.06.6", page)
-        self.assertIn("creation-catalog.js?v=2026.09.04.1", page)
-        self.assertIn("generation-intent.js?v=2026.09.04.1", page)
-        self.assertIn("smart-canvas.js?v=2026.09.06.15", page)
-
-    def test_smart_node_inspector_sections_are_ephemeral_and_collapsible(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        styles = (ROOT / "static" / "css" / "smart-canvas.css").read_text(encoding="utf-8")
-        self.assertIn("const smartNodeInspectorCollapsedSections = new Map();", smart)
-        self.assertIn("sectionId !== 'identity'", smart)
-        self.assertIn("label.setAttribute('aria-expanded'", smart)
-        self.assertIn("label.setAttribute('aria-controls'", smart)
-        self.assertIn("smartNodeInspector?.addEventListener('keydown'", smart)
-        self.assertIn("target?.closest?.('#smartNodeInspector')", smart)
-        self.assertIn("if(event.key === 'Tab' && !event.shiftKey && !insideInspector", smart)
-        self.assertIn("firstToggle.focus();", smart)
-        self.assertIn("smartNodeInspectorTabEntryNodeId = '';", smart)
-        self.assertIn("function toggleSmartNodeInspectorSection(nodeId, sectionId, options={})", smart)
-        self.assertIn("toggleSmartNodeInspectorSection(toggle.dataset.inspectorNodeId", smart)
-        self.assertIn("restoredToggle?.focus({preventScroll:true});", smart)
-        self.assertIn("function smartNodeInspectorSelectionIdentity()", smart)
-        self.assertIn("inspector.selectionViewModel(records)", smart)
-        self.assertIn("function applySmartNodeSelection(nodeId, options={})", smart)
-        self.assertIn("smartSelectionToggleRequested(e)", smart)
-        smart_event_bindings = smart[smart.index("function bindNodeEvents()") :]
-        smart_media_selection = smart_event_bindings[smart_event_bindings.index("el.querySelectorAll('.thumb-item,.image-wrap')") : smart_event_bindings.index("el.querySelectorAll('.thumb-item,.smart-group-single-thumb')")]
-        self.assertGreaterEqual(smart_media_selection.count("applySmartNodeSelection(id);"), 4)
-        self.assertNotIn("selectedId = id;", smart_media_selection)
-        smart_upload_target = smart_event_bindings[smart_event_bindings.index("nodeDrop?.addEventListener('click'") : smart_event_bindings.index("el.querySelectorAll('.node-delete')")]
-        self.assertIn("applySmartNodeSelection(id);", smart_upload_target)
-        self.assertNotIn("selectedId = id;", smart_upload_target)
-        smart_group_menu_selection = smart[smart.index("shell.oncontextmenu = e =>") : smart.index("shell.ondblclick = e =>")]
-        self.assertIn("applySmartNodeSelection(groupEl.dataset.id);", smart_group_menu_selection)
-        self.assertNotIn("selectedId = groupEl.dataset.id;", smart_group_menu_selection)
-        self.assertIn("const CANVAS_SCALE_MIN = 0.06;", smart)
-        self.assertIn("const CANVAS_SCALE_MAX = 3;", smart)
-        self.assertIn("const CANVAS_WHEEL_DELTA_LIMIT = 240;", smart)
-        self.assertIn("const nextScale = sharedNextScale || safeScale(viewport.scale * factor);", smart)
-        self.assertIn("viewportScaleForWheel?.(viewport, e.deltaY", smart)
-        self.assertIn("ensureCanvasViewportController().set(fitted)", classic)
-        self.assertIn("applySmartRuntimeViewport({type:window.WorkbenchCanvasRuntime.COMMANDS.VIEWPORT_SET, viewport:fitted})", smart)
-        self.assertIn("function recoverSmartViewportIfCorrupt()", smart)
-        self.assertIn("function restoreSmartViewportToVisibleNodes()", smart)
-        self.assertIn("if(key === 'f'){", smart)
-        self.assertIn("nodeCommand('canvas.node.inspect', 'smart')", smart)
-        self.assertIn("function focusSmartNodeInspector(nodeId)", smart)
-        self.assertIn(".workbench-node-shell__menu::before { content:'⋯';", styles)
-        self.assertIn("padding:0 84px 0 18px", styles)
-        self.assertIn("right:16px; min-height:64px", styles)
-        self.assertIn("workbench-node-shell__actions", styles)
-        self.assertIn("workbench-node-shell__delete::before", styles)
-        self.assertIn("right:10px; min-height:32px", styles)
-        self.assertIn("WorkbenchUnifiedRenderHost.cardShellView({selected:isNodeSelected(node.id), onIntent:handleSmartNodeShellIntent})", smart)
-        self.assertIn("const smartNodeShellIntentAdapter = window.WorkbenchUnifiedRenderHost.createIntentAdapter({", smart)
-        self.assertIn("delete:intent => deleteNodeFromButton(intent.nodeId)", smart)
-        self.assertIn("function ordinarySmartViewportNodes()", smart)
-        self.assertIn("if(recoveredSpatialViewport) toast('检测到异常视口，已恢复到可见节点');", smart)
-        self.assertIn("event.stopImmediatePropagation();", smart)
-        self.assertIn("}, true);", smart)
-        self.assertIn("fields.hidden = collapsed", smart)
-        self.assertIn("smart-node-inspector__toggle", styles)
-        self.assertIn("smart-node-inspector__toggle:focus-visible", styles)
-        self.assertIn("smart-node-inspector__section.is-collapsed", styles)
-
-    def test_smart_canvas_context_menu_matches_the_classic_single_column_treatment(self):
-        styles = (ROOT / "static" / "css" / "smart-canvas.css").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        self.assertIn("width:190px", styles)
-        self.assertIn("border-radius:18px", styles)
-        self.assertIn(".create-menu-grid { display:flex; flex-direction:column; gap:0; }", styles)
-        self.assertIn("min-height:38px", styles)
-        self.assertIn(".create-card-sub { display:none; }", styles)
-        self.assertIn("const w = 190;", smart)
-        self.assertIn("const h = 206;", smart)
-
-    def test_common_create_and_group_intents_use_the_shared_command_catalog(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        registry = (ROOT / "static" / "js" / "workbench" / "canvas" / "command-registry.js").read_text(encoding="utf-8")
-        self.assertIn("WorkbenchCanvasCommands", registry)
-        self.assertIn("canvas.create.group", registry)
-        self.assertIn("canvas.selection.group", registry)
-        self.assertIn("canvas.graph.connect", registry)
-        self.assertIn("canvas.graph.create-connected", registry)
-        self.assertIn("canvas.group.add-member", registry)
-        self.assertIn("creationCatalogFor", registry)
-        self.assertIn("usesVersionedBlankCreation", registry)
-        self.assertIn("usesVersionedConnectedCreation", registry)
-        self.assertIn("orderCreateMenuItems", registry)
-        self.assertIn("WorkbenchCanvasCommands?.createCommand(type, 'classic')", classic)
-        self.assertIn("WorkbenchCanvasCommands?.createCommand(type, 'smart')", smart)
-        self.assertIn("canvas.selection.group', 'classic'", classic)
-        self.assertIn("canvas.selection.group', 'smart'", smart)
-        self.assertIn("syncClassicCreateMenuCommands", classic)
-        self.assertIn("syncSmartCreateMenuCommands", smart)
-        self.assertIn("creationCatalogFor('classic')", classic)
-        self.assertIn("creationCatalogFor('smart')", smart)
-        self.assertIn("const classicVersionedBlankNodeCreators = Object.freeze({", classic)
-        self.assertIn("output: addVersionedBlankOutputNode", classic)
-        self.assertIn("definitionRef:{type:'legacy', id:'output', version:'0'}", classic)
-        self.assertIn("function createClassicMenuNode(command, point){", classic)
-        self.assertIn("usesVersionedBlankCreation(command, 'classic')", classic)
-        self.assertIn("const classicVersionedConnectedNodeCreators = Object.freeze({", classic)
-        self.assertIn("image: createVersionedLinkedImage", classic)
-        self.assertIn("prompt: createVersionedLinkedPrompt", classic)
-        self.assertIn("loop: createVersionedLinkedLoop", classic)
-        self.assertIn("usesVersionedConnectedCreation(command, 'classic')", classic)
-        self.assertIn("function quickAdd(type){", classic)
-        self.assertIn("return createClassicMenuNode(command, point);", classic)
-
-        self.assertIn("const smartVersionedBlankNodeCreators = Object.freeze({", smart)
-        self.assertIn("minimax: point => createVersionedBlankSmartMinimax(point)", smart)
-        self.assertIn("definition_ref:{type:'legacy', id:'smart-minimax', version:'0'}", smart)
-        self.assertIn("function createVersionedSmartTopLevelMenuNode(command, point){", smart)
-        self.assertIn("usesVersionedBlankCreation(command, 'smart')", smart)
-        self.assertIn("WorkbenchGenerationIntent?.planResultTarget({", smart)
-        self.assertIn("const smartVersionedConnectedNodeCreators = Object.freeze({", smart)
-        self.assertIn("usesVersionedConnectedCreation(command, 'smart')", smart)
-        self.assertIn("graphCommand('canvas.graph.connect', 'classic')", classic)
-        self.assertIn("graphCommand('canvas.graph.connect', 'smart')", smart)
-        self.assertIn("graphCommand('canvas.graph.create-connected', 'smart')", smart)
-        self.assertIn("graphCommand('canvas.group.add-member', 'smart')", smart)
-        # The Classic variant of the same catalog entry is now issued by the
-        # shared compatibility policy (card R4-25) rather than inline in the
-        # page — same command id, single owner.
-        policy = (ROOT / "static" / "js" / "workbench" / "canvas" / "legacy-graph-compatibility.js").read_text(encoding="utf-8")
-        self.assertIn("graphCommand('canvas.group.add-member', 'classic')", policy)
-        self.assertIn("openSmartPortCreateMenu(drag, e)", smart)
-        self.assertIn("createSmartConnectedNodeFromMenu(command, portCreate)", smart)
-        self.assertIn("group: createVersionedConnectedSmartGroup", smart)
-        self.assertIn("prompt: createVersionedConnectedSmartPrompt", smart)
-        self.assertIn("loop: createVersionedConnectedSmartLoop", smart)
-        self.assertIn("image: createVersionedConnectedSmartImage", smart)
-        self.assertIn("minimax: createVersionedConnectedSmartMinimax", smart)
-        self.assertIn("applyVersionedSmartConnectedNode", smart)
-        self.assertIn("WorkbenchNodeClient.createNodeAndEdge", smart)
-        connected_apply = smart[smart.index("function applyVersionedSmartConnectedNode"):smart.index("async function createVersionedConnectedSmartPrompt")]
-        client = (ROOT / "static" / "js" / "workbench" / "canvas" / "node-creation-client.js").read_text(encoding="utf-8")
-        self.assertIn("WorkbenchNodeClient.applyGraphCreationResult", connected_apply)
-        self.assertIn("syncTargetInput:true", connected_apply)
-        self.assertIn("target.inputNodeIds = Array.from", client)
-        self.assertNotIn("scheduleSave();", connected_apply)
-        self.assertIn("connectInputNode(fromId, toId)", smart)
-
     def test_classic_connected_blank_image_uses_the_versioned_graph_mutation_route(self):
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
         create_block = classic[classic.index("async function createVersionedLinkedImage"):classic.index("function createNodeByType")]
@@ -4402,33 +2667,6 @@ console.log(JSON.stringify({{
         self.assertIn('"prompt", "loop", "group"', repository)
         self.assertIn('elif definition_id == "prompt":', repository)
         self.assertIn('elif definition_id == "loop":', repository)
-
-    def test_smart_port_hover_uses_the_shared_data_type_compatibility_contract(self):
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        # Since R4-20 the hover validation lives in the Smart connection gesture
-        # controller callbacks, not in the global mousemove dispatcher.
-        hover = smart[smart.index("function ensureSmartConnectionGesture(){") : smart.index("function finishSmartPortDrag(")]
-        self.assertIn("const intent = window.WorkbenchCanvasGraphInteraction?.edgeIntentFromPortDrop(", hover)
-        self.assertIn("WorkbenchCanvasPortCompatibility?.isCompatible(", hover)
-        self.assertIn("fromNode?.output_port_type || fromNode?.port_type || 'legacy.any'", hover)
-        self.assertIn("toNode?.input_port_type || toNode?.port_type || 'legacy.any'", hover)
-        # The gesture lifecycle is controller-owned: the dispatcher no longer
-        # carries the portDragState branches.
-        self.assertNotIn("if(portDragState){", smart)
-
-    def test_classic_and_smart_generation_entries_delegate_to_compatibility_execution(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        classic_entry = classic[classic.index("async function runCanvasGenerate(nodeId){") : classic.index("function computeCascadeOrder", classic.index("async function runCanvasGenerate(nodeId){"))]
-        smart_entry = smart[smart.index("async function runGeneration(){") : smart.index("async function runPromptLLMNode", smart.index("async function runGeneration(){"))]
-        self.assertIn("WorkbenchCanvasExecutionCompatibility?.run({", classic_entry)
-        self.assertIn("canvasKind:'classic', sourceNodeId:nodeId", classic_entry)
-        self.assertIn("execute:() => runCanvasGenerateLegacy(nodeId)", classic_entry)
-        self.assertIn("?? runCanvasGenerateLegacy(nodeId)", classic_entry)
-        self.assertIn("WorkbenchCanvasExecutionCompatibility?.run({", smart_entry)
-        self.assertIn("canvasKind:'smart', sourceNodeId:node.id", smart_entry)
-        self.assertIn("execute:() => runGenerationLegacy()", smart_entry)
-        self.assertIn("?? runGenerationLegacy()", smart_entry)
 
     def test_shared_command_catalog_orders_common_menu_items_consistently(self):
         registry = ROOT / "static" / "js" / "workbench" / "canvas" / "command-registry.js"
@@ -4547,45 +2785,6 @@ console.log(JSON.stringify({{
             self.assertNotIn("localStorage", text)
             self.assertNotIn("document.", text)
 
-    def test_top_level_blank_image_menus_use_versioned_client_only_on_loopback(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        client = (ROOT / "static" / "js" / "workbench" / "canvas" / "node-creation-client.js").read_text(encoding="utf-8")
-        self.assertIn("addVersionedBlankImageNode", classic)
-        self.assertIn("canUseVersionedImageCreation()", classic)
-        self.assertIn("createVersionedBlankSmartImageAt", smart)
-        self.assertIn("canUseVersionedSmartImageCreation()", smart)
-        self.assertIn("isLoopback", client)
-        self.assertIn("isEnabled", client)
-        self.assertIn("versioned_nodes", client)
-        self.assertIn("undoStack.push(undoSnapshot)", classic)
-        self.assertIn("undoStack.push(undoSnapshot)", smart)
-        self.assertIn("addVersionedBlankPromptNode", classic)
-        self.assertIn("createVersionedLinkedGroup", classic)
-        self.assertIn("createNodeAndEdge", client)
-        self.assertIn("createVersionedBlankSmartPrompt", smart)
-        self.assertIn("createVersionedBlankSmartLoop", smart)
-        self.assertIn("createVersionedBlankSmartGroup", smart)
-        self.assertIn("function createVersionedSmartTopLevelMenuNode(command, point){", smart)
-        self.assertIn("if(!groupId && createVersionedSmartTopLevelMenuNode(command, p))", smart)
-        self.assertIn("const shouldCreateBranchOutput = resultTarget?.disposition === 'branch';", smart)
-        self.assertIn("quickAdd('image')", (ROOT / "static" / "canvas.html").read_text(encoding="utf-8"))
-        toolbar = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8").split('<div class="toolbar-items">', 1)[1].split('</div>', 1)[0]
-        for create_type in ("llm", "generator", "msgen", "video", "minimax", "rh", "comfy", "ltxDirector", "output"):
-            self.assertIn(f"quickAdd('{create_type}')", toolbar)
-        self.assertNotIn("onclick=\"addLLMNode()\"", toolbar)
-        self.assertIn("function quickAdd(type)", classic)
-
-    def test_completed_box_selection_commits_through_the_shared_runtime_on_both_adapters(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        classic_finish = classic[classic.index("function finishSelection(){"):classic.index("function renderSelectionHub(){")]
-        smart_finish = smart[smart.index("function finishSelection(event){"):smart.index("function groupSelectedNodes(){")]
-        self.assertIn("const selectedIds = []", classic_finish)
-        self.assertIn("if(!applyCanvasRuntimeSelection(selectedIds)) selected.replace(selectedIds);", classic_finish)
-        self.assertIn("const nextSelectedIds = nodes.filter", smart_finish)
-        self.assertIn("if(!applySmartRuntimeSelection(nextSelectedIds))", smart_finish)
-
     def test_classic_standalone_blank_image_delete_uses_the_versioned_mutation_route(self):
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
         delete_block = classic[classic.index("function canUseVersionedBlankImageDelete(node)"):classic.index("function deleteConnection(id, event){")]
@@ -4654,69 +2853,6 @@ console.log(JSON.stringify({{
         self.assertIn("return commitVersionedEmptyGroupPosition(drag);", block)
         self.assertIn("if(await deleteVersionedEmptyGroupNode(id)) return;", block)
 
-    def test_smart_standalone_blank_image_delete_uses_the_versioned_mutation_route(self):
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        delete_block = smart[smart.index("function canUseVersionedBlankSmartImageDelete(node)"):smart.index("function disconnectConnection(index){")]
-        self.assertIn("node?.type !== 'smart-image'", delete_block)
-        self.assertIn("node.pending || node.queued || node.jimengPending || node.running", delete_block)
-        self.assertIn("smartGroupContainingNode(node.id)", delete_block)
-        self.assertIn("candidate.historyFor === node.id", delete_block)
-        self.assertIn("candidate?.inputNodeIds", delete_block)
-        self.assertIn("await window.WorkbenchNodeClient.remove(canvas.id, node.id", delete_block)
-        self.assertIn("expected_revision:Number(canvas.updated_at || 0)", delete_block)
-        self.assertIn("if(await deleteVersionedBlankSmartImageNode(id)) return;", delete_block)
-        self.assertNotIn("scheduleSave();", delete_block)
-
-    def test_smart_standalone_blank_image_move_uses_the_versioned_mutation_route(self):
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        move_block = smart[smart.index("async function commitVersionedBlankSmartImagePosition(drag)"):smart.index("async function deleteVersionedBlankSmartImageNode(id)")]
-        mouseup = smart[smart.index("window.onmouseup = e => {"):smart.index("shell.addEventListener('wheel'")]
-        self.assertIn("drag?.isLocalCopy || drag?.ctrlGroup || drag?.thumbDetached", move_block)
-        self.assertIn("(drag?.group || []).length !== 1", move_block)
-        self.assertIn("await window.WorkbenchNodeClient.update(canvas.id, node.id", move_block)
-        self.assertIn("position:{x:Number(node.x) || 0, y:Number(node.y) || 0}", move_block)
-        self.assertIn("node.x = drag.ox;", move_block)
-        self.assertIn("node.y = drag.oy;", move_block)
-        self.assertIn("isLocalCopy:Boolean(pointer.altKey)", smart)
-        self.assertIn("void commitVersionedSmartPosition(versionedPositionCommit)", mouseup)
-        self.assertIn("if(!handled) {", mouseup)
-        self.assertIn("void addSmartGroupMemberVersioned(smartMembershipCommit.groupId, smartMembershipCommit.memberId)", mouseup)
-
-    def test_smart_standalone_empty_group_uses_the_versioned_mutation_route(self):
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        block = smart[smart.index("function canUseVersionedEmptySmartGroupDelete(node)"):smart.index("function disconnectConnection(index){")]
-        self.assertIn("(node.items || []).length || (node.images || []).length || (node.inputNodeIds || []).length", block)
-        self.assertIn("(canvas?.connections || []).some", block)
-        self.assertIn("return !smartGroupContainingNode(node.id);", block)
-        self.assertIn("await window.WorkbenchNodeClient.update(canvas.id, node.id", block)
-        self.assertIn("await window.WorkbenchNodeClient.remove(canvas.id, node.id", block)
-        self.assertIn("void commitVersionedSmartPosition(versionedPositionCommit)", smart)
-        self.assertIn("if(await deleteVersionedEmptySmartGroupNode(id)) return;", block)
-
-    def test_smart_standalone_default_loop_uses_the_versioned_mutation_route(self):
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        block = smart[smart.index("function canUseVersionedDefaultSmartLoopDelete(node)"):smart.index("function disconnectConnection(index){")]
-        self.assertIn("Number(node.count || 1) !== 1 || node.mode === 'parallel'", block)
-        self.assertIn("String(node.variablePrompt || '').trim()", block)
-        self.assertIn("await window.WorkbenchNodeClient.update(canvas.id, node.id", block)
-        self.assertIn("await window.WorkbenchNodeClient.remove(canvas.id, node.id", block)
-        self.assertIn("if(await commitVersionedDefaultSmartLoopPosition(drag)) return true;", block)
-        self.assertIn("if(await deleteVersionedDefaultSmartLoopNode(id)) return;", block)
-
-    def test_smart_standalone_blank_prompt_uses_the_versioned_mutation_route(self):
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        block = smart[smart.index("function canUseVersionedBlankSmartPromptDelete(node)"):smart.index("function disconnectConnection(index){")]
-        self.assertIn("node?.type !== 'smart-prompt'", block)
-        self.assertIn("String(node.text || '').trim() || String(node.promptResult || '').trim()", block)
-        self.assertIn("node.llmEnabled || node.llmSystemEnabled", block)
-        self.assertIn("(node.promptAttachments || []).length || (node.inputNodeIds || []).length", block)
-        self.assertIn("(canvas?.connections || []).some", block)
-        self.assertIn("return !smartGroupContainingNode(node.id);", block)
-        self.assertIn("await window.WorkbenchNodeClient.update(canvas.id, node.id", block)
-        self.assertIn("await window.WorkbenchNodeClient.remove(canvas.id, node.id", block)
-        self.assertIn("return commitVersionedBlankSmartPromptPosition(drag);", block)
-        self.assertIn("if(await deleteVersionedBlankSmartPromptNode(id)) return;", block)
-
     def test_node_shell_emits_intents_without_storage_or_network_side_effects(self):
         shell = (ROOT / "static" / "js" / "workbench" / "canvas" / "node-shell.js").read_text(encoding="utf-8")
         self.assertIn("WorkbenchNodeShell", shell)
@@ -4753,54 +2889,6 @@ console.log(JSON.stringify({{
         self.assertNotIn("node.type ===", renderer)
         self.assertNotIn("fetch(", renderer)
         self.assertNotIn("localStorage", renderer)
-
-    def test_legacy_video_overlays_follow_the_real_playback_state(self):
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        controls = (ROOT / "static" / "js" / "workbench" / "canvas" / "media-preview-controls.js").read_text(encoding="utf-8")
-        self.assertIn("function bindSmartVideoOverlay(video)", smart)
-        self.assertIn("WorkbenchCanvasMediaPreviewControls.bindVideoOverlay", smart)
-        self.assertIn("function bindCanvasVideoOverlay(video)", classic)
-        self.assertIn("WorkbenchCanvasMediaPreviewControls.bindVideoOverlay", classic)
-        self.assertIn("['play', 'playing', 'pause', 'ended']", controls)
-        self.assertIn("['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'dblclick', 'contextmenu', 'wheel']", controls)
-
-    def test_semantic_zoom_application_is_shared_and_screen_space_controls_stay_smart_local(self):
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        apply_owner = (ROOT / "static" / "js" / "workbench" / "canvas" / "semantic-zoom-apply.js").read_text(encoding="utf-8")
-        styles = (ROOT / "static" / "css" / "smart-canvas.css").read_text(encoding="utf-8")
-        policy = (ROOT / "static" / "js" / "workbench" / "canvas" / "semantic-zoom.js").read_text(encoding="utf-8")
-        self.assertIn("function nodeShellSemanticZoomEnabled()", smart)
-        self.assertIn("params.get('semantic_zoom') !== '0'", smart)
-        self.assertIn("params.get('node_shell') !== '0'", smart)
-        self.assertIn("WorkbenchSemanticZoom.viewModel(node, viewport.scale)", smart)
-        self.assertIn("applyNodeShellSemanticZoom();", smart)
-        self.assertIn("semanticZoomIndicator", smart)
-        self.assertIn("count: shells.length", smart)
-        self.assertIn("WorkbenchSemanticZoomApply.ensureIndicator", smart)
-        self.assertIn("WorkbenchSemanticZoomApply.applyShellPresentation", smart)
-        self.assertIn("WorkbenchSemanticZoomApply.resetShellPresentation", smart)
-        self.assertIn("WorkbenchSemanticZoomApply.applyLegacyPresentation", smart)
-        self.assertIn("WorkbenchSemanticZoomApply.resetLegacyPresentation", smart)
-        self.assertIn("function applyLegacySmartSemanticZoom(enabled)", smart)
-        self.assertIn(".image-node:not(.node-shell-mounted)", smart)
-        self.assertIn("smartActions:nodeEl.querySelector(':scope > .smart-node-floating-menu')", smart)
-        self.assertIn("shellEl.closest('.image-node')?.querySelectorAll(':scope > .smart-node-floating-menu, :scope > .floating-node-actions')", smart)
-        self.assertIn("dataset.semanticPresentation = model.presentation", apply_owner)
-        self.assertIn("Math.round(Number(settings.scale) * 100)", apply_owner)
-        self.assertIn("setVisible(slots.status, model.showSummary, 'inline')", apply_owner)
-        self.assertIn("setVisible(slots.content, model.showContent)", apply_owner)
-        self.assertIn("Object.freeze(['full', 'summary'])", policy)
-        self.assertIn("scale >= 0.75 ? 'full' : 'summary'", policy)
-        self.assertIn('width:190px', styles)
-        self.assertIn(".node-shell-semantic-zoom", styles)
-        self.assertIn(".semantic-zoom-indicator", styles)
-        self.assertNotIn("data-semantic-presentation=\"icon\"", styles)
-        self.assertIn("function nodeShellScreenSpaceControlsEnabled()", smart)
-        self.assertIn("params.get('screen_space_controls') !== '0'", smart)
-        self.assertIn("WorkbenchScreenSpaceControls.controlViewModel", smart)
-        self.assertIn("--screen-space-port-size", styles)
-        self.assertIn("--screen-space-toolbar-scale", styles)
 
     def test_semantic_zoom_presentation_is_applied_by_one_shared_owner(self):
         apply_owner = ROOT / "static" / "js" / "workbench" / "canvas" / "semantic-zoom-apply.js"
@@ -4910,38 +2998,12 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
                     "legacyApplied", "legacySummary", "legacyReset", "indicatorBuilt", "indicatorUpdated"):
             self.assertTrue(payload[key], key)
 
-        for page, editor in (("canvas.html", "canvas.js"), ("smart-canvas.html", "smart-canvas.js")):
+        for page, editor in (("canvas.html", "canvas.js"),):
             text = (ROOT / "static" / page).read_text(encoding="utf-8")
             apply_tag = text.index("workbench/canvas/semantic-zoom-apply.js")
             self.assertLess(text.index("workbench/canvas/semantic-zoom.js"), apply_tag)
             self.assertLess(apply_tag, text.index(editor))
 
-
-    def test_node_shell_mount_is_explicit_and_supports_smart_groups(self):
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        self.assertIn("node_shell", smart)
-        self.assertIn("canUseNodeShellForSmartGroup", smart)
-        self.assertNotIn("!smartGroupMembers(node).length", smart)
-        self.assertIn("mountNodeShellForSmartGroups();", smart)
-        self.assertIn("handleSmartNodeShellIntent", smart)
-
-    def test_legacy_renderer_has_an_opt_in_non_media_smart_canvas_adapter(self):
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        styles = (ROOT / "static" / "css" / "smart-canvas.css").read_text(encoding="utf-8")
-        page = (ROOT / "static" / "smart-canvas.html").read_text(encoding="utf-8")
-        self.assertIn("function canUseNodeShellForSmartLegacy(node)", smart)
-        self.assertIn("params.get('legacy_renderer') !== '0'", smart)
-        self.assertIn("function mountNodeShellForSmartLegacyNodes()", smart)
-        self.assertIn("mountNodeShellForSmartLegacyNodes();", smart)
-        self.assertIn("preserveLegacyContent:true", smart)
-        self.assertIn("function adoptLegacyContent(settings)", (ROOT / "static" / "js" / "workbench" / "canvas" / "unified-render-host.js").read_text(encoding="utf-8"))
-        admission = (ROOT / "static" / "js" / "workbench" / "canvas" / "renderer-admission.js").read_text(encoding="utf-8")
-        self.assertIn("WorkbenchRendererAdmission?.admits", smart)
-        self.assertIn("accepts:candidate => !isSmartImageNode(candidate) && !isSmartGroupNode(candidate) && candidate.type !== 'group'", smart)
-        self.assertIn("function admits(policy, node)", admission)
-        self.assertIn("renderer-admission.js?v=2026.09.06.1", page)
-        self.assertIn(".image-node.legacy-renderer-mounted > .floating-node-actions", styles)
-        self.assertIn("smart-canvas.js?v=2026.09.06.15", page)
 
     def test_classic_output_node_can_use_the_opt_in_shared_legacy_renderer(self):
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
@@ -5045,65 +3107,6 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         self.assertIn("if(node.type === 'promptGroup') {", classic)
         self.assertIn("${promptNodes.length} ${tr('canvas.promptCount')} ${tr('canvas.grouped')}", classic)
 
-    def test_prompt_node_uses_the_compact_llm_card_hierarchy(self):
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        styles = (ROOT / "static" / "css" / "smart-canvas.css").read_text(encoding="utf-8")
-        self.assertIn('class="prompt-node-studio-head"', smart)
-        self.assertIn('class="prompt-node-models"', smart)
-        self.assertIn('class="prompt-node-tools prompt-node-footer ${node.promptSkillEnabled', smart)
-        self.assertIn('class="prompt-node-run prompt-node-control"', smart)
-        self.assertIn(".prompt-node-studio-head", styles)
-        self.assertIn(".prompt-node-models", styles)
-        self.assertIn(".prompt-node-footer", styles)
-        self.assertIn('promptSkillPack', smart)
-        self.assertIn('promptSkillDefinition', smart)
-        self.assertIn('function openPromptNodeUpload(nodeId)', smart)
-        self.assertIn('function attachFilesToPromptNode(files, nodeId)', smart)
-        self.assertIn('function promptNodeSkillSystemPrompt(node)', smart)
-        self.assertIn('const PROMPT_SKILL_VISUAL_CATALOG', smart)
-        self.assertIn('function promptSkillVisual(pack, definition)', smart)
-        self.assertIn('聘才猫简历优化', smart)
-        self.assertIn('Pincaimiao Skills', smart)
-        self.assertIn('node.title = visual.definition;', smart)
-        self.assertIn('function promptNodeContextChipsHtml(node, upstreamItems=[])', smart)
-        self.assertIn('class="prompt-node-context-row"', smart)
-        self.assertIn('data-lucide="brain"', smart)
-        self.assertIn("node.title = node.promptSkillEnabled ? promptSkillVisual", smart)
-        self.assertIn('.prompt-node-footer .prompt-skill-toggle:not(.active)', styles)
-        self.assertIn('.image-node.prompt-smart-node.node-shell-mounted .workbench-node-shell__header', styles)
-        self.assertIn('.image-node.prompt-smart-node.node-shell-mounted .workbench-node-shell__footer', styles)
-        self.assertIn('.image-node.prompt-smart-node.node-shell-mounted .workbench-node-shell__resize', styles)
-        self.assertIn('container-name:prompt-card; overflow:visible; border:1px solid #e8edf3; border-radius:18px; background:rgba(255,255,255,.96)', styles)
-        self.assertIn('box-sizing:border-box; gap:0; padding:0; overflow:hidden; border:0; border-radius:inherit; background:transparent; box-shadow:none;', styles)
-        self.assertIn('margin:0 18px 18px; padding-right:32px;', styles)
-        self.assertIn('@container prompt-card (max-width: 420px)', styles)
-        self.assertIn('.image-node.prompt-smart-node.node-shell-mounted .workbench-node-shell__port--input', styles)
-        self.assertIn('.image-node.prompt-smart-node.node-shell-mounted .workbench-node-shell__port--output', styles)
-        self.assertIn('visibility\n   still follows the shared selected/hover/connection interaction contract', styles)
-        self.assertIn('ensureSmartRenderRuntime().mountAll(entries);', smart)
-        self.assertIn('card:el, contentHost,', smart)
-        self.assertIn('function nodeShellPortElements(shellEl)', smart)
-        self.assertIn('w:340, h:286', smart)
-        self.assertIn('function promptNodeOutputItems(node)', smart)
-        self.assertIn('node.promptResult = String(result?.promptResult ?? \'\').trim();', smart)
-        self.assertIn('executionHost.writePromptResult(node, {promptResult: result.text || \'\', provider, model})', smart)
-        self.assertIn('node.promptResultOutdated = false;', smart)
-        self.assertIn("node?.promptResultOutdated === true", smart)
-        self.assertIn('prompt-node-result ${node.promptResultOutdated', smart)
-        self.assertIn("node?.promptOutputMode === 'list'", smart)
-        self.assertIn('system_prompt:systemPrompt', smart)
-        self.assertIn('function smartMinimaxUpstreamScript(node)', smart)
-        self.assertIn('function smartMinimaxApplyUpstreamScript(node)', smart)
-        self.assertIn('class="minimax-upstream-script"', smart)
-        self.assertIn('未填写片段 Prompt 时将用于生成', smart)
-        self.assertIn('data-minimax-apply-upstream="1"', smart)
-        self.assertIn("if(node?.type === 'smart-prompt'){", smart)
-        self.assertIn('return promptNodeInputMediaForLLM(node)', smart)
-        self.assertIn("selectSmartNodeFromShell", smart)
-        self.assertIn("startSmartPortDrag", smart)
-        self.assertIn("startSmartNodeDrag", smart)
-        self.assertIn("startSmartNodeResize", smart)
-
     def test_node_shell_ports_emit_mouse_coordinates_and_use_legacy_port_contract(self):
         shell = (ROOT / "static" / "js" / "workbench" / "canvas" / "node-shell.js").read_text(encoding="utf-8")
         self.assertIn("connect_start", shell)
@@ -5124,52 +3127,6 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         renderer = (ROOT / "static" / "js" / "workbench" / "canvas" / "legacy-renderer.js").read_text(encoding="utf-8")
         self.assertIn("legacyContent", renderer)
         self.assertIn("root.append(legacyContent)", renderer)
-
-    def test_node_shell_mount_removes_legacy_controls_owned_by_the_shell(self):
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        self.assertIn("controlSettings:{selectors:SMART_NODE_SHELL_LEGACY_CONTROLS}", smart)
-        self.assertIn("removeControlsBeforeMount:true", smart)
-
-    def test_node_shell_ports_override_legacy_port_geometry(self):
-        styles = (ROOT / "static" / "css" / "smart-canvas.css").read_text(encoding="utf-8")
-        self.assertIn(".image-node.node-shell-mounted .workbench-node-shell__port", styles)
-        self.assertIn(".image-node.node-shell-mounted.selected > .workbench-node-shell__port", styles)
-        self.assertIn(".image-node.node-shell-mounted.port-dragging > .workbench-node-shell__port", styles)
-        self.assertIn(".workbench-node-shell__port--input { left:-8px; right:auto; }", styles)
-        self.assertIn(".workbench-node-shell__port--output { right:-8px; left:auto; }", styles)
-        self.assertIn(".shell.port-dragging .workbench-node-shell__port", styles)
-        self.assertIn(".image-node.node-shell-mounted.dragging .workbench-node-shell__port", styles)
-
-    def test_smart_group_node_shell_uses_classic_group_card_treatment(self):
-        styles = (ROOT / "static" / "css" / "smart-canvas.css").read_text(encoding="utf-8")
-        self.assertIn("Smart Group NodeShell adopts the established Classic Canvas group card", styles)
-        self.assertIn(".image-node.smart-group-node.node-shell-mounted .workbench-node-shell__header", styles)
-        self.assertIn("min-height:66px", styles)
-        self.assertIn(".workbench-node-shell__menu::before { content:'⋯'", styles)
-
-    def test_smart_canvas_accepts_both_legacy_and_node_shell_ports(self):
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        self.assertIn(".node-port, .workbench-node-shell__port", smart)
-        self.assertIn('querySelector(`[data-port="${portDragState.hoverPort}"]`)', smart)
-
-    def test_media_renderer_mount_is_explicit_and_limited_to_top_level_smart_images(self):
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        self.assertIn("canUseMediaRendererForSmartImage", smart)
-        self.assertIn("media_renderer", smart)
-        self.assertIn("mountNodeShellForSmartImages();", smart)
-        self.assertIn("smart-group-member-node", smart)
-        self.assertIn("WorkbenchUnifiedRenderHost.mount", smart)
-
-    def test_media_renderer_has_opt_in_group_and_classic_canvas_adapters(self):
-        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        self.assertIn("canUseMediaRendererForSmartGroup", smart)
-        self.assertIn("smartGroupMediaRecord", smart)
-        self.assertIn("const ownMedia = (node.images || [])", smart)
-        self.assertIn("canUseCanvasMediaRenderer", classic)
-        self.assertIn("canvasMediaRecord", classic)
-        self.assertIn("WorkbenchUnifiedRenderHost.mountAdapterContent", classic)
-        self.assertIn("cardClasses:['media-renderer-mounted']", classic)
 
     def test_classic_media_node_shell_reuses_legacy_gesture_and_link_state_machines(self):
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")

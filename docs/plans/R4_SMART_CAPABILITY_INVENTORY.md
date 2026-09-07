@@ -1,5 +1,14 @@
 # R4 Smart Capability Inventory
 
+> **Historical snapshot (R4-36).** The source file `static/js/smart-canvas.js`
+> was retired by card R4-36, and the evidence-anchoring test
+> `tests/test_smart_capability_inventory.py` was deleted with it. The
+> evidence function names below are a frozen R4-27 artifact: they describe
+> what existed in `smart-canvas.js` at 2026-09-07 and are preserved as the
+> capability-classification record that informed the R4-28/29/30/32/33
+> cutover sequence and the R4-34 unified-entry + R4-35 handoff-removal
+> sequence. They are no longer validated against current source.
+
 Owner: card R4-27. Classifies every Smart-only, product-relevant capability in
 `static/js/smart-canvas.js` before the Smart runtime is retired (U7). This is a
 characterization deliverable — no code is deleted or migrated by this card.

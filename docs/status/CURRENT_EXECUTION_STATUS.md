@@ -1387,6 +1387,49 @@ new redundant ones, since the handoff helpers had no other consumers),
 PASS Python AST parse, PASS JavaScript syntax, PASS Architecture
 guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
 
+R4 Smart page removal (card R4-36, 2026-09-07T14:57+08:00, Owner authorization
+via in-conversation "提交并开发下一任务"; implementer evidence, independent
+review pending): the Smart product page is deleted. After R4-35 retired the
+handoff helpers, the only remaining consumer of `smart-canvas.html` /
+`smart-canvas.js` was the page itself — so this card removes the page,
+its editor, its stylesheet and its i18n bundle. Files deleted
+(`git rm`): `static/smart-canvas.html`, `static/js/smart-canvas.js`,
+`static/css/smart-canvas.css`, `static/js/i18n/smart-canvas.js`,
+`tests/test_smart_capability_inventory.py`. Active code updated:
+`static/js/i18n.js` and `static/js/i18n/validate-i18n.js` drop the
+`smart-canvas.js` i18n entry; the historical "mirrors smart-canvas.js" /
+"smart-canvas.js keeps rendering" comments in `canvas-list.js`,
+`composer.js` and `media-tools.js` are updated to record the retirement
+(modules and seams stay — they are now consumed by the unified page).
+Tests: the 18 dual-iteration sites in
+`tests/test_frontend_workbench_modules.py` (`for page, editor in
+(("canvas.html", "canvas.js"), ("smart-canvas.html", "smart-canvas.js")):`
+and the `adapter` variant) are refactored to single-iteration; the 63
+Smart-page-specific test methods (every test that read `smart-canvas.js`
+or `smart-canvas.html` and asserted Smart-page behavior — including all
+`test_smart_*`, the `test_*_on_both_adapters` dual-adapter tests, the
+R4-28 composer/R4-29 media-tools/R4-30 execution-host wiring tests that
+pinned the Smart page as the loader, and the R4-27 inventory
+contract test whose source file is now gone) are removed because the
+Smart page and the behaviors under test no longer exist.
+`tests/test_canvas_entry.py` drops `smart-canvas.js` from the R4-35
+routing scan; `tests/test_canvas_runtime_state.py` drops the Smart-page
+half of its two dual-adapter tests; `tests/test_repository_independence.py`
+drops the Smart page from the GitHub-hosting scan. The R4-27 inventory
+doc `docs/plans/R4_SMART_CAPABILITY_INVENTORY.md` is annotated as a
+frozen historical snapshot (the source file is deleted; the manifest is
+preserved as the capability-classification record that informed
+R4-28/29/30/32/33/34/35). The R4-34 native-entry doc and the R4-35
+handoff-removal doc are annotated to record that R4-36 closed the page.
+Ownership matrix `Smart handoff` row records the page retirement; a new
+`Canvas page surface` row records that `canvas.html` is the sole visible
+page; the `Smart product runtime` row's evidence pointer is replaced
+with "(retired)". Regression: `./scripts/agent-verify.sh` PASS at 343
+Python unit tests (baseline 412; -69 — the -6 R4-27 inventory test file
+and the -63 Smart-specific frontend workbench methods), PASS Python
+AST parse, PASS JavaScript syntax (73 → 71 files), PASS Architecture
+guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
+
 R4 clipboard unified creation (card R4-23, 2026-09-07): single-node,
 connection-free clipboard paste of the losslessly persistable Legacy shapes —
 Classic `image` (url/name/mediaKind) and `prompt` (text), Smart `smart-prompt`
