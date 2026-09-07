@@ -84,7 +84,7 @@ REMOVE       = 可删除/待删除
 
 | Capability | Keep/Migrate/Compat/Remove | Target | Evidence |
 |---|---|---|---|
-| Composer | Migrate | Unified card/render and creation runtime | `updateComposer()` remains Smart-page-owned |
+| Composer | Migrate | mountable `WorkbenchCanvasComposer` compatibility capability (shell lifecycle) + Smart subject resolution / dynamic param rendering | shell open/close/position/debounce now owned by `composer.js` (R4-28); subject resolution + dynamic param rendering remain Smart-owned |
 | Smart group behavior | Migrate | Unified interaction/renderer | Smart membership/move/resize policy remains page-owned |
 | upload | Migrate | Unified creation/mutation runtime | Smart direct `createNode()` remains page-owned |
 | video workflow | Compat | Legacy renderer/execution seam | R8 owns runtime replacement |

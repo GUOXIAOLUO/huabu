@@ -5,10 +5,34 @@
 
 ## Active Task
 
-None. R4-27 closed 2026-09-07T11:05+08:00 (see Completed Tasks). Do not
-activate the successor (`R4-28`) without fresh Owner authorization.
+- `None` — no active card. R4-28 closed 2026-09-07T11:40+08:00. Recommended
+  successor `R4-29` (see "Recommended Successor" below), not yet activated.
 
 ## Completed Tasks
+
+- `R4-28` — `DONE` 2026-09-07T11:40+08:00. Card:
+  `docs/tasks/active/R4-28-smart-composer.md`. Implementer evidence
+  (independent review pending): the Smart Composer shell lifecycle is now a
+  mountable compatibility capability instead of Smart-page-owned. New
+  `static/js/workbench/canvas/composer.js` exposes
+  `window.WorkbenchCanvasComposer.create({container})` returning a frozen
+  lifecycle handle (`setOpen`/`isOpen`/`positionForRect`/`cancelPending`/
+  `scheduleUpdate`); the module owns the floating card's container, open/close
+  state, node-relative centering position math (default 540px width, 14px gap)
+  and the sequence-guarded debounced update scheduler. Loaded by
+  `static/smart-canvas.html` ahead of `smart-canvas.js`; Smart delegates its
+  Composer head to a `composerLifecycle` handle (`positionComposerForNode` →
+  `positionForRect(nodeRect(node))`, `scheduleComposerUpdate` →
+  `scheduleUpdate(delay, updateComposer)`, `updateComposer` →
+  `cancelPending()` before resolving the node); the four `composer.classList`
+  open/close sites route through `setOpen`/`isOpen`; the old
+  `composerUpdateTimer`/`composerUpdateSeq` page state is removed. Subject
+  resolution and dynamic provider/media/prompt parameter rendering stay
+  Smart-owned per "do not redesign Composer"; the module has zero Smart leak.
+  Two focused tests in `tests/test_frontend_workbench_modules.py` (vm-sandbox
+  behavioral position/open/debounce test + load-order/delegation/zero-leak
+  contract). Ownership matrix `Composer` row updated.
+  `./scripts/agent-verify.sh` PASS at 394 tests (was 392; +2).
 
 - `R4-27` — `DONE` 2026-09-07T11:05+08:00. Card:
   `docs/tasks/active/R4-27-smart-inventory.md`. Implementer evidence
@@ -370,8 +394,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor after R4-27 close (not activated, not executed):
+Expected successor after R4-28 close (not activated, not executed):
 
-`R4-28 — Smart Composer` (`docs/tasks/backlog/R4-28-smart-composer.md`)
+`R4-29 — Smart Media Tools` (`docs/tasks/backlog/R4-29-smart-media-tools.md`)
 
 Actual successor must still be checked against the repository's current verified state.

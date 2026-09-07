@@ -2001,6 +2001,76 @@ console.log(JSON.stringify({node, commands, appliedCount: applied.length, invali
         # it does not yet route through the versioned client.
         self.assertNotIn("WorkbenchNodeClient.setGroupMembership", classic)
 
+    def test_composer_lifecycle_owns_position_open_and_debounced_schedule(self):
+        composer_module = ROOT / "static" / "js" / "workbench" / "canvas" / "composer.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const timers = [];
+const sandbox = {{
+  window: {{}},
+  setTimeout: (cb, ms) => {{ timers.push({{cb, ms, cleared:false}}); return timers.length; }},
+  clearTimeout: id => {{ if (timers[id - 1]) timers[id - 1].cleared = true; }},
+}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(composer_module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasComposer;
+const container = {{
+  style: {{}},
+  classList: {{ _open:false, toggle:function(cls, on){{ if(cls === 'open') this._open = Boolean(on); }}, contains:function(cls){{ return cls === 'open' && this._open; }} }},
+}};
+const lifecycle = api.create({{container}});
+lifecycle.setOpen(true);
+const opened = lifecycle.isOpen();
+lifecycle.setOpen(false);
+const closed = !lifecycle.isOpen();
+lifecycle.positionForRect({{x:100, y:200, width:300, height:50}});
+const positioned = {{width:container.style.width, left:container.style.left, top:container.style.top}};
+lifecycle.positionForRect({{x:10, y:20, width:100, height:40}}, {{gap:8, cardWidth:200}});
+const custom = {{width:container.style.width, left:container.style.left, top:container.style.top}};
+let runs = 0;
+lifecycle.scheduleUpdate(10, () => runs++);
+lifecycle.scheduleUpdate(10, () => runs++);
+const firstCleared = timers[0].cleared;
+const secondPending = !timers[1].cleared;
+timers[1].cb();
+const runsAfterFire = runs;
+lifecycle.scheduleUpdate(10, () => runs++);
+lifecycle.cancelPending();
+const cancelledCleared = timers[2].cleared;
+if (!timers[2].cleared) timers[2].cb();
+const runsAfterCancel = runs;
+console.log(JSON.stringify({{opened, closed, positioned, custom, firstCleared, secondPending, runsAfterFire, cancelledCleared, runsAfterCancel}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), {
+            "opened": True,
+            "closed": True,
+            "positioned": {"width": "540px", "left": "-20px", "top": "264px"},
+            "custom": {"width": "200px", "left": "-40px", "top": "68px"},
+            "firstCleared": True,
+            "secondPending": True,
+            "runsAfterFire": 1,
+            "cancelledCleared": True,
+            "runsAfterCancel": 1,
+        })
+
+    def test_composer_lifecycle_is_loaded_before_the_smart_page_and_owned(self):
+        page = (ROOT / "static" / "smart-canvas.html").read_text(encoding="utf-8")
+        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
+        composer_module = (ROOT / "static" / "js" / "workbench" / "canvas" / "composer.js").read_text(encoding="utf-8")
+        # The module loads ahead of the editor script.
+        self.assertLess(page.index("workbench/canvas/composer.js"), page.index("js/smart-canvas.js"))
+        # The page delegates the shell lifecycle and no longer owns its timer/seq.
+        self.assertIn("const composerLifecycle = window.WorkbenchCanvasComposer.create({ container: composer });", smart)
+        self.assertIn("composerLifecycle.positionForRect(nodeRect(node))", smart)
+        self.assertIn("composerLifecycle.scheduleUpdate(delay, updateComposer)", smart)
+        self.assertIn("composerLifecycle.cancelPending()", smart)
+        self.assertIn("composerLifecycle.setOpen(", smart)
+        self.assertNotIn("composerUpdateTimer", smart)
+        self.assertNotIn("composerUpdateSeq", smart)
+        # The extracted shell is product-neutral: no Smart adapter detail leaks in.
+        for adapter_detail in ("smart-minimax", "imageInput", "cascadeRunBtn", "selectedNode", "renderDynamicParams", "promptInput"):
+            self.assertNotIn(adapter_detail, composer_module)
+
     def test_blank_creation_entry_points_route_through_the_creation_controller(self):
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
         smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")

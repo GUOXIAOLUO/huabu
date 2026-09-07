@@ -1101,6 +1101,44 @@ code changed. Regression: `./scripts/agent-verify.sh` PASS at 392 Python unit
 tests (baseline 386; +6), PASS Python AST parse, PASS JavaScript syntax, PASS
 Architecture guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
 
+R4 Smart Composer extraction (card R4-28, 2026-09-07T11:15+08:00, Owner
+authorization via in-conversation "提交并开发下一任务"; implementer evidence,
+independent review pending): the Smart Composer shell lifecycle is now a
+mountable compatibility capability rather than Smart-page-owned. New
+`static/js/workbench/canvas/composer.js` exposes
+`window.WorkbenchCanvasComposer.create({container})` returning a frozen
+lifecycle handle with `setOpen(open)` / `isOpen()` /
+`positionForRect(rect, position)` / `cancelPending()` /
+`scheduleUpdate(delay, onUpdate)`; the module owns the floating card's
+container, open/close state, node-relative centering position math (default
+540px card width, 14px gap), and the debounced update scheduler with a
+sequence guard that drops stale callbacks. It is loaded by
+`static/smart-canvas.html` ahead of `smart-canvas.js`, and Smart now delegates
+its Composer head to a `composerLifecycle` handle:
+`positionComposerForNode` → `composerLifecycle.positionForRect(nodeRect(node))`,
+`scheduleComposerUpdate` → `composerLifecycle.scheduleUpdate(delay,
+updateComposer)`, and `updateComposer` → `composerLifecycle.cancelPending()`
+before resolving the selected node; the four `composer.classList` open/close
+sites now route through `setOpen`/`isOpen`, and the old
+`composerUpdateTimer`/`composerUpdateSeq` page state is removed. Subject
+resolution (selected-node lookup) and dynamic provider/media/prompt parameter
+rendering stay Smart-owned per the "do not redesign Composer" out-of-scope
+boundary; the new module has zero Smart leak (no `smart-minimax` / `imageInput`
+/ `cascadeRunBtn` / `selectedNode` / `renderDynamicParams` / `promptInput`).
+Tests (both in `tests/test_frontend_workbench_modules.py`):
+`test_composer_lifecycle_owns_position_open_and_debounced_schedule` (vm-sandbox
+behavioral: open/close toggling, default and custom position math, debounce
+cancels the first timer, the second fires once, `cancelPending` clears) and
+`test_composer_lifecycle_is_loaded_before_the_smart_page_and_owned` (module
+loads before the editor script; the page delegates position/open/close/debounce
+to the lifecycle handle; no residual `composerUpdateTimer`/`composerUpdateSeq`;
+module zero Smart leak). Ownership matrix `Composer` row updated: final owner
+is the mountable `WorkbenchCanvasComposer` compatibility capability for the
+shell lifecycle, with Smart retaining subject resolution + dynamic param
+rendering. Regression: `./scripts/agent-verify.sh` PASS at 394 Python unit
+tests (baseline 392; +2), PASS Python AST parse, PASS JavaScript syntax, PASS
+Architecture guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
+
 R4 clipboard unified creation (card R4-23, 2026-09-07): single-node,
 connection-free clipboard paste of the losslessly persistable Legacy shapes —
 Classic `image` (url/name/mediaKind) and `prompt` (text), Smart `smart-prompt`

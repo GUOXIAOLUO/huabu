@@ -5,6 +5,10 @@ const CANVAS_LIST_PROJECT_KEY = 'canvasListCurrentProjectId';
 const shell = document.getElementById('shell');
 const world = document.getElementById('world');
 const composer = document.getElementById('composer');
+// Composer shell lifecycle (container / open-close / position / debounced
+// schedule) is owned by the shared module; subject resolution + rendering stay
+// page-side (R4-28).
+const composerLifecycle = window.WorkbenchCanvasComposer.create({ container: composer });
 const createMenu = document.getElementById('createMenu');
 const promptInput = document.getElementById('promptInput');
 const mentionPicker = document.getElementById('mentionPicker');
@@ -1104,7 +1108,7 @@ function activeComposerNode(){
     return isSmartRunnableNode(node) ? node : null;
 }
 function persistActiveSmartSettings(){
-    if(!composer?.classList?.contains('open')) return;
+    if(!composerLifecycle.isOpen()) return;
     const subject = activeComposerNode();
     if(!subject) return;
     subject.runSettings = settingsForStorage(settings);
@@ -13931,37 +13935,17 @@ function loadPromptDraft(subject){
 }
 function positionComposerForNode(node){
     if(!node) return;
-    const rect = nodeRect(node);
-    const gap = 14;
-    const cardW = 540;
-    composer.style.width = `${cardW}px`;
-    composer.style.left = `${rect.x + rect.width / 2 - cardW / 2}px`;
-    composer.style.top = `${rect.y + rect.height + gap}px`;
+    composerLifecycle.positionForRect(nodeRect(node));
 }
-let composerUpdateTimer = 0;
-let composerUpdateSeq = 0;
 function scheduleComposerUpdate(delay=120){
-    if(composerUpdateTimer){
-        clearTimeout(composerUpdateTimer);
-        composerUpdateTimer = 0;
-    }
-    const seq = ++composerUpdateSeq;
-    composerUpdateTimer = setTimeout(() => {
-        composerUpdateTimer = 0;
-        if(seq !== composerUpdateSeq) return;
-        updateComposer();
-    }, Math.max(0, Number(delay) || 0));
+    composerLifecycle.scheduleUpdate(delay, updateComposer);
 }
 function updateComposer(){
-    if(composerUpdateTimer){
-        clearTimeout(composerUpdateTimer);
-        composerUpdateTimer = 0;
-    }
-    composerUpdateSeq++;
+    composerLifecycle.cancelPending();
     const node = selectedNode();
     syncRunButtonState(node);
     if(smartCascadeSilentSelection && !activeComposerSubject){
-        composer.classList.remove('open');
+        composerLifecycle.setOpen(false);
         if(cascadeRunBtn) cascadeRunBtn.style.display = 'none';
         activeComposerSubject = null;
         lastComposerNodeId = '';
@@ -13969,18 +13953,18 @@ function updateComposer(){
     }
     if(node?.type === 'smart-minimax'){
         savePromptDraftForCurrent();
-        composer.classList.remove('open');
+        composerLifecycle.setOpen(false);
         if(cascadeRunBtn) cascadeRunBtn.style.display = 'none';
         activeComposerSubject = null;
         lastComposerNodeId = '';
         setPromptInputLocked(false);
         return;
     }
-    composer.classList.toggle('open', !!node);
+    composerLifecycle.setOpen(!!node);
     if(!isSmartRunnableNode(node)){
         if(cascadeRunBtn) cascadeRunBtn.style.display = 'none';
         savePromptDraftForCurrent();
-        composer.classList.remove('open');
+        composerLifecycle.setOpen(false);
         activeComposerSubject = null;
         lastComposerNodeId = '';
         setPromptInputLocked(false);
@@ -17022,7 +17006,7 @@ async function runSmartCascade(targetNode=null){
         selectedImage = {nodeId:'', index:-1};
         activeComposerSubject = null;
         lastComposerNodeId = '';
-        composer.classList.remove('open');
+        composerLifecycle.setOpen(false);
         settings = originalSettings;
         promptInput.innerHTML = originalPromptHtml;
         scheduleSave();
