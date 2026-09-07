@@ -61,7 +61,7 @@ REMOVE       = 可删除/待删除
 | workflow export | adapter format/UI | adapter format/UI | transfer client | PARTIAL | Unified | Retain format compatibility; migrate product flow. | same |
 | result normalization | Classic traversal policy | Smart traversal policy | shared normalizer | PARTIAL | compatibility until R8 | Keep provider behavior; continue compatibility-only decoupling. | `media-result-normalizer.js` |
 | result placement | adapter behavior | adapter behavior | generation intent seam | PARTIAL | compatibility seam | Do not introduce R8 executor runtime. | `generation-intent.js` |
-| execution trigger | adapter/provider behavior | adapter/provider behavior | bounded execution host seam (`execution-host.js`) for Canvas lifecycle/state; transport stays adapter-owned | CLASSIC/SMART | compatibility until R8 | Keep compatibility-only in R4; `runPromptLLMNode` cut over (R4-30), generation/cascade remain host-candidates. | `execution-host.js`; adapters |
+| execution trigger | adapter/provider behavior | adapter/provider behavior | bounded execution host seam (`execution-host.js` for Smart, `classic-execution-host.js` for Classic) for Canvas lifecycle/state; transport stays adapter-owned | CLASSIC/SMART | compatibility until R8 | Keep compatibility-only in R4; `runPromptLLMNode` (R4-30) and `runLLMNode` (R4-33) cut over, generation/cascade remain host-candidates. | `execution-host.js`; `classic-execution-host.js`; adapters |
 | minimap | page DOM/event/save shell; shared pointer projection and world-point viewport centering on default path | page DOM/event/save shell; shared pointer projection and world-point viewport centering on default path | CanvasRuntime command plus shared minimap projection/viewport-centering policy | PARTIAL | Unified | Migrate remaining render/persistence lifecycle. | `runtime-state.js`; minimap interaction contract |
 | screen-space controls | n/a | Smart application | shared policy | PARTIAL | Unified | Move DOM application with renderer ownership. | `screen-space-controls.js` |
 | normal navigation | retained entry adapter | retained entry adapter | normal URL resolver | PARTIAL | Unified | Remove Smart branch when records render natively. | `canvas-entry-compatibility.js` |
@@ -79,6 +79,7 @@ REMOVE       = 可删除/待删除
 |---|---|---|---|
 | Legacy provider/execution cards | Compat | bounded Legacy renderer/execution seam | provider behavior unchanged; R8 owns runtime replacement |
 | Provider-card controls (LLM body) | Migrate | mountable `WorkbenchCanvasProviderControls` compatibility capability (setField/save/render) + Classic provider/model resolution | provider/system/mode control writes now route through `provider-controls.js` (R4-32); body presentation + provider/model resolution remain page-owned |
+| LLM node execution | Migrate | mountable `WorkbenchCanvasClassicExecutionHost` compatibility capability (markRunning/writeOutputText/setRunStatus/render/save/notifyError) + Classic LLM transport | `runLLMNode`'s Canvas lifecycle/state writes now route through `classic-execution-host.js` (R4-33); `callCanvasLLM` and the cascade orchestrators remain host-candidates |
 | Classic upload/file-drop | Migrate | Unified creation/mutation runtime | direct local node construction remains page-owned |
 
 Full granular Classic-only capability inventory (R4-31): see

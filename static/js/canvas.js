@@ -13209,33 +13209,53 @@ async function callCanvasLLM(node, message, messages=[], options={}){
     });
     return result.text || '';
 }
+// Classic execution (card R4-33): runLLMNode's Canvas lifecycle/state writes
+// route through the shared classic execution host; the LLM call itself stays
+// page-side. Node-state, render, persist and error surfacing no longer touch
+// Canvas state directly.
+let classicExecutionHost = null;
+function ensureClassicExecutionHost(){
+    if(!classicExecutionHost){
+        classicExecutionHost = window.WorkbenchCanvasClassicExecutionHost.create({
+            markRunning: (node, running) => { if(node) node.running = Boolean(running); },
+            writeOutputText: (node, text) => { if(node) node.outputText = text; },
+            setRunStatus: (node, status, error) => { if(node){ node.runStatus = status; node.runError = error; } },
+            render: (node) => refreshNodes([node.id]),
+            save: () => scheduleSave(),
+            notifyError: (message) => alert(message),
+        });
+    }
+    return classicExecutionHost;
+}
 async function runLLMNode(nodeId, opts={}){
     const node = nodes.find(n => n.id === nodeId);
     if(!node || (node.running && !opts.cascade)) return;
+    const executionHost = ensureClassicExecutionHost();
     const cascadeTargetId = cascadeTargetIdFromOptions(opts);
     const input = llmInputText(node) || node.userInput || '';
     if(!input){
         if(opts.cascade) throw new Error('LLM 缺少提示词输入');
-        alert(tr('canvas.needPromptToLLM')); return;
+        executionHost.notifyError(tr('canvas.needPromptToLLM')); return;
     }
-    if(!opts.cascade){ node.running = true; refreshNodes([node.id]); }
+    if(!opts.cascade){ executionHost.markRunning(node, true); executionHost.render(node); }
     try {
-        node.outputText = await callCanvasLLM(node, input, [], {cascadeTargetId});
-        if(!opts.cascade) node.running = false;
-        node.runStatus = 'done'; node.runError = '';
-        refreshNodes([node.id]);
-        scheduleSave();
+        const outputText = await callCanvasLLM(node, input, [], {cascadeTargetId});
+        if(!opts.cascade) executionHost.markRunning(node, false);
+        executionHost.writeOutputText(node, outputText);
+        executionHost.setRunStatus(node, 'done', '');
+        executionHost.render(node);
+        executionHost.save();
     } catch(err) {
-        if(!opts.cascade) node.running = false;
+        if(!opts.cascade) executionHost.markRunning(node, false);
         if(isCascadeAbortError(err)){
-            refreshNodes([node.id]);
+            executionHost.render(node);
             if(opts.cascade) throw err;
             return;
         }
-        node.runStatus = 'failed'; node.runError = err.message || String(err);
-        refreshNodes([node.id]);
+        executionHost.setRunStatus(node, 'failed', err.message || String(err));
+        executionHost.render(node);
         if(opts.cascade) throw err;
-        alert(err.message || 'LLM 运行失败');
+        executionHost.notifyError(err.message || 'LLM 运行失败');
     }
 }
 // 判断是不是「链尾」节点：没有下游生成节点（直接相连或经 Output 中转都算）

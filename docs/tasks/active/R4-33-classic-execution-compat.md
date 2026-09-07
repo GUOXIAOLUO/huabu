@@ -2,7 +2,9 @@
 
 - Round: R4
 - Priority: P1
-- Status: BACKLOG
+- Status: DONE
+- Activated: 2026-09-07T12:34+08:00
+- Closed: 2026-09-07T12:41+08:00
 - Depends on: R4-32
 
 ## Goal
@@ -52,7 +54,7 @@ Run:
 
 ## Definition of Done
 
-- [ ] Classic execution compatibility runs under unified Canvas ownership.
+- [x] Classic execution compatibility runs under unified Canvas ownership.
 
 ## Documentation
 
@@ -66,9 +68,23 @@ Update `AGENT_NEXT_TASK.md` after the card is actually verified.
 
 Before:
 
+`runLLMNode` wrote Canvas lifecycle/state directly — `node.running = true`,
+`node.outputText = await callCanvasLLM(...)`, `node.runStatus = 'done'`,
+`node.runError = ''`, `refreshNodes([node.id])`, `scheduleSave()`, `alert(...)`.
+
 After:
 
+`runLLMNode` routes those side-effects through the frozen
+`WorkbenchCanvasClassicExecutionHost` handle (`markRunning` / `writeOutputText` /
+`setRunStatus` / `render` / `save` / `notifyError`), injected by the Classic
+page's lazy `ensureClassicExecutionHost()` accessor. The LLM transport
+(`callCanvasLLM`) and the cascade orchestrators stay host-candidates.
+
 Duplicate owner removed:
+
+the direct `node.running` / `node.outputText` / `node.runStatus` /
+`node.runError` writes and inline `refreshNodes` / `scheduleSave` / `alert`
+calls inside `runLLMNode` (owner is now `classic-execution-host.js`).
 
 ## Next Recommended Card
 

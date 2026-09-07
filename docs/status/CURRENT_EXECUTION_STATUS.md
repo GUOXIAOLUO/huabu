@@ -1271,6 +1271,44 @@ Regression: `./scripts/agent-verify.sh` PASS at 407 Python unit tests
 (baseline 405; +2), PASS Python AST parse, PASS JavaScript syntax, PASS
 Architecture guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
 
+R4 Classic execution compatibility (card R4-33, 2026-09-07T12:34+08:00, Owner
+authorization via in-conversation "提交并开发下一任务"; implementer evidence,
+independent review pending): characterization + narrow host seam. New
+`docs/plans/R4_CLASSIC_EXECUTION_COMPATIBILITY.md` characterizes the retained
+pre-R8 Classic execution path's Canvas-lifecycle/state ownership (node state
+writes, cascade context flags, persist/render, feedback) across fifteen entry
+points with dispositions seamed / host-cutover / host-candidate / flag-only,
+plus an embedded machine-readable JSON manifest. New
+`static/js/workbench/canvas/classic-execution-host.js` exposes
+`window.WorkbenchCanvasClassicExecutionHost.create(host)` — a frozen, validated
+host handle with `markRunning` / `writeOutputText` / `setRunStatus` / `render` /
+`save` / `notifyError`; it is NOT an ExecutorRegistry/ExecutionRuntime and owns
+no Canvas state. Loaded by `static/canvas.html` ahead of `canvas.js`; Classic
+adds a lazy `ensureClassicExecutionHost()` accessor (injecting the `running`
+toggle, `outputText` write, `runStatus`/`runError` write, `refreshNodes`,
+`scheduleSave`, `alert`) and cuts over `runLLMNode` to route its Canvas
+lifecycle/state side-effects through the handle — the old direct
+`node.running = true` / `node.outputText = await callCanvasLLM(...)` /
+`node.runStatus = 'done'` / `node.runError = ...` writes and their inline
+`refreshNodes` / `scheduleSave` / `alert` calls in that function are gone. The
+LLM call itself (`callCanvasLLM`) and the cascade orchestrators (`runNodeCascade`,
+`runCascadeNodeByType`, `beginCascade`, `finalizeCascade`, `retryNodeAndDownstream`,
+etc.) stay host-candidates (characterized, cut over in follow-on cards), and the
+provider/API transport stays page-side compatibility (R8 owns the real
+replacement). Tests (three in `tests/test_frontend_workbench_modules.py`):
+`test_classic_execution_host_module_owns_the_canvas_lifecycle_contract` (vm-sandbox
+behavioral: markRunning/writeOutputText/setRunStatus/render/save/notifyError
+delegation, run coercion, frozen handle, missing-op/non-object TypeError),
+`test_classic_execution_compatibility_manifest_is_grounded_in_source` (parses the
+doc manifest; every entry function + evidence present in `canvas.js`; dispositions
+valid and non-trivial), and
+`test_classic_execution_host_is_loaded_before_the_classic_page_and_run_llm_uses_it`
+(module loads first; page delegates; old direct writes gone; module zero Classic
+leak). Ownership matrix `Classic-only` table gains a "LLM node execution" row.
+Regression: `./scripts/agent-verify.sh` PASS at 410 Python unit tests
+(baseline 407; +3), PASS Python AST parse, PASS JavaScript syntax, PASS
+Architecture guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
+
 R4 clipboard unified creation (card R4-23, 2026-09-07): single-node,
 connection-free clipboard paste of the losslessly persistable Legacy shapes —
 Classic `image` (url/name/mediaKind) and `prompt` (text), Smart `smart-prompt`

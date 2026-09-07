@@ -2310,6 +2310,100 @@ console.log(JSON.stringify({{calls, frozen, missingThrew, nonObjectThrew}}));
                                "providerChatModels", "renderLLMBody", "scheduleSave"):
             self.assertNotIn(adapter_detail, provider_controls_module)
 
+    def test_classic_execution_host_module_owns_the_canvas_lifecycle_contract(self):
+        classic_execution_host_module = ROOT / "static" / "js" / "workbench" / "canvas" / "classic-execution-host.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{ window: {{}} }};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(classic_execution_host_module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasClassicExecutionHost;
+const calls = [];
+const host = {{
+  markRunning: (n, r) => calls.push(['markRunning', n.id, r]),
+  writeOutputText: (n, t) => calls.push(['writeOutputText', n.id, t]),
+  setRunStatus: (n, s, e) => calls.push(['setRunStatus', n.id, s, e]),
+  render: (n) => calls.push(['render', n.id]),
+  save: () => calls.push(['save']),
+  notifyError: (m) => calls.push(['notifyError', m]),
+}};
+const handle = api.create(host);
+const node = {{id: 'n1'}};
+handle.markRunning(node, true);
+handle.markRunning(node, 0);
+handle.writeOutputText(node, 'hello');
+handle.setRunStatus(node, 'done', '');
+handle.setRunStatus(node, 'failed', 'boom');
+handle.render(node);
+handle.save();
+handle.notifyError('boom');
+const frozen = Object.isFrozen(handle);
+let missingThrew = false;
+try {{ api.create({{markRunning(){{}}, writeOutputText(){{}}, setRunStatus(){{}}, render(){{}}, save(){{}}}}); }} catch(e) {{ missingThrew = true; }}
+let nonObjectThrew = false;
+try {{ api.create(null); }} catch(e) {{ nonObjectThrew = true; }}
+console.log(JSON.stringify({{calls, frozen, missingThrew, nonObjectThrew}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["calls"], [
+            ["markRunning", "n1", True],
+            ["markRunning", "n1", False],  # 0 is coerced to false
+            ["writeOutputText", "n1", "hello"],
+            ["setRunStatus", "n1", "done", ""],
+            ["setRunStatus", "n1", "failed", "boom"],
+            ["render", "n1"],
+            ["save"],
+            ["notifyError", "boom"],
+        ])
+        self.assertTrue(out["frozen"])
+        self.assertTrue(out["missingThrew"])
+        self.assertTrue(out["nonObjectThrew"])
+
+    def test_classic_execution_compatibility_manifest_is_grounded_in_source(self):
+        doc = (ROOT / "docs" / "plans" / "R4_CLASSIC_EXECUTION_COMPATIBILITY.md").read_text(encoding="utf-8")
+        match = re.search(r"```json\n(.*?)\n```", doc, re.S)
+        self.assertIsNotNone(match, "the characterization doc must embed a JSON evidence manifest")
+        manifest = json.loads(match.group(1))
+        self.assertEqual(manifest["source"], "static/js/canvas.js")
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        allowed_dispositions = {"seamed", "host-cutover", "host-candidate", "transport-only", "flag-only"}
+        seen_dispositions = set()
+        for entry in manifest["entry_points"]:
+            self.assertIn(entry["disposition"], allowed_dispositions)
+            seen_dispositions.add(entry["disposition"])
+            self.assertIn(entry["function"], classic, f"{entry['function']} must exist in source")
+            for evidence in entry["evidence"]:
+                self.assertIn(evidence, classic, f"evidence {evidence} must exist in source")
+        # The classification is non-trivial: the cutover, seamed, and a deferred
+        # host-candidate disposition must all be present.
+        for required in ("host-cutover", "seamed", "host-candidate"):
+            self.assertIn(required, seen_dispositions)
+
+    def test_classic_execution_host_is_loaded_before_the_classic_page_and_run_llm_uses_it(self):
+        page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic_execution_host_module = (ROOT / "static" / "js" / "workbench" / "canvas" / "classic-execution-host.js").read_text(encoding="utf-8")
+        # The module loads ahead of the editor script.
+        self.assertLess(page.index("workbench/canvas/classic-execution-host.js"), page.index("js/canvas.js"))
+        # The page constructs the host handle and delegates runLLMNode's Canvas
+        # lifecycle/state side-effects through it (no direct node writes).
+        self.assertIn("window.WorkbenchCanvasClassicExecutionHost.create({", classic)
+        self.assertIn("const executionHost = ensureClassicExecutionHost();", classic)
+        self.assertIn("executionHost.markRunning(node, true)", classic)
+        self.assertIn("executionHost.markRunning(node, false)", classic)
+        self.assertIn("executionHost.writeOutputText(node, outputText)", classic)
+        self.assertIn("executionHost.setRunStatus(node, 'done', '')", classic)
+        self.assertIn("executionHost.setRunStatus(node, 'failed', err.message || String(err))", classic)
+        self.assertIn("executionHost.save()", classic)
+        self.assertIn("executionHost.notifyError(err.message || 'LLM 运行失败')", classic)
+        # The old direct Canvas writes in runLLMNode are gone.
+        self.assertNotIn("node.outputText = await callCanvasLLM", classic)
+        # The extracted host is product-neutral: no Classic adapter detail leaks in.
+        for adapter_detail in ("refreshNodes", "scheduleSave", "node.outputText",
+                               "node.runStatus", "node.runError", "node.running",
+                               "runLLMNode", "callCanvasLLM", "cascade", "generator"):
+            self.assertNotIn(adapter_detail, classic_execution_host_module)
+
     def test_blank_creation_entry_points_route_through_the_creation_controller(self):
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
         smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")

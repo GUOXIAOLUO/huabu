@@ -5,10 +5,29 @@
 
 ## Active Task
 
-- `None` — no active card. R4-32 closed 2026-09-07T12:55+08:00. Recommended
-  successor `R4-33` (see "Recommended Successor" below), not yet activated.
+- `None` — no active card. R4-33 closed 2026-09-07T12:41+08:00. Recommended
+  successor `R4-34` (see "Recommended Successor" below), not yet activated.
 
 ## Completed Tasks
+
+- `R4-33` — `DONE` 2026-09-07T12:41+08:00. Card:
+  `docs/tasks/active/R4-33-classic-execution-compat.md`. Implementer evidence
+  (independent review pending): characterization + narrow host seam. New
+  `docs/plans/R4_CLASSIC_EXECUTION_COMPATIBILITY.md` characterizes the retained
+  pre-R8 Classic execution path's Canvas-lifecycle/state ownership across 15
+  entry points (seamed/host-cutover/host-candidate/flag-only + embedded JSON
+  manifest). New `static/js/workbench/canvas/classic-execution-host.js` exposes
+  `window.WorkbenchCanvasClassicExecutionHost.create(host)` (frozen validated
+  handle: `markRunning`/`writeOutputText`/`setRunStatus`/`render`/`save`/
+  `notifyError`; no ExecutorRegistry/ExecutionRuntime). Loaded ahead of
+  `canvas.js`; Classic adds `ensureClassicExecutionHost()` and cuts over
+  `runLLMNode` to route its Canvas lifecycle/state side-effects through the
+  handle (old direct `node.running`/`node.outputText`/`node.runStatus`/
+  `node.runError` writes + inline `refreshNodes`/`scheduleSave`/`alert`
+  removed). `callCanvasLLM` and the cascade orchestrators stay host-candidates
+  (characterized); transport stays page-side compatibility. Three focused tests
+  (+3, 407→410). Ownership matrix `Classic-only` table gains an "LLM node
+  execution" row. `./scripts/agent-verify.sh` PASS at 410 tests.
 
 - `R4-32` — `DONE` 2026-09-07T12:55+08:00. Card:
   `docs/tasks/active/R4-32-classic-provider-compat.md`. Implementer evidence
@@ -465,8 +484,9 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor after R4-32 close (not activated, not executed):
+Expected successor after R4-33 close (not activated, not executed):
 
-`R4-33 — Classic Execution Compat` (`docs/tasks/backlog/R4-33-classic-execution-compat.md`)
+`R4-34 — Run Historical Smart Canvas Natively in canvas.html`
+(`docs/tasks/backlog/R4-34-smart-native-canvas.md`)
 
 Actual successor must still be checked against the repository's current verified state.
