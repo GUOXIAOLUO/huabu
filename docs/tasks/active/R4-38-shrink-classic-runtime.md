@@ -10,7 +10,7 @@
 - Wave 4 done: 2026-09-07T16:13+08:00
 - Wave 5 done: 2026-09-07T16:30+08:00
 - Wave 6 done: 2026-09-07T16:52+08:00
-- Closed: (not yet — 9 of 15 Classic capabilities still need shrink waves;
+- Closed: (not yet — 8 of 15 Classic capabilities still need shrink waves;
   inventory grew from 13 → 14 (Wave 3) → 15 (Wave 4) as video-player and
   output-node were split into factory-half MIGRATE + body-half COMPAT.
   4 MIGRATE rows are 100% done (Waves 1-4); Wave 5 closed provider-card-body

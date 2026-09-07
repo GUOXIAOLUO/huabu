@@ -1456,6 +1456,20 @@ after Wave 5; +1 from Wave 6's new focused test), PASS Python AST
 parse (76 files), PASS JavaScript syntax (74 files; +1 for the new
 seam module), PASS Architecture guards (4), PASS `git diff --check`.
 `AGENT VERIFY: PASS`.
+Independent review: PASS 2026-09-07T17:09+08:00 (independent review
+agent verified one-commit-scope, AGENTS.md hard constraints [industry-
+neutral Core, canonical concept separation, one creation/mutation
+boundary via host seam pattern, page-side state stays page-side via
+closure-passed `getModels` / `getComfyWorkflows`, local-first],
+out-of-scope check, ownership truth [5 functions GONE from canvas.js,
+5 function bodies present in seam, no false claim of state ownership],
+real-behavioral tests [vm-sandbox drive + record-shape equality +
+TypeError-on-missing-host loop + source-contracts], status-doc
+faithfulness [349 tests claim matches actual `./scripts/agent-verify.sh`
+output], DoD checkbox + next-wave pointer [Wave 6 → Wave 7
+RunningHub]. Two P2 nits noted, both non-blocking: card line 13
+stale "9 of 15" phrase → fixed to "8 of 15" in this review pass; seam
+module lacks trailing newline → cosmetic, harmless).
 
 R4 Classic runtime shrink — Wave 5 of R4-38
 (card R4-38, Wave 5 done 2026-09-07T16:30+08:00, Owner authorization
