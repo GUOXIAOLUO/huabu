@@ -65,12 +65,43 @@
   wrapper-deletion + dispatcher seam-call; inventory test
   `test_classification_is_meaningful_across_dispositions` loosened to
   COMPAT+DEFER-R8 invariants with MIGRATE=0+MIGRATED≥1 healthy
-  terminal state — +1 → 347 tests PASS).
-Next wave (recommended successor inside the same card): **Wave 5 —
-provider-card-body COMPAT seam** (largest COMPAT row, batches
-`renderLLMBody` + `renderGeneratorBody` + `renderMidjourneyBody` +
-`renderMsGenBody` as bounded compat per R4-31 — R8 owns the real
-executor-driven body rendering).
+  terminal state — +1 → 347 tests PASS). **Wave 5 done**
+  2026-09-07T16:30+08:00 (provider-card-body COMPAT seam: new bounded
+  compat seam `static/js/workbench/canvas/classic-card-body-renderer.js`
+  (`WorkbenchCanvasClassicCardBodyRenderer.create({host})` returns
+  frozen `{renderLLM, renderGenerator, renderMidjourney, renderMsGen}`);
+  canvas.js deletes the four large page-side body builders
+  (`renderLLMBody` / `renderGeneratorBody` / `renderMidjourneyBody` /
+  `renderMsGenBody`, ~904 LOC) and re-routes its `createNodeByType`
+  dispatcher through `ensureClassicCardBodyRenderer().renderXxx({node})`;
+  seam consumes `ensureProviderControls` via host injection so the
+  canvas.html load order is pinned
+  `provider-controls → card-body → canvas.js`. Host injects all 49
+  REQUIRED page-local helpers (escapeHtml / tr / provider + model
+  resolvers / image helpers / MsGen catalog / renderImageInputList /
+  renderPromptPreview / cascadeBtnHtml / retryBarHtml /
+  bindCascadeButtons / scheduleSave / render / runCanvasGenerate /
+  ensureProviderControls, etc.). The R4-31 inventory's
+  `provider-card-body` row gains `evidence_target =
+  static/js/workbench/canvas/classic-card-body-renderer.js` so the
+  inventory's evidence-grounding test now looks for the four
+  `renderXxxBody` names in the seam module. New focused test drives all
+  four render methods in a vm sandbox with a stub document and asserts
+  each runs without throwing, exercises the full 49-op
+  missing-host-op TypeError loop, source-contracts the four
+  wrapper-deletions + dispatcher seam-call shapes + canvas.html load
+  order. Pre-existing
+  `test_provider_controls_is_loaded_before_the_classic_page_and_llm_body_uses_it`
+  updated to target the seam module for the LLM-body assertions (since
+  renderLLMBody moved there) and to pin the new load-order chain —
+  +1 → 348 tests PASS).
+Next wave (recommended successor inside the same card): **Wave 6 —
+Comfy workflow/field controls COMPAT seam** (`addComfyNode` +
+`renderComfyBody` + `renderComfySettings` + `updateComfyField` +
+`comfyWorkflowOptions` as bounded compat per R4-31; the card-body
+seam pattern from Wave 5 applies — extract the body builders to
+`static/js/workbench/canvas/classic-comfy-controls.js`, page injects
+the host ops the body needs).
 
 ## Completed Tasks
 

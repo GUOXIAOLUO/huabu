@@ -8,9 +8,13 @@
 - Wave 2 done: 2026-09-07T15:55+08:00
 - Wave 3 done: 2026-09-07T16:05+08:00
 - Wave 4 done: 2026-09-07T16:13+08:00
-- Closed: (not yet — 11 of 15 Classic capabilities still need shrink waves;
+- Wave 5 done: 2026-09-07T16:30+08:00
+- Closed: (not yet — 10 of 15 Classic capabilities still need shrink waves;
   inventory grew from 13 → 14 (Wave 3) → 15 (Wave 4) as video-player and
-  output-node were split into factory-half MIGRATE + body-half COMPAT.)
+  output-node were split into factory-half MIGRATE + body-half COMPAT.
+  4 MIGRATE rows are 100% done (Waves 1-4); Wave 5 closed provider-card-body
+  COMPAT; 9 COMPAT rows + 1 DEFER-R8 remain across Waves 6-15, plus Wave 16
+  (shrink-to-bootstrap) closes the card.)
 - Depends on: R4-37
 
 ## Goal
@@ -31,10 +35,12 @@ Unified runtimes / bounded compatibility seams (per wave).
 
 ## Wave plan
 
-The 13 Classic capabilities from the R4-31 inventory partition into the
-following shrink waves. Each wave is one focused commit (+0..1 new tests
-per focused contract change). The card stays open across all waves and
-closes once every wave is DONE.
+The 15 Classic capabilities from the current R4-31 inventory (post
+R4-38 Wave 3 + Wave 4 splits: `video-player` and `output-node` each
+split into a MIGRATE/COMPAT pair) partition into the following shrink
+waves. Each wave is one focused commit (+0..1 new tests per focused
+contract change). The card stays open across all waves and closes once
+every wave is DONE.
 
 | Wave | Capability | Disposition | Action |
 |---|---|---|---|
@@ -42,9 +48,18 @@ closes once every wave is DONE.
 | **2 (done)** | provider-node-creation (addGeneratorNode / addMidjourneyNode / addMsGenNode) | MIGRATED | new host seam `static/js/workbench/canvas/classic-node-factories.js` (`window.WorkbenchCanvasClassicNodeFactories.create(host)` returns frozen `{addGenerator, addMidjourney, addMsGen}`); canvas.js deletes the local `function addGeneratorNode / addMidjourneyNode / addMsGenNode` definitions and re-routes its `createNodeByType` dispatcher through `ensureClassicNodeFactories().addXxx({point})`. |
 | **3 (done)** | video-node-creation (addVideoNode factory half) | MIGRATED | extend `classic-node-factories.js` with 4 new required host ops (`videoApiProviders` / `providerVideoModels` / `videoModels` / `defaultVideoModels`) and the `addVideo({point})` method; canvas.js deletes `function addVideoNode` and re-routes the `'video'` dispatch through `ensureClassicNodeFactories().addVideo({point})`. R4-31 inventory's `video-player` row split into `video-node-creation` (MIGRATED) + `video-card-body` (COMPAT, R8; `renderVideoBody` stays page-side as a provider card body — same disposition as `provider-card-body`). |
 | **4 (done)** | output-node-creation (addOutputNode factory half) | MIGRATED | extend `classic-node-factories.js` with a new `addOutput({point})` method (no new REQUIRED ops needed — `addOutputNode` only used `addNode` / `uid` / `defaultPoint`); canvas.js deletes `function addOutputNode` (3-line factory) and re-routes the `'output'` dispatch through `ensureClassicNodeFactories().addOutput({point})`. R4-31 inventory's `output-node` row split into `output-node-creation` (MIGRATED) + `output-grid-renderer` (COMPAT, target = Unified media renderer / render runtime; evidence = `refreshOutputNodeContent` / `renderOutputGrid` / `bindOutputWrap`, ~250 LOC of grid+media lifecycle that stays page-side per the inventory evidence and the COMPAT/R8 boundary). Inventory test `test_classification_is_meaningful_across_dispositions` loosened to allow MIGRATE=0 + MIGRATED≥1 as a healthy terminal state (R4-38 has wound down all four MIGRATE rows). |
-| 5–11 | 7 retained COMPAT capabilities (Comfy / RunningHub / MiniMax / LTX controls, video params, generation log, cascade orchestrators) | COMPAT (R8) | bounded compat seam modules per cluster (no runtime replacement in R4) — see R4-25/R4-30 host-seam pattern. |
-| 12 | asset-library | DEFER-R8 | out of R4 scope (Asset/Collection runtime forbidden in R4). |
-| 13 (final) | shrink-to-bootstrap | — | after waves 1–12, the remaining ~14 kloc in canvas.js becomes a small compat shell: imageApiProviders / videoApiProviders / provider resolvers, save scheduler wiring, the few DOM event handlers that touch page-specific UI, and the canvas-bootstrap sequence. |
+| 5 | provider-card-body (renderLLMBody + renderGeneratorBody + renderMidjourneyBody + renderMsGenBody) | COMPAT | bounded compat seam module `static/js/workbench/canvas/classic-card-body-renderer.js` (`window.WorkbenchCanvasClassicCardBodyRenderer.create({host})` returns frozen `{renderLLM({node, container}), renderGenerator({node, container}), renderMidjourney({node, container}), renderMsGen({node, container})}`); canvas.js deletes the four `function renderXxxBody(...)` body definitions (each constructs `<div>` + provider/model dropdowns + ratio/resolution options + per-provider parameter controls) and re-routes every provider-card-body render site through the seam's renderer. The five control handlers inside `renderLLMBody` (provider select / model select / system toggle / system prompt / mode buttons) are already routed through R4-32's `provider-controls.js` seam, so the seam's `renderLLM` only owns the *static body construction* — the dynamic control handlers stay with `provider-controls.js`. |
+| 6 | Comfy workflow/field controls (addComfyNode + renderComfyBody + renderComfySettings + updateComfyField + comfyWorkflowOptions) | COMPAT | bounded compat seam module `static/js/workbench/canvas/classic-comfy-controls.js` (frozen `{renderBody({node, container}), updateField({node, field, value}), getWorkflowOptions()}`); canvas.js deletes the five local function definitions and re-routes. |
+| 7 | RunningHub workflow/params (addRhNode + renderRhBody + renderRhParams + runningHubProvider + currentRunningHubWorkflow + currentRunningHubWorkflowConfig) | COMPAT | bounded compat seam module `static/js/workbench/canvas/classic-runninghub-controls.js` (frozen `{renderBody, renderParams, getCurrentWorkflow, getCurrentWorkflowConfig, getProviderId}`); canvas.js deletes the six local definitions and re-routes. |
+| 8 | MiniMax timeline/player/generation (addMiniMaxNode + renderMiniMaxBody + bindMiniMaxWorkbench + miniMaxEngine + miniMaxPlayerHtml + miniMaxSyncPlayerDom) | COMPAT | bounded compat seam module `static/js/workbench/canvas/classic-minimax-controls.js` (frozen `{renderBody, bindWorkbench, getEngine, buildPlayerHtml, syncPlayerDom}`); canvas.js deletes the six local definitions and re-routes. |
+| 9 | LTX director timeline/relay (addLTXDirectorNode + renderLTXDirectorBody + destroyLTXEditor + ltxParseTimeline + ltxFlushTimelineToNode + ltxBuildContiguousRelay) | COMPAT | bounded compat seam module `static/js/workbench/canvas/classic-ltx-controls.js` (frozen `{renderBody, destroyEditor, parseTimeline, flushTimelineToNode, buildContiguousRelay}`); canvas.js deletes the six local definitions and re-routes. |
+| 10 | video-card-body (renderVideoBody, split from R4-38 Wave 3 `video-player` row) | COMPAT | bounded compat seam module `static/js/workbench/canvas/classic-video-body.js` (frozen `{render({node, container})}`); canvas.js deletes `function renderVideoBody(...)` and re-routes the video-card render call. |
+| 11 | video-provider/params (videoApiProviders + resolveVideoProviderId + providerVideoModels + renderVideoImageInputs) | COMPAT | bounded compat seam module `static/js/workbench/canvas/classic-video-providers.js` (frozen `{getApiProviders, resolveProviderId, getProviderModels, renderImageInputs({node, container})}`); canvas.js deletes the four local definitions and re-routes. Note: `videoApiProviders` + `providerVideoModels` are already host-injected into `classic-node-factories.js` from Wave 3 (REQUIRED host ops for the `addVideo` factory); the Wave 11 seam module is the *page-side resolver layer* (resolves the provider id + populates the provider/model dropdown + renders image inputs), not the *node-factory host ops*. |
+| 12 | output-grid-renderer (refreshOutputNodeContent + renderOutputGrid + bindOutputWrap, split from R4-38 Wave 4 `output-node` row) | COMPAT | bounded compat seam module `static/js/workbench/canvas/classic-output-grid.js` (frozen `{refreshNodeContent({node, container}), renderGrid({node, container}), bindWrap({node, wrap})}`); canvas.js deletes the three local definitions and re-routes. |
+| 13 | generation-log (addGenerationLog + renderCanvasLog) | COMPAT | bounded compat seam module `static/js/workbench/canvas/classic-generation-log.js` (frozen `{addLog({entry}), renderPanel({container})}`); canvas.js deletes the two local definitions and re-routes. |
+| 14 | cascade-orchestrator (beginCascade + computeCascadeOrder + resolveCascadeLoop + bindCascadeButtons + runCascadeNodeByType + requestCascadeStop + finalizeCascade) | COMPAT | bounded compat seam module `static/js/workbench/canvas/classic-cascade-orchestrator.js` (frozen `{begin({canvas, startNodeId}), computeOrder({canvas, startNodeId}), resolveLoop({canvas}), bindButtons({container, canvas}), runNodeByType({canvas, nodeId, type}), requestStop(), finalize({canvas, results})}`); canvas.js deletes the seven local definitions and re-routes. Note: `callCanvasLLM` (transport) + `runNodeCascade` (entry) stay page-side as bounded compat transports (R4-33 already characterized). |
+| 15 | asset-library / manager (revealCanvasAssetControls + renderCanvasAssetLibrary + toggleCanvasAssetLibrary + openAssetManager + renderAssetManager + mediaKindForUpload) | DEFER-R8 | out of R4 scope (Asset/Collection runtime forbidden in R4 per CURRENT_EXECUTION_STATUS.md "Forbidden next actions"). Bounded compat stays page-side; no R4 work besides confirming the DEFER-R8 marker is still valid. |
+| 16 (final) | shrink-to-bootstrap | — | after waves 1–15, the remaining ~15 kloc in canvas.js becomes a small compat shell: imageApiProviders / videoApiProviders / provider resolvers, save scheduler wiring, the few DOM event handlers that touch page-specific UI, and the canvas-bootstrap sequence. Wave 16 sizes the residual canvas.js and tightens the bootstrap-only contract. After Wave 16, R4-38 closes and R4-39 (Remove Legacy canvas.js) can run. |
 
 ## In Scope
 
@@ -132,16 +147,53 @@ closes once every wave is DONE.
       R4-wide + R8-governance foundations); MIGRATE is optional (all
       four MIGRATE rows were promoted over Waves 1-4); when MIGRATE is
       present, MIGRATED must also be present (forward-driving).
-- [ ] Wave 5: provider-card-body COMPAT seam (largest COMPAT row,
-      batches `renderLLMBody` + `renderGeneratorBody` +
-      `renderMidjourneyBody` + `renderMsGenBody` as bounded compat per
-      R4-31 — R8 owns the real executor-driven body rendering).
-- [ ] Wave 5–12: each COMPAT capability either stays canvas-owned behind
-      a bounded compat seam module or stays page-side per the R4-31
-      inventory's documented per-row reasons; no new R4 COMPAT seams
+- [ ] Wave 5: provider-card-body COMPAT seam (batches
+      `renderLLMBody` + `renderGeneratorBody` + `renderMidjourneyBody` +
+      `renderMsGenBody` as bounded compat per R4-31 — R8 owns the real
+      executor-driven body rendering).
+- [x] Wave 5: provider-card-body COMPAT seam done. New bounded compat
+      seam `static/js/workbench/canvas/classic-card-body-renderer.js`
+      (`window.WorkbenchCanvasClassicCardBodyRenderer.create(host)`
+      returns frozen `{renderLLM({node}), renderGenerator({node}),
+      renderMidjourney({node}), renderMsGen({node})}`); canvas.js
+      deletes the four local body function definitions
+      (renderLLMBody / renderGeneratorBody / renderMidjourneyBody /
+      renderMsGenBody, ~904 LOC of body construction); canvas.js
+      `createNodeByType` dispatcher routes the four kind branches
+      through `ensureClassicCardBodyRenderer().renderXxx({node})`.
+      The seam module owns the four function bodies (each receives
+      node by reference and reads/mutates node state in place, same
+      as the page-side originals); page injects the 49 REQUIRED host
+      ops (escapeHtml / tr / provider + model resolvers / image
+      helpers / MsGen catalog / renderImageInputList / renderPrompt
+      Preview / cascadeBtnHtml / retryBarHtml / bindCascadeButtons /
+      scheduleSave / render / runCanvasGenerate / ensureProviderControls,
+      etc.) so all page-local knowledge stays on the page per the
+      COMPAT/R8 boundary. Focused test
+      `test_classic_editor_routes_provider_card_body_through_classic_card_body_renderer_seam`
+      drives all four render methods in a vm sandbox with a stub
+      document and asserts each runs without throwing, exercises the
+      full 49-op missing-host-op TypeError loop, source-contracts the
+      four wrapper-deletions + dispatcher seam-call shapes. Pre-existing
+      `test_provider_controls_is_loaded_before_the_classic_page_and_llm_body_uses_it`
+      updated: the five `providerControls.setField(...)` assertions now
+      target the card-body seam module (where renderLLMBody lives since
+      Wave 5), the canvas.html load-order assertion also pins the
+      provider-controls → card-body → canvas.js dependency order, and
+      the `ensureProviderControls` host-injection assertion stays on
+      canvas.js (the page owns the host, the seam consumes it).
+- [ ] Waves 6–14: each remaining COMPAT capability (Comfy / RunningHub /
+      MiniMax / LTX controls, video-card-body, video-provider/params,
+      output-grid-renderer, generation-log, cascade-orchestrator) either
+      becomes a bounded compat seam module or stays page-side per the
+      R4-31 inventory's documented per-row reasons; no new R4 COMPAT seams
       that bypass an existing seam.
-- [ ] canvas.js size below bounded bootstrap-only threshold (target:
-      <= 2 kloc of glue + per-COMPAT deltas) before R4-38 can close.
+- [ ] Wave 15: asset-library confirmed DEFER-R8 (Asset/Collection runtime
+      forbidden in R4; bounded compat stays page-side; no R4 work besides
+      re-validating the DEFER-R8 marker is still correct).
+- [ ] Wave 16 (final): canvas.js size below bounded bootstrap-only
+      threshold (target: ≤ 2 kloc of glue + per-COMPAT deltas) before
+      R4-38 can close.
 
 ## Documentation
 
@@ -319,16 +371,83 @@ for per-wave evidence so far.)
   Architecture guards (4), PASS `git diff --check`.
   `AGENT VERIFY: PASS`.
 
+## Wave 5 evidence
+
+- Files changed:
+  - `static/js/workbench/canvas/classic-card-body-renderer.js` (new,
+    ~960 LOC: IIFE wrapper; REQUIRED_OPS list with 49 host ops;
+    `create(host)` factory that validates every required op is present
+    (TypeError-on-missing-host) and destructures them into module-scope
+    `var` bindings; the four function bodies — `renderLLMBody`,
+    `renderGeneratorBody`, `renderMidjourneyBody`, `renderMsGenBody`
+    — copied verbatim from canvas.js with all helper references now
+    pointing to host-injected locals; frozen handle with four `renderXxx`
+    methods that forward to the function bodies; window export
+    `WorkbenchCanvasClassicCardBodyRenderer = Object.freeze({create})`).
+    The four render bodies are the largest single-purpose rendering
+    surface in canvas.js (~904 LOC: 72 + 315 + 77 + 440) and are now
+    reachable only through this seam module.
+  - `static/canvas.html`: `<script src=".../classic-card-body-renderer.js?v=2026.09.07.1"></script>`
+    inserted between `classic-execution-host.js` and `canvas.js`,
+    AFTER `provider-controls.js` (the card-body seam consumes
+    `ensureProviderControls` via host injection so the dependency
+    order must hold).
+  - `static/js/canvas.js`: `function renderLLMBody` /
+    `renderGeneratorBody` / `renderMidjourneyBody` / `renderMsGenBody`
+    function definitions deleted (-904 LOC of body construction,
+    comprising the four large page-side renderers). `createNodeByType`'s
+    4 kind-dispatch lines rewritten from `body.appendChild(renderXxxBody(node))`
+    to `body.appendChild(cardBody.renderXxx({node}))` after a single
+    `const cardBody = ensureClassicCardBodyRenderer();` line. New
+    `let classicCardBodyRenderer = null;` + `function ensureClassicCardBodyRenderer()`
+    next to the existing `ensureClassicNodeFactories`, injecting all
+    49 REQUIRED host ops (escapeHtml / tr / provider + model
+    resolvers / image helpers / MsGen catalog / renderImageInputList /
+    renderPromptPreview / cascadeBtnHtml / retryBarHtml /
+    bindCascadeButtons / scheduleSave / render / runCanvasGenerate /
+    ensureProviderControls, etc.).
+  - `tests/test_frontend_workbench_modules.py`: new focused test
+    `test_classic_editor_routes_provider_card_body_through_classic_card_body_renderer_seam`
+    — drives all four render methods in a vm sandbox with a stub
+    `document.createElement` + minimal mock host (49 ops), asserts each
+    runs without throwing (returns a frozen handle + DOM element);
+    iterates all 49 host ops in turn to verify TypeError-on-missing-host
+    (pin count 49 in `assertEqual(len(REQUIRED), 49)` to keep seam +
+    test synchronized); source-contracts canvas.html load order
+    (seam before editor), the four `function renderXxxBody`
+    wrapper-deletions in canvas.js, and the four dispatcher seam-call
+    shapes (`cardBody.renderXxx({node})`).
+  - `tests/test_frontend_workbench_modules.py`: pre-existing
+    `test_provider_controls_is_loaded_before_the_classic_page_and_llm_body_uses_it`
+    updated for Wave 5 — the five `providerControls.setField(...)`
+    assertions now target the card-body seam module (where
+    `renderLLMBody` lives since Wave 5 moved it); the canvas.html
+    load-order assertion also pins the
+    `provider-controls → card-body → canvas.js` dependency order; the
+    `ensureProviderControls` host-injection assertion stays on
+    canvas.js (page owns the host, seam consumes it).
+  - `docs/plans/R4_CLASSIC_CAPABILITY_INVENTORY.md`: `provider-card-body`
+    manifest row gets `evidence_target =
+    "static/js/workbench/canvas/classic-card-body-renderer.js"` so
+    the `test_every_capability_evidence_is_grounded_in_source`
+    inventory test now grounds the four renderXxxBody evidence names
+    in the seam module instead of canvas.js.
+- Regression: `./scripts/agent-verify.sh` PASS at 348 Python unit tests
+  (was 347 after Wave 4; +1 from Wave 5's new focused test), PASS
+  Python AST parse (76 files), PASS JavaScript syntax (73 files; +1 for
+  the new seam module), PASS Architecture guards (4), PASS
+  `git diff --check`. `AGENT VERIFY: PASS`.
+
 ## Recommended Next Card (after this card itself closes)
 
 `R4-39 — Remove Legacy canvas.js Product Runtime`
 (`docs/tasks/backlog/R4-39-remove-classic-runtime.md`)
 
-Within R4-38 itself, the next wave after Wave 4 is **Wave 5:
-provider-card-body COMPAT seam** (largest COMPAT row, batches
-`renderLLMBody` + `renderGeneratorBody` + `renderMidjourneyBody` +
-`renderMsGenBody` as bounded compat per R4-31 — R8 owns the real
-executor-driven body rendering).
+Within R4-38 itself, the next wave after Wave 5 is **Wave 6:
+Comfy workflow/field controls COMPAT seam** (batches `addComfyNode` +
+`renderComfyBody` + `renderComfySettings` + `updateComfyField` +
+`comfyWorkflowOptions` as bounded compat per R4-31 — R8 owns the real
+executor-driven Comfy workflow rendering).
 
 Do not execute waves in batch — each wave is its own focused commit
 + regression cycle.

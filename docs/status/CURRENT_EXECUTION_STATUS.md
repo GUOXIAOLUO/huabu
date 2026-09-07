@@ -1387,6 +1387,83 @@ new redundant ones, since the handoff helpers had no other consumers),
 PASS Python AST parse, PASS JavaScript syntax, PASS Architecture
 guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
 
+R4 Classic runtime shrink — Wave 5 of R4-38
+(card R4-38, Wave 5 done 2026-09-07T16:30+08:00, Owner authorization
+via in-conversation "先修卡片的 wave plan 漂移然后启动 Wave 5";
+implementer evidence, independent review pending): the fifth shrink
+wave of the Classic runtime closes the **page-side body construction
+surface** of the R4-31 `provider-card-body` COMPAT capability by
+extracting the four large Classic page-side body builders
+(`renderLLMBody`, `renderGeneratorBody`, `renderMidjourneyBody`,
+`renderMsGenBody` — ~904 LOC of `<div>`/innerHTML construction +
+provider/model dropdowns + ratio/resolution options + per-provider
+parameter controls + msgen LoRA catalog + cascade buttons + control
+binding handlers) into a new bounded compat seam module
+`static/js/workbench/canvas/classic-card-body-renderer.js`
+(`window.WorkbenchCanvasClassicCardBodyRenderer.create(host)` returns
+frozen `{renderLLM({node}), renderGenerator({node}),
+renderMidjourney({node}), renderMsGen({node})}`); each render method
+constructs the type-specific `<div>` body via the host-injected
+`document.createElement` and binds the same inner event handlers the
+page-side originals used. canvas.js deletes all four local body
+function definitions (-904 LOC); `createNodeByType`'s four kind
+dispatch lines rewrite from `body.appendChild(renderXxxBody(node))` to
+`body.appendChild(cardBody.renderXxx({node}))` after a single
+`const cardBody = ensureClassicCardBodyRenderer();` line. New
+`let classicCardBodyRenderer = null;` + `function ensureClassicCardBodyRenderer()`
+next to `ensureClassicNodeFactories`, injecting all 49 REQUIRED host
+ops (escapeHtml / tr / resolveChatProviderId / providerChatModels /
+chatModelOptions / chatProviderOptions / resolveChatModel /
+llmInputImages / llmInputVideos / renderLLMChatPane / renderLLMNodePane
+/ bindScrollableText / ensureProviderControls / generatorSources /
+orderedSources / mediaKindForRef / sanitizeImageNodeProviderModel /
+normalizeApiNodeSizeChoice / providerOptions / imageModelOptions /
+providerImageModels / resolveImageModel / defaultApiImageResolution
+/ parseSizeValue / isGptImageAutoSizeModel / ratioPartsFromDimensions
+/ resolveMidjourneyProviderId / midjourneyProviderOptions /
+midjourneyContinuationHtml / midjourneyModalHtml / runMidjourneyAction
+/ runMidjourneyModal / MS_GEN_MODELS / modelscopeImageModels /
+currentMsModelId / modelscopeLorasForModel / modelscopeLoraOptions /
+modelscopeImageModelOptions / getImageDimensions / showErrorModal /
+renderImageInputList / renderPromptPreview / cascadeBtnHtml /
+retryBarHtml / bindCascadeButtons / scheduleSave / render /
+runCanvasGenerate). canvas.html loads the seam between
+`classic-execution-host.js` and `canvas.js`, AFTER `provider-controls.js`
+because the card-body seam consumes `ensureProviderControls` via host
+injection (the seam's `renderLLMBody` opens with `const
+providerControls = ensureProviderControls();` and routes the five
+LLM-body control handlers through `providerControls.setField(...)`,
+preserving the R4-32 contract). The R4-31 inventory's
+`provider-card-body` row keeps its COMPAT disposition but gains
+`evidence_target = "static/js/workbench/canvas/classic-card-body-renderer.js"`
+so the inventory's evidence-grounding test now looks for
+`renderLLMBody` / `renderGeneratorBody` / `renderMidjourneyBody` /
+`renderMsGenBody` in the seam module instead of canvas.js. New focused
+test `test_classic_editor_routes_provider_card_body_through_classic_card_body_renderer_seam`
+(a) drives all four render methods in a vm sandbox with a stub
+`document.createElement` + minimal mock host (49 ops); (b) asserts each
+runs without throwing (returns a frozen handle + DOM element); (c)
+iterates all 49 host ops to verify TypeError-on-missing-host (with a
+`assertEqual(len(REQUIRED), 49)` count pin to keep seam + test
+synchronized); (d) source-contracts the canvas.html seam load order
+(provider-controls → card-body → canvas.js), the four
+`function renderXxxBody` wrapper-deletions in canvas.js, and the four
+dispatcher seam-call shapes (`cardBody.renderXxx({node})`). Pre-existing
+`test_provider_controls_is_loaded_before_the_classic_page_and_llm_body_uses_it`
+updated for Wave 5: the five `providerControls.setField(...)`
+assertions now target the card-body seam module (where `renderLLMBody`
+lives since Wave 5); the canvas.html load-order assertion also pins the
+`provider-controls → card-body → canvas.js` dependency order; the
+`ensureProviderControls` host-injection assertion stays on canvas.js
+(page owns the host, seam consumes it). R4-38 remains IN_PROGRESS —
+9 of 15 Classic capabilities still need shrink waves (9 COMPAT waiting
+for the COMPAT-seam waves, 1 DEFER-R8 out of R4 scope). Regression:
+`./scripts/agent-verify.sh` PASS at 348 Python unit tests (was 347
+after Wave 4; +1 from Wave 5's new focused test), PASS Python AST
+parse (76 files), PASS JavaScript syntax (73 files; +1 for the new
+seam module), PASS Architecture guards (4), PASS `git diff --check`.
+`AGENT VERIFY: PASS`.
+
 R4 Classic runtime shrink — Wave 4 of R4-38
 (card R4-38, Wave 4 done 2026-09-07T16:13+08:00, Owner authorization
 via in-conversation "Wave 4"; implementer evidence, independent review

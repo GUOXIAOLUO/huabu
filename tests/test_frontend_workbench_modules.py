@@ -229,6 +229,222 @@ console.log(JSON.stringify({{
         self.assertIn("ensureClassicNodeFactories().addOutput({point})", editor_source,
             msg="canvas.js dispatcher should call ensureClassicNodeFactories().addOutput({point})")
 
+    def test_classic_editor_routes_provider_card_body_through_classic_card_body_renderer_seam(self):
+        # Wave 5: provider-card-body COMPAT seam. The four large page-side
+        # body builders (renderLLMBody / renderGeneratorBody /
+        # renderMidjourneyBody / renderMsGenBody) move behind a bounded
+        # compat seam module. canvas.js no longer owns the body
+        # construction; the page only routes the four dispatch branches
+        # through `ensureClassicCardBodyRenderer().renderXxx({node})`.
+        seam = ROOT / "static/js/workbench/canvas/classic-card-body-renderer.js"
+        # Behavioral: drive the seam in a vm sandbox with a stubbed
+        # document. The four render methods must construct a `<div>`
+        # root via `document.createElement` and run their inner bodies
+        # without throwing on a minimal mock host.
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+function makeEl() {{
+    const el = {{
+        tagName: 'DIV', className: '', innerHTML: '', value: '', disabled: false,
+        style: {{}},
+        options: [],
+        children: [],
+        onclick: null, oninput: null, onchange: null,
+        onmousedown: null, onblur: null,
+        appendChild(c) {{ this.children.push(c); return c; }},
+        querySelector(sel) {{ return makeEl(); }},
+        querySelectorAll(sel) {{ return []; }},
+        dispatchEvent(ev) {{ return true; }},
+        forEach() {{}},
+        classList: {{ toggle() {{}} }},
+    }};
+    return el;
+}}
+const documentStub = {{ createElement: (tag) => makeEl() }};
+const sandbox = {{window: {{}}, document: documentStub}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+const host = {{
+    document: documentStub,
+    escapeHtml: (s) => String(s), tr: (k) => k,
+    resolveChatProviderId: (v) => v || 'comfly',
+    providerChatModels: () => ['m1'],
+    chatModelOptions: () => '<option>m1</option>',
+    chatProviderOptions: () => '<option>comfly</option>',
+    resolveChatModel: (m) => m,
+    llmInputImages: () => [], llmInputVideos: () => [],
+    renderLLMChatPane: () => {{}}, renderLLMNodePane: () => {{}},
+    bindScrollableText: () => {{}},
+    ensureProviderControls: () => ({{
+        setField: () => {{}}, save: () => {{}}, render: () => {{}},
+    }}),
+    generatorSources: () => [], orderedSources: (n, s) => s,
+    mediaKindForRef: () => 'image',
+    sanitizeImageNodeProviderModel: () => {{}},
+    normalizeApiNodeSizeChoice: () => {{}},
+    providerOptions: () => '', imageModelOptions: () => '',
+    providerImageModels: () => [],
+    resolveImageModel: (m) => m,
+    defaultApiImageResolution: () => '1024x1024',
+    parseSizeValue: (s) => ({{width: '', height: ''}}),
+    isGptImageAutoSizeModel: () => false,
+    ratioPartsFromDimensions: (w, h) => ({{width: w, height: h}}),
+    resolveMidjourneyProviderId: (v) => v,
+    midjourneyProviderOptions: () => '',
+    midjourneyContinuationHtml: () => '',
+    midjourneyModalHtml: () => '',
+    runMidjourneyAction: () => {{}},
+    runMidjourneyModal: () => {{}},
+    MS_GEN_MODELS: {{ zimage: {{label: 'ZImage', labelKey: '', supportsImage: true, acceptsImage: true}} }},
+    modelscopeImageModels: () => ['Tongyi-MAI/Z-Image-Turbo'],
+    currentMsModelId: () => 'zimage',
+    modelscopeLorasForModel: () => [],
+    modelscopeLoraOptions: () => '',
+    modelscopeImageModelOptions: () => '',
+    getImageDimensions: async () => ({{width: 1024, height: 1024}}),
+    showErrorModal: () => {{}},
+    renderImageInputList: () => {{}}, renderPromptPreview: () => {{}},
+    cascadeBtnHtml: () => '', retryBarHtml: () => '',
+    bindCascadeButtons: () => {{}},
+    scheduleSave: () => {{}}, render: () => {{}},
+    runCanvasGenerate: () => {{}},
+}};
+const api = sandbox.window.WorkbenchCanvasClassicCardBodyRenderer.create(host);
+const out = {{
+  hasLLM: typeof api.renderLLM === 'function',
+  hasGenerator: typeof api.renderGenerator === 'function',
+  hasMidjourney: typeof api.renderMidjourney === 'function',
+  hasMsGen: typeof api.renderMsGen === 'function',
+  frozen: Object.isFrozen(api),
+}};
+try {{
+  const llmNode = {{type: 'llm', mode: 'node', llmProvider: 'comfly', model: 'm1'}};
+  api.renderLLM({{node: llmNode}});
+  out.llmRan = true;
+}} catch(e) {{ out.llmErr = String(e); }}
+try {{
+  const msNode = {{type: 'msgen', msgenModel: 'zimage'}};
+  api.renderMsGen({{node: msNode}});
+  out.msRan = true;
+}} catch(e) {{ out.msErr = String(e); }}
+try {{
+  const mjNode = {{type: 'midjourney', apiProvider: '', mode: 'imagine'}};
+  api.renderMidjourney({{node: mjNode}});
+  out.mjRan = true;
+}} catch(e) {{ out.mjErr = String(e); }}
+try {{
+  const genNode = {{type: 'generator', apiProvider: '', model: ''}};
+  api.renderGenerator({{node: genNode}});
+  out.genRan = true;
+}} catch(e) {{ out.genErr = String(e); }}
+console.log(JSON.stringify(out));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        actual = json.loads(result.stdout)
+        self.assertTrue(actual["hasLLM"], msg="seam must expose renderLLM")
+        self.assertTrue(actual["hasGenerator"], msg="seam must expose renderGenerator")
+        self.assertTrue(actual["hasMidjourney"], msg="seam must expose renderMidjourney")
+        self.assertTrue(actual["hasMsGen"], msg="seam must expose renderMsGen")
+        self.assertTrue(actual["frozen"], msg="seam handle must be frozen")
+        self.assertTrue(actual.get("llmRan"), msg=f"renderLLM must run on minimal mock host, got: {actual.get('llmErr')}")
+        self.assertTrue(actual.get("msRan"), msg=f"renderMsGen must run on minimal mock host, got: {actual.get('msErr')}")
+        self.assertTrue(actual.get("mjRan"), msg=f"renderMidjourney must run on minimal mock host, got: {actual.get('mjErr')}")
+        self.assertTrue(actual.get("genRan"), msg=f"renderGenerator must run on minimal mock host, got: {actual.get('genErr')}")
+        # TypeError-on-missing-host: every one of the 48 REQUIRED ops
+        # must be validated. Iterate each name in turn and confirm
+        # create() throws TypeError when it is removed.
+        REQUIRED = [
+            'document', 'escapeHtml', 'tr',
+            'resolveChatProviderId', 'providerChatModels', 'chatModelOptions',
+            'chatProviderOptions', 'resolveChatModel',
+            'llmInputImages', 'llmInputVideos',
+            'renderLLMChatPane', 'renderLLMNodePane', 'bindScrollableText',
+            'ensureProviderControls',
+            'generatorSources', 'orderedSources', 'mediaKindForRef',
+            'sanitizeImageNodeProviderModel', 'normalizeApiNodeSizeChoice',
+            'providerOptions', 'imageModelOptions',
+            'providerImageModels', 'resolveImageModel',
+            'defaultApiImageResolution', 'parseSizeValue',
+            'isGptImageAutoSizeModel', 'ratioPartsFromDimensions',
+            'resolveMidjourneyProviderId', 'midjourneyProviderOptions',
+            'midjourneyContinuationHtml', 'midjourneyModalHtml',
+            'runMidjourneyAction', 'runMidjourneyModal',
+            'MS_GEN_MODELS', 'modelscopeImageModels',
+            'currentMsModelId', 'modelscopeLorasForModel',
+            'modelscopeLoraOptions', 'modelscopeImageModelOptions',
+            'getImageDimensions', 'showErrorModal',
+            'renderImageInputList', 'renderPromptPreview',
+            'cascadeBtnHtml', 'retryBarHtml',
+            'bindCascadeButtons',
+            'scheduleSave', 'render', 'runCanvasGenerate',
+        ]
+        self.assertEqual(len(REQUIRED), 49,
+            msg="REQUIRED_OPS count pin: Wave 5 seam module declares 49 host ops; if you add/remove an op, update both the seam and this test")
+        for missing in REQUIRED:
+            partial_script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+const fullHost = {{
+    document: {{createElement: () => ({{}})}}, escapeHtml: () => '', tr: () => '',
+    resolveChatProviderId: () => '', providerChatModels: () => [],
+    chatModelOptions: () => '', chatProviderOptions: () => '', resolveChatModel: () => '',
+    llmInputImages: () => [], llmInputVideos: () => [],
+    renderLLMChatPane: () => {{}}, renderLLMNodePane: () => {{}},
+    bindScrollableText: () => {{}}, ensureProviderControls: () => ({{setField:()=>{{}}, save:()=>{{}}, render:()=>{{}}}}),
+    generatorSources: () => [], orderedSources: (n,s)=>s, mediaKindForRef: () => '',
+    sanitizeImageNodeProviderModel: () => {{}}, normalizeApiNodeSizeChoice: () => {{}},
+    providerOptions: () => '', imageModelOptions: () => '',
+    providerImageModels: () => [], resolveImageModel: () => '',
+    defaultApiImageResolution: () => '', parseSizeValue: () => ({{width:'', height:''}}),
+    isGptImageAutoSizeModel: () => false, ratioPartsFromDimensions: (w,h) => ({{width:w,height:h}}),
+    resolveMidjourneyProviderId: () => '', midjourneyProviderOptions: () => '',
+    midjourneyContinuationHtml: () => '', midjourneyModalHtml: () => '',
+    runMidjourneyAction: () => {{}}, runMidjourneyModal: () => {{}},
+    MS_GEN_MODELS: {{}}, modelscopeImageModels: () => [],
+    currentMsModelId: () => '', modelscopeLorasForModel: () => [],
+    modelscopeLoraOptions: () => '', modelscopeImageModelOptions: () => '',
+    getImageDimensions: async () => ({{width:0, height:0}}),
+    showErrorModal: () => {{}},
+    renderImageInputList: () => {{}}, renderPromptPreview: () => {{}},
+    cascadeBtnHtml: () => '', retryBarHtml: () => '',
+    bindCascadeButtons: () => {{}},
+    scheduleSave: () => {{}}, render: () => {{}}, runCanvasGenerate: () => {{}},
+}};
+delete fullHost.{missing};
+try {{ sandbox.window.WorkbenchCanvasClassicCardBodyRenderer.create(fullHost); console.log('no-throw'); }}
+catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
+"""
+            partial_result = subprocess.run(["node", "-e", partial_script], check=True, text=True, capture_output=True)
+            self.assertIn("TypeError", partial_result.stdout,
+                msg=f"missing host.{missing} should throw TypeError, got: {partial_result.stdout}")
+        # Source-contract: canvas.html loads the seam before canvas.js.
+        page_source = (ROOT / "static/canvas.html").read_text(encoding="utf-8")
+        seam_href = "workbench/canvas/classic-card-body-renderer.js"
+        editor_href = "static/js/canvas.js"
+        self.assertLess(page_source.index(seam_href), page_source.index(editor_href),
+            msg="classic-card-body-renderer.js must load before canvas.js in canvas.html")
+        # Source-contract: canvas.js deleted the four local body function
+        # definitions and the dispatcher routes every kind through the
+        # seam's render methods via `ensureClassicCardBodyRenderer()`.
+        editor_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        self.assertNotIn("function renderLLMBody", editor_source,
+            msg="canvas.js should no longer define function renderLLMBody")
+        self.assertNotIn("function renderGeneratorBody", editor_source,
+            msg="canvas.js should no longer define function renderGeneratorBody")
+        self.assertNotIn("function renderMidjourneyBody", editor_source,
+            msg="canvas.js should no longer define function renderMidjourneyBody")
+        self.assertNotIn("function renderMsGenBody", editor_source,
+            msg="canvas.js should no longer define function renderMsGenBody")
+        self.assertIn("function ensureClassicCardBodyRenderer", editor_source,
+            msg="canvas.js must declare ensureClassicCardBodyRenderer next to ensureClassicNodeFactories")
+        for kind, method in (("llm", "renderLLM"), ("generator", "renderGenerator"),
+                ("midjourney", "renderMidjourney"), ("msgen", "renderMsGen")):
+            self.assertIn(
+                "cardBody.{m}({{node}})".format(m=method),
+                editor_source,
+                msg=f"canvas.js dispatcher for {kind!r} must call cardBody.{method}({{node}})",
+            )
+
     def test_versioned_node_creation_is_default_on_loopback_with_an_explicit_rollback(self):
         client = ROOT / "static" / "js" / "workbench" / "canvas" / "node-creation-client.js"
         script = f"""
@@ -1722,19 +1938,33 @@ console.log(JSON.stringify({{calls, frozen, missingThrew, nonObjectThrew}}));
         page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
         provider_controls_module = (ROOT / "static" / "js" / "workbench" / "canvas" / "provider-controls.js").read_text(encoding="utf-8")
-        # The module loads ahead of the editor script.
+        card_body_seam = (ROOT / "static" / "js" / "workbench" / "canvas" / "classic-card-body-renderer.js").read_text(encoding="utf-8")
+        # The provider-controls seam module loads ahead of the editor script
+        # AND ahead of the card-body seam (card-body consumes provider-controls
+        # via host injection so the dependency order must hold).
         self.assertLess(page.index("workbench/canvas/provider-controls.js"), page.index("js/canvas.js"))
-        # The page constructs the host handle and renderLLMBody delegates its
-        # provider/system/mode controls through it (no direct node writes).
+        self.assertLess(page.index("workbench/canvas/provider-controls.js"),
+                        page.index("workbench/canvas/classic-card-body-renderer.js"))
+        self.assertLess(page.index("workbench/canvas/classic-card-body-renderer.js"),
+                        page.index("js/canvas.js"))
+        # canvas.js still constructs the host handle (host injection) — the
+        # page owns `ensureProviderControls()`, the card-body seam only
+        # consumes the returned handle.
         self.assertIn("window.WorkbenchCanvasProviderControls.create({", classic)
-        self.assertIn("const providerControls = ensureProviderControls();", classic)
-        self.assertIn("providerControls.setField(node, 'llmProvider', value)", classic)
-        self.assertIn("providerControls.setField(node, 'showSystem', !node.showSystem)", classic)
-        self.assertIn("providerControls.setField(node, 'systemPrompt', e.target.value)", classic)
-        self.assertIn("providerControls.setField(node, 'mode', btn.dataset.mode)", classic)
+        self.assertIn("ensureProviderControls,", classic,
+            msg="canvas.js host-injection must include ensureProviderControls for the card-body seam")
+        # R4-38 Wave 5: renderLLMBody moved into the card-body compat seam.
+        # Its five LLM-body control handlers still route through providerControls
+        # (no direct node writes), but the assertions now target the seam file.
+        self.assertIn("const providerControls = ensureProviderControls();", card_body_seam)
+        self.assertIn("providerControls.setField(node, 'llmProvider', value)", card_body_seam)
+        self.assertIn("providerControls.setField(node, 'showSystem', !node.showSystem)", card_body_seam)
+        self.assertIn("providerControls.setField(node, 'systemPrompt', e.target.value)", card_body_seam)
+        self.assertIn("providerControls.setField(node, 'mode', btn.dataset.mode)", card_body_seam)
         # The old direct Canvas writes in renderLLMBody's handlers are gone
-        # (these strings are unique to the LLM body; the Comfy body keeps its
-        # own page-owned mode handler, out of scope for this card).
+        # from canvas.js (renderLLMBody moved to the card-body seam in
+        # R4-38 Wave 5); these strings are unique to the LLM body, the
+        # Comfy body keeps its own page-owned mode handler, out of scope.
         self.assertNotIn("node.llmProvider = e.target.value", classic)
         self.assertNotIn("node.showSystem = !node.showSystem", classic)
         self.assertNotIn("node.systemPrompt = e.target.value", classic)
