@@ -19,7 +19,7 @@
 
 - `R4-25` — `DONE` 2026-09-07T09:45+08:00. Card:
   `docs/tasks/active/R4-25-legacy-graph-policy.md`. Implementer evidence
-  (independent review pending): the Classic / Smart historical connect
+  (independent review: PASS 2026-09-07T09:52+08:00): the Classic / Smart historical connect
   side-effect RULES were duplicated as inline branches in the two page
   runtimes and now have a single named owner — new module
   `static/js/workbench/canvas/legacy-graph-compatibility.js` exposing
@@ -59,7 +59,7 @@
 
 - `R4-24` — `DONE` 2026-09-07T09:02+08:00. Card:
   `docs/tasks/active/R4-24-connect-command.md`. Implementer evidence
-  (independent review pending): the connect drop on both pages now
+  (independent review: PASS 2026-09-07T09:52+08:00): the connect drop on both pages now
   creates the durable edge atomically with revision CAS through the
   application boundary — `GraphMutationService.connect_nodes` (backend
   service in `workbench/application/graph_mutation.py`) with
@@ -94,7 +94,7 @@
 
 - `R4-21.1` — `DONE` 2026-09-07T08:55+08:00. Card:
   `docs/tasks/active/R4-21.1-create-canvas-id-rectification.md`. Implementer
-  evidence (independent review pending): all ten R4-21 blank-create helpers
+  evidence (independent review: PASS 2026-09-07T09:52+08:00): all ten R4-21 blank-create helpers
   (5 Classic in `static/js/canvas.js` — image L2525, prompt L2572, loop
   L2596, group L2647, output L2670; 5 Smart in `static/js/smart-canvas.js` —
   smart-prompt L1717, smart-loop L1736, smart-group L1755, smart-minimax
@@ -114,8 +114,10 @@
   baseline; +2 from this card's new tests).
 
 - `R4-23` — `DONE` 2026-09-07T07:35+08:00. Card:
-  `docs/tasks/backlog/R4-23-clipboard.md`. Implementer evidence (independent
-  review pending): single-node, connection-free clipboard paste of the
+  `docs/tasks/active/R4-23-clipboard.md`. Implementer evidence (independent
+  review: PASS 2026-09-07T09:52+08:00; the card's earlier `Status: BACKLOG`
+  / `backlog/` location was bookkeeping drift, corrected): single-node,
+  connection-free clipboard paste of the
   losslessly persistable Legacy shapes (Classic image/prompt, Smart
   smart-prompt) now creates through `CreationController` +
   `NodeCreationService` with the explicit `clipboard` provenance source (new
@@ -130,7 +132,8 @@
   propagation and the retained fragment fallback; envelope sandbox extended;
   regression 360 tests PASS.
 
-- `R4-22` — `DONE` (card: `docs/tasks/active/R4-22-file-drop.md`). Top-level
+- `R4-22` — `DONE` (card: `docs/tasks/active/R4-22-file-drop.md`;
+  independent review: PASS 2026-09-07T09:52+08:00). Top-level
   supported file drops route created media nodes through the
   `CreationController`/`NodeCreationService` with the `file_drop` provenance
   source; target fill and group/media layout remain compatibility-owned;

@@ -995,6 +995,44 @@ connect side-effect rules. Regression: `./scripts/agent-verify.sh` PASS at
 parse, PASS JavaScript syntax, PASS Architecture guards (4), PASS
 `git diff --check`. `AGENT VERIFY: PASS`.
 
+R4 independent review (2026-09-07T09:52+08:00, read-only second agent per
+AGENT_CONTRACT §9): reviewed the five cards whose implementer evidence was
+marked "independent review pending" — R4-21.1, R4-22, R4-23, R4-24, R4-25.
+Verdicts: **PASS ×5**. The reviewer independently re-ran
+`./scripts/agent-verify.sh` (373 tests PASS) and inspected the real diffs.
+Findings (all bookkeeping/process, no behavioral defect) and their
+disposition in this same change:
+
+1. R4-23 (P1, fixed) — the card file still said `Status: BACKLOG` and lived
+   under `docs/tasks/backlog/` despite the work being committed in `1364d17`
+   and recorded DONE elsewhere. Fixed: moved to
+   `docs/tasks/active/R4-23-clipboard.md` and set `Status: DONE` with
+   Activated/Closed lines.
+2. R4-24 (P1, corrected) — the frontend connect-drop migration
+   (`createVersionedConnection` / `connectInputNodeVersioned` routing through
+   `WorkbenchNodeClient.connectNodes`) actually landed in `1364d17`, before
+   the card was formally activated in `dae17c2`; the `1364d17` message's
+   claim that the "frontend migration … is left for the next iteration" is
+   inaccurate. Corrected with an honest process note on the R4-24 card; no
+   history rewrite. The subsequent `6198fee` "close" commit only added the
+   end-to-end behavioral test and bookkeeping.
+3. R4-21.1 (P2, fixed) — the card's "Focused Tests" section named a test
+   (`test_blank_create_helpers_throw_without_canvas_id_when_controller_rejects`)
+   that does not exist; the real pair is
+   `test_blank_create_entry_points_propagate_canvas_id` and
+   `test_blank_create_helpers_pass_canvas_id_to_controller_at_runtime`.
+   Corrected the prose.
+4. R4-25 (P2, acknowledged — not changed) — the retained bounded fallback
+   `connectInputNode` (smart-canvas.js) still carries an inline
+   `looksImage`/`looksPrompt`/`smart-loop` derivation. This is the
+   acknowledged deferred duplication (the policy owns the versioned path;
+   the fallback is explicitly out of R4-25 scope per the ownership matrix).
+5. Process (P2, acknowledged — not changed) — `1364d17` bundles R4-22/23/21.1
+   plus the R4-24 seam into one commit, muddling one-card-per-run bookkeeping.
+   Functionally fine; no history rewrite performed.
+
+No later-Round (R4-26) work leaked; `AGENT_NEXT_TASK.md` Active Task is None.
+
 R4 clipboard unified creation (card R4-23, 2026-09-07): single-node,
 connection-free clipboard paste of the losslessly persistable Legacy shapes —
 Classic `image` (url/name/mediaKind) and `prompt` (text), Smart `smart-prompt`

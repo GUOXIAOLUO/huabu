@@ -2,7 +2,11 @@
 
 - Round: R4
 - Priority: P1
-- Status: BACKLOG
+- Status: DONE
+- Activated: 2026-09-07 (after R4-22 close)
+- Closed: 2026-09-07T07:35+08:00 (implementer evidence; independent review: PASS
+  2026-09-07T09:52+08:00 — the card file's earlier `Status: BACKLOG` / `backlog/`
+  location were bookkeeping drift, corrected on the review's P1 finding)
 - Depends on: R4-22
 
 ## Goal

@@ -4,6 +4,8 @@
 - Priority: P1
 - Status: DONE
 - Activated: 2026-09-07T06:53+08:00
+- Closed: 2026-09-07 (implementer evidence; independent review: PASS
+  2026-09-07T09:52+08:00)
 - Depends on: R4-21 (DONE, review closed)
 
 ## Goal

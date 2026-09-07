@@ -4,9 +4,22 @@
 - Priority: P1
 - Status: DONE
 - Activated: 2026-09-07T08:55+08:00 (Owner authorization via in-conversation)
-- Closed: 2026-09-07T09:02+08:00 (implementer evidence; independent review pending)
+- Closed: 2026-09-07T09:02+08:00 (implementer evidence; independent review:
+  PASS 2026-09-07T09:52+08:00)
 - Depends on: R4-23 (DONE) — pre-blocker R4-21.1 canvasId rectification (DONE
   2026-09-07T08:55+08:00) closed earlier today
+
+> Process note (independent review P1 finding, corrected 2026-09-07T09:52+08:00):
+> the frontend connect-drop migration — `createVersionedConnection` /
+> `connectInputNodeVersioned` routing through `WorkbenchNodeClient.connectNodes`
+> — actually landed in commit `1364d17` (the "R4-22/23/21.1 close + R4-24
+> seam" commit), i.e. before this card was formally activated in `dae17c2`.
+> The `1364d17` message's claim that the "frontend migration … is left for the
+> next iteration" is inaccurate; the code was already present. The subsequent
+> `6198fee` "close" commit therefore only added the end-to-end behavioral test
+> and bookkeeping. The product behavior is correct and fully verified (373-test
+> gate PASS); this note records the true commit ordering so the narrative is
+> not misleading. No history rewrite was performed.
 
 ## Goal
 
