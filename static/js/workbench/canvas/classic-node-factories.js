@@ -143,6 +143,16 @@
                     running: false,
                 });
             },
+            addOutput({point} = {}) {
+                const p = point || host.defaultPoint(260, 0);
+                return host.addNode({
+                    id: host.uid('out'),
+                    type: 'output',
+                    x: p.x,
+                    y: p.y,
+                    images: [],
+                });
+            },
         });
         return api;
     }

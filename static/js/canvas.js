@@ -3286,10 +3286,6 @@ function addComfyNode(point){
         inputs:[]
     });
 }
-function addOutputNode(point){
-    const p = point || defaultPoint(260, 0);
-    return addNode({id:uid('out'), type:'output', x:p.x, y:p.y, images:[]});
-}
 function syncClassicCreateMenuCommands(){
     if(!createMenu || !window.WorkbenchCanvasCommands) return;
     const buttons = createMenu.querySelectorAll(':scope > [data-canvas-command]');
@@ -3798,7 +3794,7 @@ function createNodeByType(type, point){
     if(type === 'rh') return addRhNode(point);
     if(type === 'comfy') return addComfyNode(point);
     if(type === 'ltxDirector') return addLTXDirectorNode(point);
-    if(type === 'output') return addOutputNode(point);
+    if(type === 'output') return ensureClassicNodeFactories().addOutput({point});
     return null;
 }
 const classicVersionedBlankNodeCreators = Object.freeze({

@@ -1387,6 +1387,60 @@ new redundant ones, since the handoff helpers had no other consumers),
 PASS Python AST parse, PASS JavaScript syntax, PASS Architecture
 guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
 
+R4 Classic runtime shrink — Wave 4 of R4-38
+(card R4-38, Wave 4 done 2026-09-07T16:13+08:00, Owner authorization
+via in-conversation "Wave 4"; implementer evidence, independent review
+pending): the fourth shrink wave of the Classic runtime closes the
+**factory half** of the R4-31 `output-node` capability (the page-side
+`function addOutputNode(point)` that encoded the type-specific
+output-record schema — `{id, type:'output', x, y, images:[]}`) by
+extending the host seam `static/js/workbench/canvas/classic-node-factories.js`
+(Waves 2+3 seam) with a new `addOutput({point})` factory method on the
+seam's frozen handle. **No new REQUIRED host ops** — `addOutputNode`
+only consumed the three already-required ops `addNode` / `uid` /
+`defaultPoint`. The seam method bodies out exactly the deleted
+`function addOutputNode(point)` body: 3-line factory
+(`{id:uid('out'), type:'output', x:p.x, y:p.y, images:[]}`) with
+`p = point || host.defaultPoint(260, 0)`. canvas.js deletes the local
+`function addOutputNode(point)` definition (-6 LOC); `createNodeByType`'s
+`'output'` dispatch rewrites from `return addOutputNode(point)` to
+`return ensureClassicNodeFactories().addOutput({point})`. R4-31
+inventory's `output-node` row is SPLIT — the factory half (Wave 4)
+becomes an `output-node-creation` MIGRATED entry with
+`evidence_target = 'static/js/workbench/canvas/classic-node-factories.js'`
+and evidence = `addOutput(`; the grid/lifecycle half becomes an
+`output-grid-renderer` COMPAT entry with evidence =
+`refreshOutputNodeContent` / `renderOutputGrid` / `bindOutputWrap`
+(default `evidence_target` = canvas.js; ~250 LOC of grid + media
+lifecycle that stays page-side per the COMPAT / R8 boundary — R4
+forbids reimplementing COMPAT media renderer surface). Inventory total
+grows 14 → 15 capabilities; Summary block adjusted
+(`MIGRATED: 4`, `MIGRATE: 0`, `COMPAT: 10`, `DEFER-R8: 1`). New
+focused test
+`test_classic_editor_routes_output_node_creation_through_classic_node_factories_seam`
+(a) drives the seam's new `addOutput` in a vm sandbox with a mock host
+covering all 12 REQUIRED ops (cumulative across Waves 2-4); (b) asserts
+the exact record shape `(type:'output', id:'out-test', x:444, y:555,
+images:[])`; (c) source-contracts the canvas.js wrapper-deletion
+(`function addOutputNode` absent) + dispatcher seam-call
+(`ensureClassicNodeFactories().addOutput({point})`). Inventory test
+`test_classification_is_meaningful_across_dispositions` loosened:
+required invariants are now COMPAT + DEFER-R8 (the R4-wide +
+R8-governance foundations); MIGRATE is optional (all four MIGRATE rows
+were promoted over Waves 1-4); when MIGRATE is present, MIGRATED must
+also be present (forward-driving). This is the healthy terminal state
+for the inventory — once all MIGRATE rows have been promoted,
+MIGRATE=0 with MIGRATED≥1 closes the planned migration pipeline
+cleanly. R4-38 remains IN_PROGRESS — 10 of 15 Classic capabilities
+still need shrink waves (10 COMPAT waiting for the COMPAT-seam waves,
+1 DEFER-R8 out of R4 scope, output-grid-renderer COMPAT half split
+from output-node waiting for R8). Regression:
+`./scripts/agent-verify.sh` PASS at 347 Python unit tests (was 346
+after Wave 3; +1 from Wave 4's new focused test), PASS Python AST
+parse (76 files), PASS JavaScript syntax (72 files), PASS
+Architecture guards (4), PASS `git diff --check`.
+`AGENT VERIFY: PASS`.
+
 R4 Classic runtime shrink — Wave 3 of R4-38
 (card R4-38, Wave 3 done 2026-09-07T16:05+08:00, Owner authorization
 via in-conversation "Wave 3"; implementer evidence, independent review

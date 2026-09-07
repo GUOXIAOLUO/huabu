@@ -38,13 +38,39 @@
   seam-call shapes; inventory `provider-node-creation` row updated
   disposition `MIGRATE → MIGRATED` + new schema field
   `evidence_target` pointing at the seam module — +1 → 345 tests PASS).
-Next wave (recommended successor inside the same card): **Wave 4 —
-output-node** MIGRATE (`addOutputNode` + `refreshOutputNodeContent` +
-`renderOutputGrid` + `bindOutputWrap` — factory half routed through
-`ensureClassicNodeFactories().addOutput(...)`, grid/lifecycle half
-extracted to a focused contract once the factory wave lands; likely
-will also split the inventory row into `output-node-creation` MIGRATED
-+ `output-grid-renderer` COMPAT/R8 mirroring the Wave 3 split).
+  **Wave 3 done** 2026-09-07T16:05+08:00 (video-node-creation MIGRATED:
+  seam extended with 4 new REQUIRED host ops
+  `videoApiProviders` / `providerVideoModels` / `videoModels` /
+  `defaultVideoModels` (8 → 12) + new `addVideo({point})` method;
+  canvas.js deletes `function addVideoNode` (-26 LOC); `'video'`
+  dispatch re-routed through `ensureClassicNodeFactories().addVideo({point})`;
+  inventory's `video-player` row SPLIT into `video-node-creation`
+  MIGRATED + `video-card-body` COMPAT/R8; Wave 2 test extended for
+  full 12-op REQUIRED coverage; new focused test
+  `test_classic_editor_routes_video_node_creation_through_classic_node_factories_seam`
+  drives addVideo + asserts exact record shape + source-contracts
+  wrapper-deletion + dispatcher seam-call + host injection of the 4
+  new ops including `defaultVideoModels: () => DEFAULT_VIDEO_MODELS`
+  const-returning closure — +1 → 346 tests PASS). **Wave 4 done**
+  2026-09-07T16:13+08:00 (output-node-creation MIGRATED: seam extended
+  with `addOutput({point})` method only — no new REQUIRED ops; canvas.js
+  deletes `function addOutputNode` (-6 LOC, trivial factory body);
+  `'output'` dispatch re-routed through
+  `ensureClassicNodeFactories().addOutput({point})`; inventory's
+  `output-node` row SPLIT into `output-node-creation` MIGRATED +
+  `output-grid-renderer` COMPAT/R8; new focused test
+  `test_classic_editor_routes_output_node_creation_through_classic_node_factories_seam`
+  drives addOutput + asserts exact record shape `(type:'output',
+  id:'out-test', x:444, y:555, images:[])` + source-contracts
+  wrapper-deletion + dispatcher seam-call; inventory test
+  `test_classification_is_meaningful_across_dispositions` loosened to
+  COMPAT+DEFER-R8 invariants with MIGRATE=0+MIGRATED≥1 healthy
+  terminal state — +1 → 347 tests PASS).
+Next wave (recommended successor inside the same card): **Wave 5 —
+provider-card-body COMPAT seam** (largest COMPAT row, batches
+`renderLLMBody` + `renderGeneratorBody` + `renderMidjourneyBody` +
+`renderMsGenBody` as bounded compat per R4-31 — R8 owns the real
+executor-driven body rendering).
 
 ## Completed Tasks
 

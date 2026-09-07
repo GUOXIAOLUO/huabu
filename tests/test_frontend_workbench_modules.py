@@ -188,6 +188,47 @@ console.log(JSON.stringify({{
         self.assertIn("defaultVideoModels: () => DEFAULT_VIDEO_MODELS", editor_source,
             msg="ensureClassicNodeFactories host should inject defaultVideoModels as a constant-returning function")
 
+    def test_classic_editor_routes_output_node_creation_through_classic_node_factories_seam(self):
+        # Wave 4 follow-on: output-node-creation MIGRATED. addOutputNode is
+        # a minimal 3-line factory (id/type/output/images:[]) — the new
+        # seam method bodies out the same shape and the page now only
+        # routes through the seam.
+        seam = ROOT / "static/js/workbench/canvas/classic-node-factories.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+const captured = {{}};
+const host = {{
+    addNode: (record) => {{ captured.record = record; return record; }},
+    uid: (prefix) => prefix + '-test',
+    defaultPoint: (dx, dy) => ({{x: dx, y: dy}}),
+    imageApiProviders: () => [], allImageModels: () => [],
+    defaultApiImageResolution: () => '', resolveMidjourneyProviderId: () => '',
+    modelscopeImageModels: () => [],
+    videoApiProviders: () => [], providerVideoModels: () => [],
+    videoModels: () => [], defaultVideoModels: () => [],
+}};
+const api = sandbox.window.WorkbenchCanvasClassicNodeFactories.create(host);
+api.addOutput({{point: {{x: 444, y: 555}}}});
+console.log(JSON.stringify({{
+  type: captured.record.type, id: captured.record.id,
+  x: captured.record.x, y: captured.record.y, images: captured.record.images,
+}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), {
+            "type": "output", "id": "out-test",
+            "x": 444, "y": 555, "images": [],
+        })
+        # Source-contract: canvas.js no longer has the local factory
+        # definition and the dispatcher routes 'output' through the seam.
+        editor_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        self.assertNotIn("function addOutputNode", editor_source,
+            msg="canvas.js should no longer define function addOutputNode")
+        self.assertIn("ensureClassicNodeFactories().addOutput({point})", editor_source,
+            msg="canvas.js dispatcher should call ensureClassicNodeFactories().addOutput({point})")
+
     def test_versioned_node_creation_is_default_on_loopback_with_an_explicit_rollback(self):
         client = ROOT / "static" / "js" / "workbench" / "canvas" / "node-creation-client.js"
         script = f"""

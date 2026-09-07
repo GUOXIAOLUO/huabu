@@ -76,7 +76,8 @@ characterization deliverable — no code is deleted or migrated by this card
 
 | Capability | Disposition | Target owner | Key functions |
 |---|---|---|---|
-| Output node + result grid | MIGRATE | Unified media renderer / render runtime | `addOutputNode`, `refreshOutputNodeContent`, `renderOutputGrid`, `bindOutputWrap` |
+| Output node creation | MIGRATED | Unified creation/mutation boundary | `addOutput(` (in `static/js/workbench/canvas/classic-node-factories.js` host seam) |
+| Output grid renderer | COMPAT | Unified media renderer / render runtime | `refreshOutputNodeContent`, `renderOutputGrid`, `bindOutputWrap` |
 | Generation log panel | COMPAT | Legacy execution seam (R8 result tray) | `addGenerationLog`, `renderCanvasLog` |
 
 ### 8. Asset
@@ -93,10 +94,10 @@ characterization deliverable — no code is deleted or migrated by this card
 
 ## Summary
 
-- **14 capabilities**, 9 categories, all page-owned today (Classic-only).
-- **MIGRATED**: 3 — provider node creation, Comfy result normalization, video node creation.
-- **MIGRATE**: 1 — output node/grid.
-- **COMPAT**: 9 — provider card bodies, Comfy/RunningHub/MiniMax/LTX controls, video card body, video params, generation log, cascade.
+- **15 capabilities**, 9 categories, all page-owned today (Classic-only).
+- **MIGRATED**: 4 — provider node creation, Comfy result normalization, video node creation, output node creation.
+- **MIGRATE**: 0 — none at this granularity (output node/grid was split in R4-38 Wave 4 into output-node-creation MIGRATED + output-grid-renderer COMPAT).
+- **COMPAT**: 10 — provider card bodies, Comfy/RunningHub/MiniMax/LTX controls, video card body, video params, output grid renderer, generation log, cascade.
 - **DEFER-R8**: 1 — asset library/manager (forbidden in R4).
 - **KEEP / REMOVE**: none at capability granularity; the Classic runtime shell and Classic-entry deep-link are REMOVE (already tracked in the ownership matrix `Classic product runtime` row).
 
@@ -135,7 +136,8 @@ Machine-readable; anchored by `tests/test_classic_capability_inventory.py`.
     {"id": "video-card-body", "category": "Video", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8)", "evidence": ["renderVideoBody"]},
     {"id": "video-provider-params", "category": "Video", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8)", "evidence": ["videoApiProviders", "resolveVideoProviderId", "providerVideoModels", "renderVideoImageInputs"]},
 
-    {"id": "output-node", "category": "Output / log", "disposition": "MIGRATE", "target_owner": "Unified media renderer / render runtime", "evidence": ["addOutputNode", "refreshOutputNodeContent", "renderOutputGrid", "bindOutputWrap"]},
+    {"id": "output-node-creation", "category": "Output / log", "disposition": "MIGRATED", "target_owner": "Unified creation/mutation boundary", "evidence_target": "static/js/workbench/canvas/classic-node-factories.js", "evidence": ["addOutput("]},
+    {"id": "output-grid-renderer", "category": "Output / log", "disposition": "COMPAT", "target_owner": "Unified media renderer / render runtime", "evidence": ["refreshOutputNodeContent", "renderOutputGrid", "bindOutputWrap"]},
     {"id": "generation-log", "category": "Output / log", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8 result tray)", "evidence": ["addGenerationLog", "renderCanvasLog"]},
 
     {"id": "asset-library", "category": "Asset", "disposition": "DEFER-R8", "target_owner": "Collection/asset runtime", "evidence": ["revealCanvasAssetControls", "renderCanvasAssetLibrary", "toggleCanvasAssetLibrary", "openAssetManager", "renderAssetManager", "mediaKindForUpload"]},

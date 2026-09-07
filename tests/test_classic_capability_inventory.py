@@ -93,17 +93,21 @@ class ClassicCapabilityInventoryTests(unittest.TestCase):
     def test_classification_is_meaningful_across_dispositions(self):
         # A pure characterization card must actually decide, not default everything.
         dispositions = {capability["disposition"] for capability in self.manifest.get("capabilities", [])}
-        self.assertIn("MIGRATE", dispositions)
+        # COMPAT + DEFER-R8 are the foundational invariants — COMPAT is the
+        # R4-wide "kept as compat until R8 replaces it" disposition, DEFER-R8
+        # is the R8 governance assertion. An inventory without either would
+        # be missing the R8 boundary.
         self.assertIn("COMPAT", dispositions)
         self.assertIn("DEFER-R8", dispositions)
-        # MIGRATED is the post-R4-38 migration completion marker — it appears
-        # only after a MIGRATE capability has been promoted by a follow-up card.
-        # If present it must be paired with at least one MIGRATE so the
-        # classification still drives forward work, not just historical records.
+        # MIGRATE / MIGRATED are R4-state — they may legitimately both be
+        # zero once every MIGRATE-eligible capability has been promoted by
+        # an R4-38 wave. When MIGRATE rows are present they must coexist
+        # with at least one MIGRATED row so the inventory still drives
+        # forward work rather than only recording completions.
         migrated = {c["id"] for c in self.manifest.get("capabilities", []) if c["disposition"] == "MIGRATED"}
-        if migrated:
-            migrate = {c["id"] for c in self.manifest.get("capabilities", []) if c["disposition"] == "MIGRATE"}
-            self.assertTrue(migrate, "MIGRATED rows must coexist with at least one MIGRATE row")
+        migrate = {c["id"] for c in self.manifest.get("capabilities", []) if c["disposition"] == "MIGRATE"}
+        if migrate:
+            self.assertTrue(migrated, "MIGRATE rows must coexist with at least one MIGRATED row")
 
     def test_no_duplicate_capability_ids(self):
         ids = [capability["id"] for capability in self.manifest.get("capabilities", [])]

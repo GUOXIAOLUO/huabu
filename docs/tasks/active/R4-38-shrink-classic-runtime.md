@@ -7,9 +7,10 @@
 - Wave 1 done: 2026-09-07T15:33+08:00
 - Wave 2 done: 2026-09-07T15:55+08:00
 - Wave 3 done: 2026-09-07T16:05+08:00
-- Closed: (not yet — 11 of 14 Classic capabilities still need shrink waves;
-  inventory grew from 13 to 14 after R4-38 Wave 3 split video-player into
-  video-node-creation + video-card-body.)
+- Wave 4 done: 2026-09-07T16:13+08:00
+- Closed: (not yet — 11 of 15 Classic capabilities still need shrink waves;
+  inventory grew from 13 → 14 (Wave 3) → 15 (Wave 4) as video-player and
+  output-node were split into factory-half MIGRATE + body-half COMPAT.)
 - Depends on: R4-37
 
 ## Goal
@@ -40,8 +41,7 @@ closes once every wave is DONE.
 | **1 (done)** | comfy-result-normalization | MIGRATED | inline `resultMediaUrls` / `comfyResultOutputs` call sites through `media-result-normalizer.js`; delete the two wrapper function definitions in canvas.js. |
 | **2 (done)** | provider-node-creation (addGeneratorNode / addMidjourneyNode / addMsGenNode) | MIGRATED | new host seam `static/js/workbench/canvas/classic-node-factories.js` (`window.WorkbenchCanvasClassicNodeFactories.create(host)` returns frozen `{addGenerator, addMidjourney, addMsGen}`); canvas.js deletes the local `function addGeneratorNode / addMidjourneyNode / addMsGenNode` definitions and re-routes its `createNodeByType` dispatcher through `ensureClassicNodeFactories().addXxx({point})`. |
 | **3 (done)** | video-node-creation (addVideoNode factory half) | MIGRATED | extend `classic-node-factories.js` with 4 new required host ops (`videoApiProviders` / `providerVideoModels` / `videoModels` / `defaultVideoModels`) and the `addVideo({point})` method; canvas.js deletes `function addVideoNode` and re-routes the `'video'` dispatch through `ensureClassicNodeFactories().addVideo({point})`. R4-31 inventory's `video-player` row split into `video-node-creation` (MIGRATED) + `video-card-body` (COMPAT, R8; `renderVideoBody` stays page-side as a provider card body — same disposition as `provider-card-body`). |
-| 3 | video-player split — done as `video-node-creation` MIGRATED (factory half) + `video-card-body` COMPAT/R8 (provider body half); see the Wave 3 row above for the split rationale. |
-| 4 | output-node (addOutputNode + result grid family) | MIGRATE → MIGRATED | addOutputNode → creation boundary; output grid family to MediaRenderer shared lifecycle. |
+| **4 (done)** | output-node-creation (addOutputNode factory half) | MIGRATED | extend `classic-node-factories.js` with a new `addOutput({point})` method (no new REQUIRED ops needed — `addOutputNode` only used `addNode` / `uid` / `defaultPoint`); canvas.js deletes `function addOutputNode` (3-line factory) and re-routes the `'output'` dispatch through `ensureClassicNodeFactories().addOutput({point})`. R4-31 inventory's `output-node` row split into `output-node-creation` (MIGRATED) + `output-grid-renderer` (COMPAT, target = Unified media renderer / render runtime; evidence = `refreshOutputNodeContent` / `renderOutputGrid` / `bindOutputWrap`, ~250 LOC of grid+media lifecycle that stays page-side per the inventory evidence and the COMPAT/R8 boundary). Inventory test `test_classification_is_meaningful_across_dispositions` loosened to allow MIGRATE=0 + MIGRATED≥1 as a healthy terminal state (R4-38 has wound down all four MIGRATE rows). |
 | 5–11 | 7 retained COMPAT capabilities (Comfy / RunningHub / MiniMax / LTX controls, video params, generation log, cascade orchestrators) | COMPAT (R8) | bounded compat seam modules per cluster (no runtime replacement in R4) — see R4-25/R4-30 host-seam pattern. |
 | 12 | asset-library | DEFER-R8 | out of R4 scope (Asset/Collection runtime forbidden in R4). |
 | 13 (final) | shrink-to-bootstrap | — | after waves 1–12, the remaining ~14 kloc in canvas.js becomes a small compat shell: imageApiProviders / videoApiProviders / provider resolvers, save scheduler wiring, the few DOM event handlers that touch page-specific UI, and the canvas-bootstrap sequence. |
@@ -109,8 +109,33 @@ closes once every wave is DONE.
       updated to also exercise the 4 new REQUIRED host ops in the
       missing-host-op loop so the seam's REQUIRED validation stays
       strictly tested across all 12 host ops.
-- [ ] Wave 4: output-node MIGRATED.
-- [ ] Wave 4: output-node MIGRATED.
+- [x] Wave 4: output-node-creation MIGRATED. `classic-node-factories.js`
+      extended with a new `addOutput({point})` method (no new REQUIRED
+      ops — `addOutputNode` only used `addNode` / `uid` /
+      `defaultPoint`). canvas.js deletes `function addOutputNode` (3
+      lines; trivial factory body: `{id:uid('out'), type:'output',
+      x:p.x, y:p.y, images:[]}`) and re-routes the `'output'`
+      dispatch through the seam. R4-31 inventory's `output-node` row
+      split into `output-node-creation` (MIGRATED, evidence =
+      `addOutput(` in the seam module) + `output-grid-renderer`
+      (COMPAT, evidence = `refreshOutputNodeContent` /
+      `renderOutputGrid` / `bindOutputWrap` in canvas.js; ~250 LOC
+      of grid + media lifecycle that stays page-side per the COMPAT /
+      R8 boundary). Focused test
+      `test_classic_editor_routes_output_node_creation_through_classic_node_factories_seam`
+      — drives `addOutput` with all 12 REQUIRED ops in mock host,
+      asserts the exact `(type:'output', id:'out-test', x:444, y:555,
+      images:[])` record, source-contracts the canvas.js
+      wrapper-deletion + dispatcher seam-call. Inventory test
+      `test_classification_is_meaningful_across_dispositions`
+      loosened: required invariants are now COMPAT + DEFER-R8 (the
+      R4-wide + R8-governance foundations); MIGRATE is optional (all
+      four MIGRATE rows were promoted over Waves 1-4); when MIGRATE is
+      present, MIGRATED must also be present (forward-driving).
+- [ ] Wave 5: provider-card-body COMPAT seam (largest COMPAT row,
+      batches `renderLLMBody` + `renderGeneratorBody` +
+      `renderMidjourneyBody` + `renderMsGenBody` as bounded compat per
+      R4-31 — R8 owns the real executor-driven body rendering).
 - [ ] Wave 5–12: each COMPAT capability either stays canvas-owned behind
       a bounded compat seam module or stays page-side per the R4-31
       inventory's documented per-row reasons; no new R4 COMPAT seams
@@ -244,17 +269,66 @@ for per-wave evidence so far.)
   Architecture guards (4), PASS `git diff --check`.
   `AGENT VERIFY: PASS`.
 
+## Wave 4 evidence
+
+- Files changed:
+  - `static/js/workbench/canvas/classic-node-factories.js`: new
+    `addOutput({point})` method registered on the frozen handle (no new
+    REQUIRED ops — `addOutputNode` only consumed the three already-
+    required ops `addNode` / `uid` / `defaultPoint`). The method body
+    mirrors the deleted `function addOutputNode(point)` exactly: 3-line
+    factory
+    (`{id:uid('out'), type:'output', x:p.x, y:p.y, images:[]}`) with
+    `p = point || host.defaultPoint(260, 0)`.
+  - `static/js/canvas.js`: `function addOutputNode(point)` deleted (-6
+    LOC of factory schema). `createNodeByType` `'output'` dispatch
+    rewritten from `addOutputNode(point)` to
+    `ensureClassicNodeFactories().addOutput({point})`.
+  - `tests/test_frontend_workbench_modules.py`: new focused test
+    `test_classic_editor_routes_output_node_creation_through_classic_node_factories_seam`
+    — drives the seam's `addOutput` in a vm sandbox with a mock host
+    covering all 12 REQUIRED ops (cumulative across Waves 2-4); asserts
+    the exact record shape `(type:'output', id:'out-test', x:444,
+    y:555, images:[])`; source-contracts the canvas.js
+    wrapper-deletion (`function addOutputNode` absent) + dispatcher
+    seam-call (`ensureClassicNodeFactories().addOutput({point})`).
+  - `tests/test_classic_capability_inventory.py`: loosened
+    `test_classification_is_meaningful_across_dispositions` — required
+    invariants are now COMPAT + DEFER-R8 (the R4-wide + R8-governance
+    foundations); MIGRATE is optional (all four MIGRATE rows were
+    promoted to MIGRATED over Waves 1-4); when MIGRATE is present,
+    MIGRATED must also be present (forward-driving). This is the
+    expected terminal state — once all MIGRATE rows have been
+    promoted, MIGRATE=0 with MIGRATED≥1 is the healthy closing
+    shape.
+  - `docs/plans/R4_CLASSIC_CAPABILITY_INVENTORY.md`: R4-31's
+    `output-node` row SPLIT — the factory half (this card) becomes
+    `output-node-creation` MIGRATED (evidence_target =
+    `static/js/workbench/canvas/classic-node-factories.js`, evidence =
+    `addOutput(`); the grid/lifecycle half becomes
+    `output-grid-renderer` COMPAT (evidence =
+    `refreshOutputNodeContent` / `renderOutputGrid` /
+    `bindOutputWrap`, default `evidence_target` = canvas.js; ~250 LOC
+    of grid + media lifecycle that stays page-side per the COMPAT /
+    R8 boundary). Inventory total grows 14 → 15 capabilities;
+    Summary block adjusted (`MIGRATED: 4`, `MIGRATE: 0`,
+    `COMPAT: 10`, `DEFER-R8: 1`).
+- Regression: `./scripts/agent-verify.sh` PASS at 347 Python unit tests
+  (was 346 after Wave 3; +1 from Wave 4's new focused test), PASS
+  Python AST parse (76 files), PASS JavaScript syntax (72 files), PASS
+  Architecture guards (4), PASS `git diff --check`.
+  `AGENT VERIFY: PASS`.
+
 ## Recommended Next Card (after this card itself closes)
 
 `R4-39 — Remove Legacy canvas.js Product Runtime`
 (`docs/tasks/backlog/R4-39-remove-classic-runtime.md`)
 
-Within R4-38 itself, the next wave after Wave 3 is **Wave 4:
-output-node MIGRATE** (`addOutputNode` + `refreshOutputNodeContent` +
-`renderOutputGrid` + `bindOutputWrap`; the `addOutputNode` factory
-half goes through `classic-node-factories.js` extending the seam
-host-shape pattern, and the result-grid/lifecycle half gets a focused
-extraction contract once the factory wave lands).
+Within R4-38 itself, the next wave after Wave 4 is **Wave 5:
+provider-card-body COMPAT seam** (largest COMPAT row, batches
+`renderLLMBody` + `renderGeneratorBody` + `renderMidjourneyBody` +
+`renderMsGenBody` as bounded compat per R4-31 — R8 owns the real
+executor-driven body rendering).
 
 Do not execute waves in batch — each wave is its own focused commit
 + regression cycle.
