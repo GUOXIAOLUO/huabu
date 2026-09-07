@@ -5,10 +5,37 @@
 
 ## Active Task
 
-- `None` — no active card. R4-36 closed 2026-09-07T15:09+08:00. Recommended
-  successor `R4-37` (see "Recommended Successor" below), not yet activated.
+- `None` — no active card. R4-37 closed 2026-09-07T15:23+08:00. Recommended
+  successor `R4-38` (see "Recommended Successor" below), not yet activated.
 
 ## Completed Tasks
+
+- `R4-37` — `DONE` 2026-09-07T15:23+08:00. Card:
+  `docs/tasks/active/R4-37-remove-smart-runtime.md`. Pre-empted by R4-36
+  (accounting close): `static/js/smart-canvas.js` was `git rm`'d by R4-36
+  (commit `a4552ee R4-36: delete smart-canvas product page`) after
+  R4-28/29/30/32/33/34/35 had migrated every retained Smart behavior behind
+  a named bounded seam (Composer `composer.js`, media-tools
+  `media-tools.js`, execution-host `execution-host.js`, provider-controls,
+  classic-execution-host, native entry on `canvas.js`, handoff removal in
+  `canvas-entry-compatibility.js`); by the time R4-37 was activated the
+  Smart product runtime was already absent from the working tree. R4-37
+  verifies the documented DoD, pins regression parity, and forwards to
+  R4-38. Verification at activation (2026-09-07T15:23+08:00): full-repo
+  grep for `smart-canvas\.(html|js|css)` against `*.{js,html,css,py}`
+  returns zero functional hits (only historical comments remain in
+  `canvas-list.js`, `media-tools.js`, `canvas-entry-compatibility.js` and
+  the board-row CSS class identifier `smart-canvas` in `canvas.js`,
+  which is a class name for Smart-kind rows, not a file reference); the
+  `tests/fixtures/canvas/smart-v0.json` Smart payload fixture is retained
+  as a historical test input (deleting it would break the R4-25 legacy
+  graph-policy behavioral tests that load it — out of scope on this
+  card). Ownership matrix `Smart product runtime` row already records
+  "(retired)" since R4-36; not re-touched on this card (no new
+  ownership move). `./scripts/agent-verify.sh` PASS at 343 tests (was
+  343 after R4-36; unchanged — confirms pre-emption), PASS Python AST
+  parse (76 files), PASS JavaScript syntax (71 files), PASS Architecture
+  guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
 
 - `R4-36` — `DONE` 2026-09-07T15:09+08:00. Card:
   `docs/tasks/active/R4-36-remove-smart-page.md`. Implementer evidence
@@ -554,8 +581,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor after R4-36 close (not activated, not executed):
+Expected successor after R4-37 close (not activated, not executed):
 
-`R4-37 — Remove Smart Runtime` (`docs/tasks/backlog/R4-37-remove-smart-runtime.md`)
+`R4-38 — Reduce canvas.js to Bootstrap/Compatibility Only` (`docs/tasks/backlog/R4-38-shrink-classic-runtime.md`)
 
 Actual successor must still be checked against the repository's current verified state.

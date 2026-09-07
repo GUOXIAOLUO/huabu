@@ -1387,6 +1387,46 @@ new redundant ones, since the handoff helpers had no other consumers),
 PASS Python AST parse, PASS JavaScript syntax, PASS Architecture
 guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
 
+R4 Smart product-runtime retirement (card R4-37, 2026-09-07T15:23+08:00,
+Owner authorization via in-conversation "提交并开发下一任务"; pre-empted by
+R4-36, accounting close; implementer evidence, independent review pending):
+the Smart product runtime (`static/js/smart-canvas.js`) is recorded as
+formally retired. R4-36 (`a4552ee R4-36: delete smart-canvas product page`)
+explicitly expanded its scope to `git rm` `static/js/smart-canvas.js` along
+with `static/smart-canvas.html`, `static/css/smart-canvas.css`,
+`static/js/i18n/smart-canvas.js`, and `tests/test_smart_capability_inventory.py`
+once every retained Smart behavior had been migrated behind a named bounded
+seam in R4-28 Composer (`composer.js`), R4-29 media-tools
+(`media-tools.js`), R4-30 execution-host (`execution-host.js`), R4-32
+provider-controls, R4-33 classic-execution-host, R4-34 native entry
+(`canvas.js` open path), and R4-35 handoff removal
+(`canvas-entry-compatibility.js` handoff branch retired); by the time
+R4-37 was activated, `static/js/smart-canvas.js` was already absent from
+the working tree. R4-37's DoD was therefore pre-satisfied and this card is
+an accounting close: verify the documented DoD, pin regression parity, and
+forward to R4-38. Verification at activation (2026-09-07T15:23+08:00):
+a full-repo grep for `smart-canvas\.(html|js|css)` against
+`*.{js,html,css,py}` returns zero functional hits (only historical
+comments remain in `static/js/canvas-list.js`,
+`static/js/workbench/canvas/media-tools.js`,
+`static/js/workbench/canvas/canvas-entry-compatibility.js` and the
+board-row CSS class identifier `smart-canvas` in `static/js/canvas.js`,
+which is a class name for Smart-kind rows, not a file reference);
+`tests/test_canvas_runtime_state.py`,
+`tests/test_legacy_node_adapters.py`,
+`tests/test_canvas_entry.py`, and
+`tests/test_repository_independence.py` continue to carry the
+R4-36 / R4-25 references as historical fixtures only; the
+`tests/fixtures/canvas/smart-v0.json` fixture remains as the historical
+Smart payload input for the legacy-adapter tests (out of scope: deleting
+this fixture would break R4-25's legacy-graph-policy behavioral tests
+that load it). Ownership matrix `Smart product runtime` row records
+"(retired)" — already present after R4-36; no re-touch on this card.
+Regression: `./scripts/agent-verify.sh` PASS at 343 Python unit tests
+(same as R4-36 — confirms pre-emption; no regression delta), PASS Python
+AST parse (76 files), PASS JavaScript syntax (71 files), PASS
+Architecture guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
+
 R4 Smart page removal (card R4-36, 2026-09-07T14:57+08:00, Owner authorization
 via in-conversation "提交并开发下一任务"; implementer evidence, independent
 review pending): the Smart product page is deleted. After R4-35 retired the
