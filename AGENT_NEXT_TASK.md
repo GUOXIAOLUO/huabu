@@ -5,8 +5,15 @@
 
 ## Active Task
 
-- **None** (R4-24 closed 2026-09-07T09:02+08:00; the next card awaits Owner
-  activation — see Recommended Successor below).
+- `R4-25` — `Active` since 2026-09-07T09:20+08:00 (Owner authorization via
+  in-conversation "提交并开发下一任务"). Card:
+  `docs/tasks/active/R4-25-legacy-graph-policy.md`. Containment seam for
+  Smart/Classic historical connect side effects (Smart `inputNodeIds` /
+  `smart-loop` image-input / show-prompt flags; Classic group membership,
+  generator-output sync, group add-member) under a `LegacyGraphCompatibilityPolicy`
+  / repository-adapter contract — moves them out of the page-helper path
+  while keeping Core `GraphMutationService` generic. Card file moved
+  from `docs/tasks/backlog/` to `docs/tasks/active/`.
 
 > Pre-existing finding from R4-23 (2026-09-07) — RESOLVED by `R4-21.1`. The
 > R4-21 blank-create entry points in both pages now propagate
@@ -286,9 +293,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor after R4-24 close (not activated, not executed):
+Expected successor after R4-25 (not activated, not executed):
 
-`R4-25 — Legacy Graph Compatibility Policy`
-(`docs/tasks/backlog/R4-25-legacy-graph-policy.md`)
+`R4-26 — Group Mutation` (`docs/tasks/backlog/R4-26-group-mutation.md`)
 
 Actual successor must still be checked against the repository's current verified state.
