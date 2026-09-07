@@ -5,10 +5,33 @@
 
 ## Active Task
 
-- `None` — no active card. R4-33 closed 2026-09-07T12:41+08:00. Recommended
-  successor `R4-34` (see "Recommended Successor" below), not yet activated.
+- `None` — no active card. R4-34 closed 2026-09-07T14:40+08:00. Recommended
+  successor `R4-35` (see "Recommended Successor" below), not yet activated.
 
 ## Completed Tasks
+
+- `R4-34` — `DONE` 2026-09-07T14:40+08:00. Card:
+  `docs/tasks/active/R4-34-smart-native-canvas.md`. Implementer evidence
+  (independent review pending): `canvas.html` is now the single entry that
+  opens a historical Smart record natively, without redirecting to
+  `smart-canvas.html`. `canvas.js` `openCanvas` no longer branches on kind
+  (the `requiresLegacySmartHandoff` redirect is removed); `createCanvas`'s
+  Smart branch navigates a freshly created Smart-kind record to `canvas.html`
+  via the shared `WorkbenchCanvasEntryCompatibility.normalCanvasUrl(id, project)`
+  helper (consistent with the list entry URL); with both call sites gone,
+  `openSmartCanvasPage` is dead code and removed. `canvas.html` loads the
+  two Smart-compatibility shared seams (`composer.js` + `media-tools.js`)
+  ahead of `canvas.js`, so the unified page has the Composer shell lifecycle
+  and media-edit geometry available for Smart node types. The Smart product
+  runtime files stay on disk (out of scope: `R4-36` retires them); the
+  `WorkbenchCanvasEntryCompatibility` handoff helpers stay exported (out of
+  scope: `R4-35` retires the module). Two focused tests in
+  `tests/test_frontend_workbench_modules.py` (vm-sandbox behavioral route +
+  source-contract redirect removal / seam load order); two pre-existing
+  contracts in `tests/test_canvas_entry.py` updated to pin the unified open
+  contract. Ownership matrix `normal navigation` row updated to "one entry"
+  and `Smart handoff` row annotated for the R4-35 retirement.
+  `./scripts/agent-verify.sh` PASS at 412 tests (was 410; +2).
 
 - `R4-33` — `DONE` 2026-09-07T12:41+08:00. Card:
   `docs/tasks/active/R4-33-classic-execution-compat.md`. Implementer evidence
@@ -484,9 +507,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor after R4-33 close (not activated, not executed):
+Expected successor after R4-34 close (not activated, not executed):
 
-`R4-34 — Run Historical Smart Canvas Natively in canvas.html`
-(`docs/tasks/backlog/R4-34-smart-native-canvas.md`)
+`R4-35 — Remove Smart Handoff` (`docs/tasks/backlog/R4-35-remove-smart-handoff.md`)
 
 Actual successor must still be checked against the repository's current verified state.

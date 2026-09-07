@@ -1933,7 +1933,10 @@ async function createCanvas(){
         if(isSmart){
             setCreateMode(false);
             await loadCanvasList(false);
-            openSmartCanvasPage(data.canvas?.id);
+            window.location.href = window.WorkbenchCanvasEntryCompatibility.normalCanvasUrl(
+                data.canvas?.id,
+                data.canvas?.project || 'default'
+            );
             return;
         }
         resetCascadeRuntimeState();
@@ -1959,17 +1962,6 @@ async function createCanvas(){
 }
 async function createSmartCanvas(){
     setCreateMode(true, 'smart');
-}
-function openSmartCanvasPage(id){
-    if(!id) return;
-    const entryUrl = window.WorkbenchCanvasEntryCompatibility?.legacySmartCanvasUrl(id, window.location.search);
-    if(!entryUrl) return;
-    const handoffUrl = new URL(entryUrl, window.location.origin);
-    const handoffParams = new URLSearchParams(window.location.search);
-    handoffParams.set('id', id);
-    handoffParams.set('v', '2026.05.22.1');
-    handoffUrl.search = handoffParams.toString();
-    window.location.href = `${handoffUrl.pathname}${handoffUrl.search}`;
 }
 function toggleEmojiPicker(id, event){
     event?.preventDefault();
@@ -2086,10 +2078,6 @@ async function openCanvas(id){
         resetCascadeRuntimeState();
         canvas = data.canvas;
         rememberCanvasListProject(canvas.project || 'default');
-        if(window.WorkbenchCanvasEntryCompatibility.requiresLegacySmartHandoff(canvas)){
-            openSmartCanvasPage(canvas.id);
-            return;
-        }
         canvas.logs = canvas.logs || [];
         nodes = canvas.nodes || [];
         connections = canvas.connections || [];

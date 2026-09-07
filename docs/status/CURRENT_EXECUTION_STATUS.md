@@ -1309,6 +1309,49 @@ Regression: `./scripts/agent-verify.sh` PASS at 410 Python unit tests
 (baseline 407; +3), PASS Python AST parse, PASS JavaScript syntax, PASS
 Architecture guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
 
+R4 Smart native entry (card R4-34, 2026-09-07T14:30+08:00, Owner authorization
+via in-conversation "提交并开发下一任务"; implementer evidence, independent
+review pending): `canvas.html` is now the single entry that opens a historical
+Smart record natively, without redirecting to `smart-canvas.html`. New
+`docs/plans/R4_SMART_NATIVE_ENTRY.md` inventories the entry-routing surface
+(list entry URL, `openCanvas` Smart branch, `createCanvas` Smart branch,
+`openSmartCanvasPage`, the `WorkbenchCanvasEntryCompatibility` handoff
+helpers) with dispositions host-cutover / dead-code-removed / unchanged. The
+`openCanvas` Smart handoff check (`requiresLegacySmartHandoff(canvas)` →
+`openSmartCanvasPage`) is removed from `static/js/canvas.js`; the
+`createCanvas` Smart branch now navigates a freshly created Smart-kind record
+to `canvas.html` via the shared `WorkbenchCanvasEntryCompatibility.normalCanvasUrl(id, project)`
+helper (consistent contract with the list entry URL); with both call sites
+gone, `openSmartCanvasPage` itself is removed as dead code. `canvas.html`
+adds `<script>` tags for the two Smart-compatibility shared seams
+(`composer.js` + `media-tools.js`, both R4 seams already used by
+`smart-canvas.html`) ahead of `canvas.js`, so the unified page has the
+Composer shell lifecycle and the media-edit geometry available for Smart
+node types. The Smart product runtime files (`smart-canvas.html` /
+`smart-canvas.js`) stay on disk (out of scope: `R4-36` retires them); the
+`WorkbenchCanvasEntryCompatibility` handoff helpers
+(`requiresLegacySmartHandoff`, `legacySmartCanvasUrl`) stay exported (out of
+scope: `R4-35` retires the handoff module). Two focused tests in
+`tests/test_frontend_workbench_modules.py`:
+`test_smart_native_entry_routes_smart_kinds_through_canvas_html` (vm-sandbox
+behavioral: `normalCanvasUrl` returns a `canvas.html` URL for every kind) and
+`test_smart_native_entry_removes_the_handoff_redirect_from_canvas_js`
+(source-contract: composer/media-tools loaded ahead of `canvas.js`; the
+handoff redirect, `openSmartCanvasPage`, `requiresLegacySmartHandoff` and
+`legacySmartCanvasUrl` are all gone from `canvas.js`; the Smart-create branch
+routes through `normalCanvasUrl`). Two pre-existing contracts in
+`tests/test_canvas_entry.py` updated: `test_historical_smart_handoff_preserves_the_current_query`
+→ `test_canvas_editor_opens_every_record_without_the_smart_handoff`, and
+`test_canvas_editor_uses_only_the_entry_compatibility_handoff_decision` →
+`test_canvas_editor_routes_every_record_through_the_unified_open_path`, both
+now pinning the R4-34 unified open contract. Ownership matrix `normal
+navigation` row updated to "one entry" and `Smart handoff` row annotated
+"R4-34: openCanvas/createCanvas no longer consume the handoff; R4-35 retires
+the module." Regression: `./scripts/agent-verify.sh` PASS at 412 Python
+unit tests (baseline 410; +2), PASS Python AST parse, PASS JavaScript
+syntax, PASS Architecture guards (4), PASS `git diff --check`.
+`AGENT VERIFY: PASS`.
+
 R4 clipboard unified creation (card R4-23, 2026-09-07): single-node,
 connection-free clipboard paste of the losslessly persistable Legacy shapes —
 Classic `image` (url/name/mediaKind) and `prompt` (text), Smart `smart-prompt`

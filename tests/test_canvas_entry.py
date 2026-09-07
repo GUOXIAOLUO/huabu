@@ -70,14 +70,20 @@ console.log(JSON.stringify({{
             "missingKind": False,
         })
 
-    def test_historical_smart_handoff_preserves_the_current_query(self):
+    def test_canvas_editor_opens_every_record_without_the_smart_handoff(self):
+        # R4-34: openCanvas no longer contains the Smart handoff redirect;
+        # openSmartCanvasPage is dead code; the new-canvas gate navigates a
+        # freshly created Smart-kind record to canvas.html via the shared
+        # normalCanvasUrl helper. The editor is the single entry.
         source = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        handoff = source[source.index("function openSmartCanvasPage(id){") : source.index("function toggleEmojiPicker", source.index("function openSmartCanvasPage(id){"))]
-        self.assertIn("legacySmartCanvasUrl(id, window.location.search)", handoff)
-        self.assertIn("const handoffParams = new URLSearchParams(window.location.search);", handoff)
-        self.assertIn("handoffParams.set('id', id);", handoff)
-        self.assertIn("handoffParams.set('v', '2026.05.22.1');", handoff)
-        self.assertNotIn("/static/smart-canvas.html", source)
+        opening = source[source.index("async function openCanvas(id){") : source.index("function applyRemoteCanvasData", source.index("async function openCanvas(id){"))]
+        self.assertNotIn("requiresLegacySmartHandoff", opening)
+        self.assertNotIn("openSmartCanvasPage", opening)
+        self.assertNotIn("smart-canvas.html", source)
+        self.assertNotIn("openSmartCanvasPage", source)
+        self.assertNotIn("legacySmartCanvasUrl(", source)
+        # The new-canvas gate routes Smart-kind creations to canvas.html.
+        self.assertIn("WorkbenchCanvasEntryCompatibility.normalCanvasUrl(", source)
 
     def test_product_openers_confine_smart_page_urls_to_the_compatibility_boundary(self):
         compatibility = ENTRY_COMPATIBILITY.read_text(encoding="utf-8")
@@ -86,9 +92,10 @@ console.log(JSON.stringify({{
             source = (ROOT / "static" / "js" / name).read_text(encoding="utf-8")
             self.assertNotIn("/static/smart-canvas.html", source)
 
-    def test_canvas_editor_uses_only_the_entry_compatibility_handoff_decision(self):
+    def test_canvas_editor_routes_every_record_through_the_unified_open_path(self):
+        # R4-34: the editor no longer branches on kind. Every record — Classic
+        # or Smart — falls through to the unified render/save/selection path.
         source = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
         opening = source[source.index("async function openCanvas(id){") : source.index("function applyRemoteCanvasData", source.index("async function openCanvas(id){"))]
-        self.assertIn("WorkbenchCanvasEntryCompatibility.requiresLegacySmartHandoff(canvas)", opening)
-        self.assertNotIn("!window.WorkbenchCanvasEntryCompatibility", opening)
+        self.assertNotIn("requiresLegacySmartHandoff", opening)
         self.assertNotIn("(canvas.kind || 'classic') === 'smart'", opening)

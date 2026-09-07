@@ -2404,6 +2404,58 @@ console.log(JSON.stringify({{calls, frozen, missingThrew, nonObjectThrew}}));
                                "runLLMNode", "callCanvasLLM", "cascade", "generator"):
             self.assertNotIn(adapter_detail, classic_execution_host_module)
 
+    def test_smart_native_entry_routes_smart_kinds_through_canvas_html(self):
+        # R4-34: the entry-compatibility module's normalCanvasUrl must return
+        # a canvas.html URL for every record, regardless of kind (Classic or
+        # Smart). The unified page is the single entry; the Smart product
+        # runtime is no longer navigated to via this module.
+        entry_module = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-entry-compatibility.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{ window: {{}} }};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(entry_module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasEntryCompatibility;
+const classicUrl = api.normalCanvasUrl('c1', 'p1');
+const smartUrl = api.normalCanvasUrl('c2', 'p1');
+const remembered = api.rememberedCanvasListProject({{storage:{{getItem:() => 'pX'}}, defaultProject:'p1'}});
+const listUrl = api.canvasListUrl('p1');
+console.log(JSON.stringify({{classicUrl, smartUrl, remembered, listUrl}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        # Both kinds land on canvas.html with project+id query.
+        for label, url in (("classic", out["classicUrl"]), ("smart", out["smartUrl"])):
+            self.assertTrue(
+                url.startswith("/static/canvas.html?"),
+                f"{label} entry must point at canvas.html, got {url}",
+            )
+            self.assertNotIn("smart-canvas.html", url)
+            self.assertIn("id=c", url)
+            self.assertIn("project=p1", url)
+        # The list URL is unchanged and the project-remembering helper still works.
+        self.assertTrue(out["listUrl"].startswith("/static/canvas-list.html?"))
+        self.assertEqual(out["remembered"], "pX")
+
+    def test_smart_native_entry_removes_the_handoff_redirect_from_canvas_js(self):
+        # R4-34: openCanvas must no longer redirect Smart records to
+        # smart-canvas.html; the new-canvas gate must navigate Smart-kind
+        # creations to canvas.html; openSmartCanvasPage must be dead code;
+        # and canvas.html must load the two Smart-compatibility shared seams
+        # (composer.js, media-tools.js) ahead of canvas.js.
+        page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        # The two shared seams are loaded ahead of the editor script.
+        self.assertLess(page.index("workbench/canvas/composer.js"), page.index("js/canvas.js"))
+        self.assertLess(page.index("workbench/canvas/media-tools.js"), page.index("js/canvas.js"))
+        # The handoff redirect and its helper are gone from canvas.js.
+        for token in ("openSmartCanvasPage", "requiresLegacySmartHandoff", "legacySmartCanvasUrl"):
+            self.assertNotIn(token, classic, f"{token} must be removed from canvas.js (R4-34)")
+        # The createCanvas Smart branch navigates to canvas.html via the
+        # shared normalCanvasUrl helper, not the legacy smart-canvas.html URL.
+        self.assertIn("WorkbenchCanvasEntryCompatibility.normalCanvasUrl(", classic)
+        # The new-canvas gate never references smart-canvas.html either.
+        self.assertNotIn("smart-canvas.html", classic)
+
     def test_blank_creation_entry_points_route_through_the_creation_controller(self):
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
         smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
