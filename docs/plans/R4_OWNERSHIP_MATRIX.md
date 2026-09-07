@@ -80,6 +80,13 @@ REMOVE       = 可删除/待删除
 | Legacy provider/execution cards | Compat | bounded Legacy renderer/execution seam | provider behavior unchanged; R8 owns runtime replacement |
 | Classic upload/file-drop | Migrate | Unified creation/mutation runtime | direct local node construction remains page-owned |
 
+Full granular Classic-only capability inventory (R4-31): see
+`docs/plans/R4_CLASSIC_CAPABILITY_INVENTORY.md` — 13 capabilities across 9
+categories (provider cards, Comfy, RunningHub, MiniMax, LTX, video,
+output/log, asset, cascade/execution), each with a
+KEEP/MIGRATE/COMPAT/REMOVE/DEFER-R8 disposition, a target owner, and
+source-line evidence, anchored by `tests/test_classic_capability_inventory.py`.
+
 ## Smart-only
 
 | Capability | Keep/Migrate/Compat/Remove | Target | Evidence |

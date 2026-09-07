@@ -1213,6 +1213,34 @@ at 399 Python unit tests (baseline 396; +3), PASS Python AST parse, PASS
 JavaScript syntax, PASS Architecture guards (4), PASS `git diff --check`.
 `AGENT VERIFY: PASS`.
 
+R4 Classic capability inventory (card R4-31, 2026-09-07T12:05+08:00, Owner
+authorization via in-conversation "提交并开发下一任务"; implementer evidence,
+independent review pending): characterization-only card (no code migrated or
+deleted; out of scope: no blind deletion). Produced
+`docs/plans/R4_CLASSIC_CAPABILITY_INVENTORY.md` — a granular inventory of 13
+Classic-only, product-relevant capabilities across 9 categories (provider
+cards; Comfy; RunningHub; MiniMax; LTX; video; output/log; asset;
+cascade/execution), each classified KEEP/MIGRATE/COMPAT/REMOVE/DEFER-R8 with a
+target owner and source-line evidence (56 function names). Disposition split:
+MIGRATE 4 (provider node creation, Comfy result normalization, video
+node/player, output node/grid — Unified owners available in R4), COMPAT 8
+(provider card bodies, Comfy/RunningHub/MiniMax/LTX controls, video params,
+generation log, cascade — whose real replacement is R8
+`ExecutorRegistry`/`ExecutionRuntime`/`Provider`/`Model` registry), DEFER-R8 1
+(asset library/manager, forbidden in R4); no KEEP or REMOVE at capability
+granularity (the Classic runtime shell + Classic-entry deep-link are REMOVE,
+already tracked in the ownership matrix). Ownership matrix `Classic-only`
+review table now references the full inventory. Anchoring
+`tests/test_classic_capability_inventory.py` (6 tests) parses the document's
+machine-readable evidence manifest and verifies: every capability has a valid
+disposition + non-empty target owner, every evidence function name is actually
+present in `static/js/canvas.js`, all In-Scope areas are covered, and the
+classification is non-trivial (MIGRATE + COMPAT + DEFER-R8 all used). No
+product code changed. Regression: `./scripts/agent-verify.sh` PASS at 405
+Python unit tests (baseline 399; +6), PASS Python AST parse, PASS JavaScript
+syntax, PASS Architecture guards (4), PASS `git diff --check`.
+`AGENT VERIFY: PASS`.
+
 R4 clipboard unified creation (card R4-23, 2026-09-07): single-node,
 connection-free clipboard paste of the losslessly persistable Legacy shapes —
 Classic `image` (url/name/mediaKind) and `prompt` (text), Smart `smart-prompt`

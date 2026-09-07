@@ -5,10 +5,28 @@
 
 ## Active Task
 
-- `None` — no active card. R4-30 closed 2026-09-07T12:30+08:00. Recommended
-  successor `R4-31` (see "Recommended Successor" below), not yet activated.
+- `None` — no active card. R4-31 closed 2026-09-07T12:40+08:00. Recommended
+  successor `R4-32` (see "Recommended Successor" below), not yet activated.
 
 ## Completed Tasks
+
+- `R4-31` — `DONE` 2026-09-07T12:40+08:00. Card:
+  `docs/tasks/active/R4-31-classic-inventory.md`. Implementer evidence
+  (independent review pending): characterization-only card (no code changed).
+  Deliverable `docs/plans/R4_CLASSIC_CAPABILITY_INVENTORY.md` inventories 13
+  Classic-only, product-relevant capabilities across 9 categories (provider
+  cards, Comfy, RunningHub, MiniMax, LTX, video, output/log, asset,
+  cascade/execution), each marked KEEP/MIGRATE/COMPAT/REMOVE/DEFER-R8 with a
+  target owner and source-line evidence (56 function names). Split: MIGRATE 4
+  (provider node creation, Comfy result normalization, video node/player,
+  output node/grid), COMPAT 8 (provider card bodies, Comfy/RunningHub/MiniMax/
+  LTX controls, video params, generation log, cascade), DEFER-R8 1 (asset
+  library/manager). Ownership matrix `Classic-only` review table references the
+  full inventory. Anchoring `tests/test_classic_capability_inventory.py`
+  (6 tests) parses the document's evidence manifest and verifies valid
+  dispositions, non-empty owners, every evidence function grounded in
+  `canvas.js`, In-Scope coverage, and non-trivial classification. No product
+  code changed. `./scripts/agent-verify.sh` PASS at 405 tests (was 399; +6).
 
 - `R4-30` — `DONE` 2026-09-07T12:30+08:00. Card:
   `docs/tasks/active/R4-30-smart-execution-compat.md`. Implementer evidence
@@ -431,8 +449,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor after R4-30 close (not activated, not executed):
+Expected successor after R4-31 close (not activated, not executed):
 
-`R4-31 — Classic Inventory` (`docs/tasks/backlog/R4-31-classic-inventory.md`)
+`R4-32 — Classic Provider Compat` (`docs/tasks/backlog/R4-32-classic-provider-compat.md`)
 
 Actual successor must still be checked against the repository's current verified state.
