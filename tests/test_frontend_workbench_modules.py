@@ -2163,6 +2163,92 @@ console.log(JSON.stringify(out));
                                "scheduleSave", "gridCustomLines"):
             self.assertNotIn(adapter_detail, media_tools_module)
 
+    def test_execution_host_module_owns_the_canvas_lifecycle_contract(self):
+        execution_host_module = ROOT / "static" / "js" / "workbench" / "canvas" / "execution-host.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{ window: {{}} }};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(execution_host_module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasExecutionHost;
+const calls = [];
+const host = {{
+  markRunning: (n, r) => calls.push(['markRunning', n.id, r]),
+  writePromptResult: (n, r) => calls.push(['writePromptResult', n.id, r.promptResult]),
+  save: () => calls.push(['save']),
+  render: () => calls.push(['render']),
+  notifyError: (m) => calls.push(['notifyError', m]),
+}};
+const handle = api.create(host);
+const node = {{id: 'n1'}};
+handle.markRunning(node, true);
+handle.markRunning(node, 0);
+handle.writePromptResult(node, {{promptResult: '  hi  '}});
+handle.save();
+handle.render();
+handle.notifyError('boom');
+const frozen = Object.isFrozen(handle);
+let missingThrew = false;
+try {{ api.create({{markRunning(){{}}, writePromptResult(){{}}, save(){{}}, render(){{}}}}); }} catch(e) {{ missingThrew = true; }}
+let nonObjectThrew = false;
+try {{ api.create(null); }} catch(e) {{ nonObjectThrew = true; }}
+console.log(JSON.stringify({{calls, frozen, missingThrew, nonObjectThrew}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["calls"], [
+            ["markRunning", "n1", True],
+            ["markRunning", "n1", False],  # 0 is coerced to false
+            ["writePromptResult", "n1", "  hi  "],  # module is a pass-through; the page trims
+            ["save"],
+            ["render"],
+            ["notifyError", "boom"],
+        ])
+        self.assertTrue(out["frozen"])
+        self.assertTrue(out["missingThrew"])
+        self.assertTrue(out["nonObjectThrew"])
+
+    def test_smart_execution_compatibility_manifest_is_grounded_in_source(self):
+        doc = (ROOT / "docs" / "plans" / "R4_SMART_EXECUTION_COMPATIBILITY.md").read_text(encoding="utf-8")
+        match = re.search(r"```json\n(.*?)\n```", doc, re.S)
+        self.assertIsNotNone(match, "the characterization doc must embed a JSON evidence manifest")
+        manifest = json.loads(match.group(1))
+        self.assertEqual(manifest["source"], "static/js/smart-canvas.js")
+        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
+        allowed_dispositions = {"seamed", "host-cutover", "host-candidate", "transport-only", "flag-only"}
+        seen_dispositions = set()
+        for entry in manifest["entry_points"]:
+            self.assertIn(entry["disposition"], allowed_dispositions)
+            seen_dispositions.add(entry["disposition"])
+            self.assertIn(entry["function"], smart, f"{entry['function']} must exist in source")
+            for evidence in entry["evidence"]:
+                self.assertIn(evidence, smart, f"evidence {evidence} must exist in source")
+        # The classification is non-trivial: at least the cutover, seamed, and a
+        # deferred host-candidate disposition must all be present.
+        for required in ("host-cutover", "seamed", "host-candidate"):
+            self.assertIn(required, seen_dispositions)
+
+    def test_execution_host_is_loaded_before_the_smart_page_and_run_prompt_llm_uses_it(self):
+        page = (ROOT / "static" / "smart-canvas.html").read_text(encoding="utf-8")
+        smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
+        execution_host_module = (ROOT / "static" / "js" / "workbench" / "canvas" / "execution-host.js").read_text(encoding="utf-8")
+        # The module loads ahead of the editor script.
+        self.assertLess(page.index("workbench/canvas/execution-host.js"), page.index("js/smart-canvas.js"))
+        # The page constructs the host handle and delegates runPromptLLMNode's
+        # Canvas lifecycle/state side-effects through it (no direct node writes).
+        self.assertIn("const executionHost = window.WorkbenchCanvasExecutionHost.create({", smart)
+        self.assertIn("executionHost.markRunning(node, true)", smart)
+        self.assertIn("executionHost.writePromptResult(node, {promptResult: result.text || '', provider, model})", smart)
+        self.assertIn("executionHost.save()", smart)
+        self.assertIn("executionHost.notifyError(e.message || tr('smart.promptLlmFailed'))", smart)
+        self.assertIn("executionHost.markRunning(node, false)", smart)
+        # The old direct Canvas writes in runPromptLLMNode are gone.
+        self.assertNotIn("node.promptResult = (result.text || '').trim()", smart)
+        self.assertNotIn("node.llmProvider = provider;", smart)
+        # The extracted host is product-neutral: no Smart adapter detail leaks in.
+        for adapter_detail in ("smart-prompt", "promptResult", "scheduleSave", "selectedNode",
+                               "resolveChatProviderId", "promptNodeLLMInputText", "nodes"):
+            self.assertNotIn(adapter_detail, execution_host_module)
+
     def test_blank_creation_entry_points_route_through_the_creation_controller(self):
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
         smart = (ROOT / "static" / "js" / "smart-canvas.js").read_text(encoding="utf-8")
@@ -4792,7 +4878,8 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         self.assertIn('function nodeShellPortElements(shellEl)', smart)
         self.assertIn('w:340, h:286', smart)
         self.assertIn('function promptNodeOutputItems(node)', smart)
-        self.assertIn('node.promptResult = (result.text || \'\').trim();', smart)
+        self.assertIn('node.promptResult = String(result?.promptResult ?? \'\').trim();', smart)
+        self.assertIn('executionHost.writePromptResult(node, {promptResult: result.text || \'\', provider, model})', smart)
         self.assertIn('node.promptResultOutdated = false;', smart)
         self.assertIn("node?.promptResultOutdated === true", smart)
         self.assertIn('prompt-node-result ${node.promptResultOutdated', smart)

@@ -13,6 +13,23 @@ const composerLifecycle = window.WorkbenchCanvasComposer.create({ container: com
 // module; the editor modal, canvas 2D rendering, mode/state and node mutation
 // stay page-side (R4-29).
 const mediaTools = window.WorkbenchCanvasMediaTools;
+// Execution host: the retained pre-R8 execution path calls this handle for its
+// Canvas lifecycle/state side-effects (running state, prompt-result write,
+// save/render, error) instead of reaching into `nodes` / `render` /
+// `scheduleSave` directly (R4-30).
+const executionHost = window.WorkbenchCanvasExecutionHost.create({
+    markRunning(node, running){ if(node) node.running = Boolean(running); },
+    writePromptResult(node, result){
+        if(!node) return;
+        node.promptResult = String(result?.promptResult ?? '').trim();
+        node.promptResultOutdated = false;
+        if(result?.provider != null) node.llmProvider = result.provider;
+        if(result?.model != null) node.llmModel = result.model;
+    },
+    save(){ scheduleSave(); },
+    render(){ render(); },
+    notifyError(message){ toast(String(message || '').slice(0, 160)); },
+});
 const createMenu = document.getElementById('createMenu');
 const promptInput = document.getElementById('promptInput');
 const mentionPicker = document.getElementById('mentionPicker');
@@ -17204,8 +17221,8 @@ async function runPromptLLMNode(nodeId){
     if(!message){ toast(tr('smart.promptLlmNeedText')); return; }
     const systemPrompt = promptNodeSkillSystemPrompt(node);
     node.llmEnabled = true;
-    node.running = true;
-    render();
+    executionHost.markRunning(node, true);
+    executionHost.render();
     try {
         const provider = resolveChatProviderId(node.llmProvider || '');
         const model = resolveChatModel(node.llmModel || '', provider);
@@ -17229,16 +17246,13 @@ async function runPromptLLMNode(nodeId){
             if(!r.ok) throw new Error(await r.text());
             return r.json();
         });
-        node.promptResult = (result.text || '').trim();
-        node.promptResultOutdated = false;
-        node.llmProvider = provider;
-        node.llmModel = model;
-        scheduleSave();
+        executionHost.writePromptResult(node, {promptResult: result.text || '', provider, model});
+        executionHost.save();
     } catch(e) {
-        toast((e.message || tr('smart.promptLlmFailed')).slice(0, 160));
+        executionHost.notifyError(e.message || tr('smart.promptLlmFailed'));
     } finally {
-        node.running = false;
-        render();
+        executionHost.markRunning(node, false);
+        executionHost.render();
     }
 }
 function comfyFieldKind(field){

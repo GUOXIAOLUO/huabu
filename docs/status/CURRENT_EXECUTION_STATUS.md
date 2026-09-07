@@ -1173,6 +1173,46 @@ tools" row. Regression: `./scripts/agent-verify.sh` PASS at 396 Python unit
 tests (baseline 394; +2), PASS Python AST parse, PASS JavaScript syntax, PASS
 Architecture guards (4), PASS `git diff --check`. `AGENT VERIFY: PASS`.
 
+R4 Smart execution compatibility (card R4-30, 2026-09-07T11:50+08:00, Owner
+authorization via in-conversation "提交并开发下一任务"; implementer evidence,
+independent review pending): characterization + narrow host seam. New
+`docs/plans/R4_SMART_EXECUTION_COMPATIBILITY.md` characterizes the retained
+pre-R8 Smart execution path's Canvas-lifecycle/state ownership (node state
+writes, node materialization + connect, selection, undo, persist/render,
+global settings, feedback) across eight entry points with dispositions
+seamed / host-cutover / host-candidate / transport-only / flag-only, plus an
+embedded machine-readable JSON manifest. New
+`static/js/workbench/canvas/execution-host.js` exposes
+`window.WorkbenchCanvasExecutionHost.create(host)` — a frozen, validated host
+handle with `markRunning` / `writePromptResult` / `save` / `render` /
+`notifyError`; it is NOT an ExecutorRegistry/ExecutionRuntime and owns no
+Canvas state. Loaded by `static/smart-canvas.html` ahead of `smart-canvas.js`;
+Smart constructs one `executionHost` (injecting `node.running` toggle,
+prompt-result write, `scheduleSave`, `render`, `toast`) and cuts over
+`runPromptLLMNode` to route its Canvas lifecycle/state side-effects through the
+handle — the old direct `node.promptResult = (result.text || '').trim()` /
+`node.llmProvider = provider` / `node.running = true` / `render()` /
+`scheduleSave()` / `toast()` writes in that function are gone. The remaining
+`runGenerationLegacy` / `runSmartCascade` / `runCascadeStepIntoNode` stay
+host-candidates (characterized, cut over in follow-on cards), and the provider
+/API/WebSocket transport stays page-side compatibility (R8 owns the real
+replacement). Tests (three in `tests/test_frontend_workbench_modules.py`):
+`test_execution_host_module_owns_the_canvas_lifecycle_contract` (vm-sandbox
+behavioral: delegate, run coercion, frozen handle, missing-op/non-object
+TypeError), `test_smart_execution_compatibility_manifest_is_grounded_in_source`
+(parses the doc manifest; every entry function + evidence present in
+`smart-canvas.js`; dispositions valid and non-trivial), and
+`test_execution_host_is_loaded_before_the_smart_page_and_run_prompt_llm_uses_it`
+(module loads first; page delegates; old direct writes gone; module zero Smart
+leak). One pre-existing contract updated:
+`test_prompt_node_uses_the_compact_llm_card_hierarchy` now pins the host-handle
+`node.promptResult = String(result?.promptResult ?? '').trim()` plus the
+`executionHost.writePromptResult(...)` delegation. Ownership matrix
+`execution trigger` row updated. Regression: `./scripts/agent-verify.sh` PASS
+at 399 Python unit tests (baseline 396; +3), PASS Python AST parse, PASS
+JavaScript syntax, PASS Architecture guards (4), PASS `git diff --check`.
+`AGENT VERIFY: PASS`.
+
 R4 clipboard unified creation (card R4-23, 2026-09-07): single-node,
 connection-free clipboard paste of the losslessly persistable Legacy shapes —
 Classic `image` (url/name/mediaKind) and `prompt` (text), Smart `smart-prompt`

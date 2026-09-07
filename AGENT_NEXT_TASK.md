@@ -5,10 +5,28 @@
 
 ## Active Task
 
-- `None` — no active card. R4-29 closed 2026-09-07T12:05+08:00. Recommended
-  successor `R4-30` (see "Recommended Successor" below), not yet activated.
+- `None` — no active card. R4-30 closed 2026-09-07T12:30+08:00. Recommended
+  successor `R4-31` (see "Recommended Successor" below), not yet activated.
 
 ## Completed Tasks
+
+- `R4-30` — `DONE` 2026-09-07T12:30+08:00. Card:
+  `docs/tasks/active/R4-30-smart-execution-compat.md`. Implementer evidence
+  (independent review pending): characterization + narrow host seam. New
+  `docs/plans/R4_SMART_EXECUTION_COMPATIBILITY.md` characterizes the retained
+  pre-R8 execution path's Canvas-lifecycle/state ownership across eight entry
+  points (dispositions seamed/host-cutover/host-candidate/transport-only/
+  flag-only + embedded JSON manifest). New
+  `static/js/workbench/canvas/execution-host.js` exposes
+  `window.WorkbenchCanvasExecutionHost.create(host)` (frozen validated handle:
+  `markRunning`/`writePromptResult`/`save`/`render`/`notifyError`; no
+  ExecutorRegistry/ExecutionRuntime). Loaded ahead of `smart-canvas.js`; Smart
+  constructs `executionHost` and cuts over `runPromptLLMNode` to route its
+  Canvas lifecycle/state side-effects through the handle (old direct writes
+  removed). Generation/cascade stay host-candidates (characterized); transport
+  stays page-side compatibility. Three focused tests (+3, 396→399), one
+  pre-existing contract updated. Ownership matrix `execution trigger` row
+  updated. `./scripts/agent-verify.sh` PASS at 399 tests.
 
 - `R4-29` — `DONE` 2026-09-07T12:05+08:00. Card:
   `docs/tasks/active/R4-29-smart-media-tools.md`. Implementer evidence
@@ -413,8 +431,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Expected successor after R4-29 close (not activated, not executed):
+Expected successor after R4-30 close (not activated, not executed):
 
-`R4-30 — Smart Execution Compat` (`docs/tasks/backlog/R4-30-smart-execution-compat.md`)
+`R4-31 — Classic Inventory` (`docs/tasks/backlog/R4-31-classic-inventory.md`)
 
 Actual successor must still be checked against the repository's current verified state.
