@@ -84,10 +84,49 @@
         };
     }
 
+    function removeConnection({connections = [], connectionId = ''} = {}) {
+        const id = String(connectionId || '');
+        if (!id) return Array.isArray(connections) ? connections.slice() : [];
+        return (Array.isArray(connections) ? connections : []).filter(connection => String(connection?.id || '') !== id);
+    }
+
+    function duplicateSubgraph({node, nodes = [], connections = [], serializeNode, createNodeId, childIds, preserveConnections = false, canConnect} = {}) {
+        if (!node) return {root: null, copies: [], connections: []};
+        const serialize = typeof serializeNode === 'function' ? serializeNode : source => JSON.parse(JSON.stringify(source));
+        const makeId = typeof createNodeId === 'function' ? createNodeId : type => `${type || 'node'}_${Date.now()}`;
+        const resolveChildren = typeof childIds === 'function' ? childIds : () => [];
+        const sourceById = new Map((Array.isArray(nodes) ? nodes : []).filter(Boolean).map(item => [item.id, item]));
+        const sourceIds = new Set([node.id]);
+        const idMap = new Map();
+        const sources = [node, ...resolveChildren(node).map(id => sourceById.get(id)).filter(Boolean)];
+        const copies = sources.map(source => {
+            const copy = serialize(source);
+            copy.id = makeId(source.type || 'node');
+            copy.running = false;
+            sourceIds.add(source.id);
+            idMap.set(source.id, copy.id);
+            return copy;
+        });
+        const root = copies[0];
+        if (Array.isArray(root?.items)) root.items = root.items.map(id => idMap.get(id) || id);
+        const copiedConnections = preserveConnections
+            ? (Array.isArray(connections) ? connections : []).filter(connection => sourceIds.has(connection?.to)).map(connection => ({
+                ...connection,
+                id: makeId('c'),
+                from: idMap.get(connection.from) || connection.from,
+                to: idMap.get(connection.to) || connection.to,
+            })).filter(connection => connection.from && connection.to && connection.from !== connection.to)
+                .filter(connection => typeof canConnect !== 'function' || canConnect(connection.from, connection.to))
+            : [];
+        return {root, copies, connections: copiedConnections, idMap};
+    }
+
     global.WorkbenchCanvasGraphFragment = Object.freeze({
         selectedSubgraph,
         materializeImportedSubgraph,
         expandNodeIds,
         removeGraphRecords,
+        removeConnection,
+        duplicateSubgraph,
     });
 }(window));

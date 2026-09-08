@@ -42,8 +42,8 @@
 | `R4-35` | R4 | P0 | BACKLOG | R4-34 | Remove Smart Handoff |
 | `R4-36` | R4 | P0 | BACKLOG | R4-35 | Delete smart-canvas.html |
 | `R4-37` | R4 | P0 | BACKLOG | R4-36 | Delete smart-canvas.js Product Runtime |
-| `R4-38` | R4 | P0 | ACTIVE | R4-37 | Reduce canvas.js to Bootstrap/Compatibility Only |
-| `R4-39` | R4 | P0 | BACKLOG | R4-38 | Remove Legacy canvas.js Product Runtime |
+| `R4-38` | R4 | P0 | DONE | R4-37 | Reduce canvas.js to Bootstrap/Compatibility Only |
+| `R4-39` | R4 | P0 | IN_PROGRESS | R4-38 | Remove Legacy canvas.js Product Runtime |
 | `R4-40` | R4 | P1 | BACKLOG | R4-39 | Retire R4 Feature Flags |
 | `R4-41` | R4 | P0 | BACKLOG | R4-40 | R4 Full Acceptance Gate |
 | `R5-01` | R5 | P0 | BACKLOG | R4-41 | Project Repository |

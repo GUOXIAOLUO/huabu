@@ -5,21 +5,480 @@
 
 ## Active Task
 
-- `R4-38` — `IN_PROGRESS` (umbrella shrink; multi-wave; closes only
-  when canvas.js is bootstrap/compat-only). Card:
-  `docs/tasks/active/R4-38-shrink-classic-runtime.md`. Activated
+- `R4-39` — `IN_PROGRESS` (activated 2026-09-08 with Owner authorization
+  via in-conversation "继续"). Card:
+  `docs/tasks/active/R4-39-remove-classic-runtime.md`. Goal: replace the
+  retained Classic `canvas.js` product runtime with a small neutral bootstrap.
+  First authorized slice: inventory the residual runtime and its Classic seam
+  host dependencies, pin the deletion gate, then migrate one bounded owner at a
+  time. Wave 1 characterization is DONE: eight residual clusters and final
+  owners are recorded in `docs/plans/R4_39_CLASSIC_RUNTIME_REMOVAL.md`, and a
+  focused executable gate prevents DONE while `canvas.js` exists. Wave 2 is
+  also DONE: `WorkbenchCanvasAppBootstrap` owns initialization order and
+  record/list routing behind one frozen `start()` interface; default and
+  all-zero browser acceptance both render the four-node fixture. Wave 3 is also
+  DONE: `WorkbenchCanvasSession` owns record open/save/sync/close, dirty and
+  in-flight state, CAS conflict handling, revision adoption, remote polling and
+  update-message deferral; a stale 409 cannot advance the cursor or auto-retry
+  the rejected payload. An independent review of Waves 1-3 returned
+  CHANGES_REQUIRED on one bookkeeping contradiction (this file's tail said
+  "next slice Wave 3" while the head said Wave 4) plus two stale-status lines;
+  all three were repaired. Wave 4 slice 1 is also DONE: the four remaining
+  direct window mouse-slot sessions in `canvas.js` (LLM pane resize, box
+  selection, selection-link drag, knife drag) begin through
+  `ensureInteractionController().begin(...)` and the cleanup sites
+  (`finishSelection`, `endDrag`, blur guard) unwire through
+  `controller.end()`; no direct `window.onmousemove`/`window.onmouseup`
+  assignment remains in the page. Wave 4 slice 2 is also DONE: the move-driven
+  group-membership transition (containment, membership add/remove,
+  generator-edge handoff) moved into the shared
+  `WorkbenchCanvasGroupMembership.resolveMembershipTransition`; the page keeps
+  type pairs, geometry, eligibility/connect policy and side effects only, and
+  the inline `handoffGroupConnections` logic is deleted. Wave 4 slice 3 is
+  also DONE: `WorkbenchCanvasRenderSweep` delegates mounted-card
+  reconciliation to `WorkbenchRenderRuntime` for teardown-before-build,
+  remote-node removal, failed-build cleanup and clear; Classic graph-connect
+  admission and generator/media-output classifications delegate to
+  `WorkbenchLegacyGraphCompatibility`. Default and all-zero browser
+  acceptance rendered the 15-node fixture and repeated full/targeted LTX
+  rebuilds without console errors. Next slice: remaining Wave 4 graph/group
+  mutation ownership. Do not start R4-40 or any R5+ implementation. Full
+  Wave 4 slice 4 is also DONE: selected image/prompt grouping delegates
+  child-to-generator edge handoff to `WorkbenchCanvasGroupMembership`, which
+  now owns the shared transition and group-creation handoff algorithms. Next
+  slice: remaining graph/group mutation ownership. Wave 4 slice 5 is also DONE:
+  versioned ordinary connection commits delegate edge projection, undo snapshot
+  retention and revision adoption to `WorkbenchNodeClient`; rollback remains
+  an explicit legacy adapter. Do not start R4-40 or any R5+ implementation.
+  Full regression after Wave 4 slice 5: PASS (378 tests; AST/syntax/
+  architecture/diff guards clean). Wave 4 slice 6 is also DONE: all
+  single-node deletion projections use `WorkbenchCanvasGraphFragment` for
+  node/incident-edge removal while page effects remain local. Next slice:
+  remaining graph/group mutation ownership. Full regression: PASS (379 tests;
+  AST/syntax/architecture/diff guards clean). Wave 4 slice 7 is also DONE:
+  link deletion uses the shared graph-fragment connection projection while
+  page effects remain local. Next slice: remaining graph/group mutation
+  ownership. Full regression remains PASS (379 tests). Wave 4 slice 8 is also
+  DONE: output conversion and grouped-upload replacement use the shared
+  graph-fragment node/incident-edge projection. Next slice: remaining
+  graph/group mutation ownership. Wave 4 slice 9 is also DONE: Alt-drag
+  duplication uses the shared graph-fragment subgraph owner. Full regression
+  remains PASS (379 tests). Wave 5 slice 1 is also DONE: workflow-transfer
+  modal lifecycle and selection metadata use the neutral UI module. Next
+  slice: remaining prompt/workflow/media-editing ownership. Full regression:
+  PASS (380 tests; AST/syntax/architecture/diff guards clean). Wave 5 slice 2
+  is also DONE: Classic crop/grid/resize math delegates to
+  `WorkbenchCanvasMediaTools`. Next slice: remaining prompt/workflow/
+  media-editing ownership. Wave 5 slice 3 is also DONE: prompt-template data
+  projections use `WorkbenchCanvasPromptTemplateData`. Next slice: remaining
+  prompt/workflow/media-editing ownership. Full regression: PASS (381 tests;
+  AST/syntax/architecture/diff guards clean). Wave 5 slice 4 is also DONE:
+  image-resize dimensions delegate to `WorkbenchCanvasMediaTools`. Next slice:
+  remaining prompt/workflow/media-editing ownership. Full regression remains
+  PASS (381 tests). Wave 5 slice 5 is also DONE: prompt-template category
+  labels use the neutral data owner. Next slice: remaining
+  prompt/workflow/media-editing ownership. Wave 5 slice 6 is also DONE:
+  image-editor Grid layout metadata delegates to `WorkbenchCanvasMediaTools`.
+  Next slice: remaining prompt/workflow/media-editing ownership. Full
+  regression remains PASS (381 tests). Wave 5 slice 7 is also DONE: workflow
+  export filename projection uses `WorkbenchCanvasWorkflowTransfer`. Next
+  slice: remaining prompt/workflow/media-editing ownership. Full regression:
+  PASS (382 tests). Wave 5 slice 8 is also DONE: image-editor mode
+  normalization/presentation uses `WorkbenchCanvasMediaEditorState`. Next
+  slice: remaining prompt/workflow/media-editing ownership. Full regression:
+  PASS (383 tests; AST/syntax/architecture/diff guards clean).
+
+## Completed Predecessor
+
+- `R4-38` — `DONE` (closed 2026-09-07 under the Owner-approved Wave 16
+  structural re-baseline: no capability body remains in canvas.js — all
+  15 R4-31 rows ground in seam modules; canvas.js 17,001 → 12,753 lines,
+  -25.0%). Card:
+  `docs/tasks/done/R4-38-shrink-classic-runtime.md`. Activated
   2026-09-07T15:30+08:00 (after R4-37 close, with Owner authorization
-  via in-conversation "提交并开发下一任务"). Goal: shrink the Classic
-  runtime (`canvas.js`, 17 001 lines at activation; 15 793 lines
-  after Waves 1-6 = -1 207 LOC) so it no longer owns Canvas product
+  via in-conversation "提交并开发下一任务"). A 2026-09-08 post-close
+  independent-review repair fixed two
+  browser-proven Wave 16b defects (eager seam initialization blanked the page;
+  the asset toggle wrote to a getter call), strengthened the exact-owner and
+  real state-transition tests, and passed default plus all-zero rollback
+  browser acceptance on an isolated SQLite copy. R4-39 was subsequently
+  activated on 2026-09-08.
+  Goal: shrink the Classic
+  runtime (`canvas.js`, 17 001 lines at activation; 12 753 lines
+  after Waves 1-15 + the Wave 7-14 reapply + the independent-review
+  repair + Wave 16 batches 16a (executor/transport seam) and 16b
+  (asset/upload/drop seam) = -4 248 LOC, -25.0%) so it no longer owns
+  Canvas product
   runtime responsibilities. The R4-31 inventory's 15 Classic
   capabilities (post R4-38 Wave 3 + Wave 4 splits of `video-player`
   and `output-node` into MIGRATE/COMPAT pairs) partition into a
   16-wave shrink plan (Wave 1-4 MIGRATE-style inline + delete; Wave
   5-14 COMPAT-style page-owned bounded compat seam; Wave 15 DEFER-R8
   re-validation; Wave 16 shrink-to-bootstrap final). Wave 6 review
-  PASS 2026-09-07T17:09+08:00; next wave (Wave 7 RunningHub COMPAT
-  seam) NOT activated, NOT executed. **Wave 1 done** 2026-09-07T15:33+08:00
+  PASS 2026-09-07T17:09+08:00; the post-Wave-15 cumulative change set
+  (Waves 7-14 + reapply) received an independent review
+  CHANGES_REQUIRED 2026-09-07 and the required repair (runtime wiring
+  defects, test-integrity skips, evidence wording, bookkeeping) was
+  applied and verified the same day — see the card's "Independent
+  review repair" section. **Wave 7 done** 2026-09-07T17:25+08:00
+  (runninghub-controls COMPAT seam — see detailed evidence above).
+  **Wave 8 done** 2026-09-07T17:48+08:00 (minimax-controls COMPAT
+  seam: new bounded compat seam
+  `static/js/workbench/canvas/classic-minimax-controls.js`
+  (`WorkbenchCanvasClassicMiniMaxControls.create(host)` returns
+  frozen `{addNode, renderBody, bindWorkbench, getEngine,
+  buildPlayerHtml, syncPlayerDom}`); canvas.js deletes the six local
+  MiniMax function definitions (addMiniMaxNode / renderMiniMaxBody /
+  bindMiniMaxWorkbench / miniMaxEngine / miniMaxPlayerHtml /
+  miniMaxSyncPlayerDom, ~380 LOC of factory + body + workbench +
+  player + sync); canvas.js's three dispatcher sites route through
+  `ensureClassicMiniMaxControls()`: `createNodeByType` `'minimax'`
+  dispatch through `addNode({point})`, body dispatcher's
+  `node.type === 'minimax'` branch through `mmx.renderBody({node})`
+  alongside the Wave 5/6/7 patterns, plus two external callers
+  (`miniMaxEnsureSegment` line 8545 + `runMiniMaxNode`'s pre-flight
+  engine resolve line 10849) through `getEngine({node})`, and one
+  external caller (`miniMaxApplyTimelineTime` line 8670) through
+  `syncPlayerDom({wrap, seg, time, play})`. The seam module requires
+  35 host ops (document / escapeHtml / escapeAttr / addNode / uid /
+  defaultPoint / 14 MiniMax-specific helpers (miniMaxSelectedSegment /
+  miniMaxTimelineTotal / miniMaxActiveSegmentAt /
+  miniMaxCompactSegments / miniMaxExplicitRefsForSegment /
+  miniMaxRefsForNode / miniMaxUniqueRefs / miniMaxMediaHtml /
+  miniMaxSegmentRefsByKind / miniMaxStartPaneResize /
+  miniMaxApplyTimelineTime / miniMaxDownloadItem /
+  miniMaxSetSegmentResult) / 6 media/url helpers (mediaKindForRef /
+  mediaKindForOutputItem / canvasDisplayMediaUrl / canvasPreviewImgHtml
+  / canvasVideoPlayerHtml / canvasFileNameFromUrl) / 7 lifecycle /
+  composition helpers (pushUndo / refreshNodes / scheduleSave /
+  bindScrollableText / bindCascadeButtons / cascadeBtnHtml /
+  retryBarHtml) / refreshIcons / 2 cross-card helpers
+  (rhPaymentOptions from Wave 7 / runMiniMaxNode)) plus 5
+  `CANVAS_MINIMAX_*` constants as host-injected values. canvas.html
+  load order pinned
+  `provider-controls → card-body → comfy-controls → runninghub-controls → minimax-controls → canvas.js`.
+  The R4-31 inventory's `minimax` row gains `evidence_target =
+  "static/js/workbench/canvas/classic-minimax-controls.js"` so the
+  inventory's evidence-grounding test now grounds the six MiniMax
+  function names in the seam module instead of canvas.js. New focused
+  test
+  `test_classic_editor_routes_minimax_timeline_player_generation_through_classic_minimax_controls_seam`
+  drives all six seam methods in a vm sandbox with a stub document
+  and asserts each runs without throwing, asserts `addNode` produces
+  the exact record shape `(type:'minimax', id:'mmx-test',
+  minimaxEngine:'comfyui', rhPayment:'free', w:980, h:720,
+  minimaxRunningHubWorkflowId:'2084608321469898754',
+  aspectRatio:'16:9', megapixels:0.4, segments:[])`, asserts
+  `getEngine` returns `'runninghub'` when
+  `node.minimaxEngine === 'runninghub'` and `'comfyui'` otherwise,
+  asserts `buildPlayerHtml` produces the empty player placeholder for
+  a `null` seg, exercises the full 35-op missing-host-op TypeError
+  loop, source-contracts the six wrapper-deletions + dispatcher
+  seam-call shapes + canvas.html load order — +1 → 351 tests PASS).
+  Independent review: pending.
+  new bounded compat seam `static/js/workbench/canvas/classic-runninghub-
+  controls.js` (`WorkbenchCanvasClassicRunningHubControls.create(host)`
+  returns frozen `{addNode, renderBody, renderParams, getProvider,
+  getCurrentWorkflow, getCurrentWorkflowConfig}`); canvas.js deletes
+  the six local RunningHub function definitions (addRhNode /
+  renderRhBody / renderRhParams / runningHubProvider /
+  currentRunningHubWorkflow / currentRunningHubWorkflowConfig, ~148
+  LOC of factory + body + params + resolvers); canvas.js's four
+  dispatcher sites route through `ensureClassicRunningHubControls()`:
+  `createNodeByType` `'rh'` dispatch through `addNode({point})`, body
+  dispatcher's `node.type === 'rh'` branch through `rh.renderBody({node})`
+  alongside the Wave 5 `cardBody.renderXxx({node})` and Wave 6
+  `comfy.renderBody({node})` patterns, and the
+  `refreshGeneratorInputViews` external caller of `renderRhParams`
+  through `ensureClassicRunningHubControls().renderParams({container,
+  node, fields, media})`. The seam module requires 60 host ops
+  (document / escapeHtml / escapeAttr / tr / addNode / uid /
+  defaultPoint / validRunningHubWorkflowId / parseRunningHubEntryKey /
+  runningHubEntryKey / runningHubAllEntries / runningHubEntries /
+  runningHubEntryId / ensureRhNodeSelection / applyRhEntrySelection /
+  rhSelectedEntryRef / rhCurrentKind / rhEntryOptions /
+  rhPaymentOptions / rhModelSettingsHtml / bindRhModelControls /
+  renderRhPromptFields / renderRhInputs / rhMediaSources /
+  rhActiveFields / rhFieldRole / rhParamKey / rhExtractFieldOptions /
+  rhFieldValue / rhDefaultValue / rhRandomEnabled / rhRandomActive /
+  toggleRhRandom / currentRunningHubWorkflowEntry / rhEntryFields /
+  rhWorkflowJsonFromSources / bindRhParamControls /
+  renderRhSettingField / generatorSources / orderedSources /
+  imageRefsOnly / videoRefsOnly / audioRefsOnly / mediaKindForRef /
+  nodeTitleForMedia / rhMediaPreviewHtml /
+  normalizeApiNodeSizeChoice / defaultApiImageResolution /
+  parseSizeValue / renderImageInputList / render / scheduleSave /
+  runCanvasGenerate / refreshIcons / renderPromptPreview /
+  bindCascadeButtons / cascadeBtnHtml / retryBarHtml) plus two
+  closure values `getApiProviders: () => apiProviders` and
+  `getRunningHubWorkflowCache: () => runningHubWorkflowCache` (the
+  seam sees the live module-level state). canvas.html load order
+  pinned `provider-controls → card-body → comfy-controls →
+  runninghub-controls → canvas.js`. The R4-31 inventory's
+  `runninghub` row gains `evidence_target =
+  "static/js/workbench/canvas/classic-runninghub-controls.js"` so
+  the inventory's evidence-grounding test now grounds the six
+  RunningHub function names in the seam module instead of canvas.js.
+  New focused test
+  `test_classic_editor_routes_runninghub_workflow_params_through_classic_runninghub_controls_seam`
+  drives `addNode` / `renderBody` / `renderParams` / `getProvider` /
+  `getCurrentWorkflow` / `getCurrentWorkflowConfig` in a vm sandbox
+  with a stub document and asserts each runs without throwing,
+  asserts `addNode` produces the exact record shape
+  `(type:'rh', id:'rh-test', rhMode:'app', rhPayment:'free',
+  inputs:[])`, asserts `getCurrentWorkflowConfig` returns the merged
+  entry+cache title, asserts the non-workflow-mode short-circuit
+  returns null, exercises the full 60-op missing-host-op TypeError
+  loop, source-contracts the six wrapper-deletions + dispatcher
+  seam-call shapes + canvas.html load order — +1 → 350 tests PASS).
+  **Wave 9 done** 2026-09-07T18:05+08:00 (ltx-controls COMPAT
+  seam: new bounded compat seam
+  `static/js/workbench/canvas/classic-ltx-controls.js`
+  (`WorkbenchCanvasClassicLTXControls.create(host)` returns frozen
+  `{addNode, renderBody, destroyEditor, parseTimeline,
+  flushTimelineToNode, buildContiguousRelay}`); canvas.js deletes
+  the six local LTX function definitions (addLTXDirectorNode /
+  renderLTXDirectorBody / destroyLTXEditor / ltxParseTimeline /
+  ltxFlushTimelineToNode / ltxBuildContiguousRelay, ~155 LOC of
+  factory + body + editor + timeline + relay); canvas.js's
+  dispatcher sites route through `ensureClassicLTXControls()`:
+  `createNodeByType` `'ltxDirector'` dispatch through
+  `addNode({point})`, body dispatcher's
+  `node.type === 'ltxDirector'` branch through `ltx.renderBody({node})`,
+  `onCardDestroy` payloadNode handler at line 5919 routes through
+  `ltx.destroyEditor({node})`, the timeline view binder at line
+  10918 (ltxDirectorTimelineSegments / ltxRefreshTimelineEditor
+  setup) routes through `parseTimeline({node})`, the timeline flush
+  helper at line 11075 routes through `flushTimelineToNode({node})`,
+  and the relay builder at line 11260 (ltxDirectorBuildTimelinePayload
+  entry) routes through `buildContiguousRelay({node,
+  globalPromptFallback})`. The seam module requires 26 host ops
+  (escapeHtml / addNode / uid / defaultPoint / refreshGeometryAfterLayout
+  / refreshIcons / 14 ltx/timeline/media helpers (defaultLTXSegment /
+  ltxDirectorSyncSeconds / bindLTXParamsRow / updateLTXNodeElementSize
+  / ltxMigrateLegacySegments / ltxDirectorTimelineSegments /
+  ltxRefreshTimelineEditor / ltxDirectorBuildTimelinePayload /
+  ltxSetSelectedSegment / ltxRemoveSegment / ltxSplitSegmentAt /
+  ltxUpdateSegment / ltxAddSegment / ltxInitEmptyTimelineEditor) /
+  5 lifecycle helpers (pushUndo / scheduleSave / bindScrollableText /
+  runLTXDirectorNode / handleNodeDrop) / 2 cross-card helpers
+  (mediaKindForOutputItem / canvasDisplayMediaUrl)) plus 1
+  `LTX_SEGMENT_COLORS` constant as host-injected value. canvas.html
+  load order pinned `provider-controls → card-body → comfy-controls
+  → runninghub-controls → minimax-controls → ltx-controls → canvas.js`.
+  The R4-31 inventory's `ltx` row gains `evidence_target =
+  "static/js/workbench/canvas/classic-ltx-controls.js"` so the
+  inventory's evidence-grounding test now grounds the six LTX
+  function names in the seam module instead of canvas.js. New
+  focused test
+  `test_classic_editor_routes_ltx_director_timeline_relay_through_classic_ltx_controls_seam`
+  drives `addNode` / `renderBody` / `destroyEditor` / `parseTimeline`
+  / `flushTimelineToNode` / `buildContiguousRelay` in a vm sandbox
+  with a stub document and asserts each runs without throwing,
+  asserts `addNode` produces the exact record shape
+  `(type:'ltxDirector', id:'ltxdir-test', durationFrames:120,
+  frameRate:24, ltxSegments:[], inputs:[])`, asserts
+  `parseTimeline` returns `{segments:[], audioSegments:[]}` for
+  empty JSON and tolerates malformed JSON, asserts
+  `buildContiguousRelay` produces correct gap-fill semantics for
+  the documented `{alpha, beta}` two-segment scenario
+  (`segment_lengths` = "40,30", `local_prompts` includes both
+  prompts), exercises the full 26-op missing-host-op TypeError loop,
+  source-contracts the six wrapper-deletions + dispatcher seam-call
+  shapes + canvas.html load order — +1 → 352 tests PASS).
+  **Wave 10 done** 2026-09-07T18:28+08:00 (video-card-body COMPAT
+  seam: new bounded compat seam
+  `static/js/workbench/canvas/classic-video-card-body.js`
+  (`WorkbenchCanvasClassicVideoCardBody.create(host)` returns frozen
+  `{renderBody({node})}`); canvas.js deletes the local function
+  definition `function renderVideoBody` (~135-line body renderer
+  for the `video`-type generator card — provider/model selects,
+  duration/aspect/resolution, the toggle row, the media input
+  list, and the manual-URL / temp-sh action buttons); the body
+  dispatcher's `node.type === 'video'` branch rewrites from
+  `body.appendChild(renderVideoBody(node))` to
+  `body.appendChild(videoBody.renderBody({node}))` after a single
+  `const videoBody = ensureClassicVideoCardBody();` line alongside
+  the Wave 5-9 patterns. The seam module requires 21 host ops
+  (document / tr / generatorSources / orderedSources / mediaKindForRef
+  / sanitizeVideoNodeProviderModel / videoProviderOptions /
+  videoModelOptions / providerVideoModels / renderVideoImageInputs
+  / renderPromptPreview / scheduleSave / runCanvasGenerate /
+  bindCascadeButtons / cascadeBtnHtml / retryBarHtml / render /
+  showErrorModal / uploadCanvasVideosToCloud / setCanvasManualVideoUrl
+  / refreshIcons). canvas.html load order pinned `provider-controls
+  → card-body → comfy-controls → runninghub-controls →
+  minimax-controls → ltx-controls → video-card-body →
+  composer.js → media-tools.js → canvas.js`. The R4-31 inventory's
+  `video-card-body` row gains `evidence_target =
+  "static/js/workbench/canvas/classic-video-card-body.js"` so the
+  inventory's evidence-grounding test now grounds the `renderVideoBody`
+  function name in the seam module instead of canvas.js. New focused
+  test
+  `test_classic_editor_routes_video_card_body_through_classic_video_card_body_seam`
+  drives `renderBody` in a Node vm sandbox with a stub document and
+  asserts each runs without throwing, asserts the rendered body uses
+  the documented `generator-body` className and contains the
+  documented `video-input-head` marker section, exercises the full
+  21-op missing-host-op TypeError loop, source-contracts the
+  `renderVideoBody` wrapper-deletion + `videoBody.renderBody({node})`
+  body dispatcher seam-call shape + canvas.html load order (ltx-controls
+  before video-card-body before canvas.js) — +1 → 353 tests PASS).
+  **Wave 11 done** 2026-09-07T18:46+08:00 (video-provider/params
+  COMPAT seam: new bounded compat seam
+  `static/js/workbench/canvas/classic-video-provider-params.js`
+  (`WorkbenchCanvasClassicVideoProviderParams.create(host)` returns
+  frozen `{videoApiProviders(), resolveVideoProviderId({id}),
+  providerVideoModels({providerId}), renderVideoImageInputs({list,
+  node, imageInputs})}`); canvas.js deletes the four local function
+  definitions (`videoApiProviders` — 5-line provider list filter,
+  `resolveVideoProviderId` — 3-line id resolver, `providerVideoModels`
+  — 4-line model resolver, `renderVideoImageInputs` — 34-line media
+  input list renderer); canvas.js keeps three page-side wrappers
+  (`sanitizeVideoNodeProviderModel` + `videoProviderOptions` +
+  `videoModelOptions`) as thin 1-liners that delegate to the seam so
+  the Wave 10 seam's host-injection contract still works (Wave 10's
+  `renderVideoBody` consumes these as host ops); canvas.js's two
+  external direct-callers route through the seam: `syncGeneratorInputs`
+  video branch rewrites from `renderVideoImageInputs(...)` to
+  `ensureClassicVideoProviderParams().renderVideoImageInputs({...})`,
+  and `runVideoNode`'s pre-flight rewrites from
+  `resolveVideoProviderId(node.apiProvider || 'comfly')` to
+  `ensureClassicVideoProviderParams().resolveVideoProviderId({id: ...})`.
+  The seam module requires 15 host ops (document / tr / escapeHtml /
+  mediaKindForRef / canvasVideoPreviewHtml / canvasPreviewImgHtml /
+  isMissingAssetUrl / missingAssetHtml / getApiProviders /
+  getInternalDrag / setInternalDrag / uniqueModels /
+  defaultApiProviders / reorderInput / refreshIcons). canvas.html
+  load order pinned `provider-controls → card-body → comfy-controls →
+  runninghub-controls → minimax-controls → ltx-controls →
+  video-card-body → video-provider-params → composer.js →
+  media-tools.js → canvas.js`. The R4-31 inventory's `video-provider-params`
+  row gains `evidence_target =
+  "static/js/workbench/canvas/classic-video-provider-params.js"` so
+  the inventory's evidence-grounding test now grounds the four
+  video provider/params function names in the seam module instead
+  of canvas.js. New focused test
+  `test_classic_editor_routes_video_provider_params_through_classic_video_provider_params_seam`
+  drives all four seam methods in a Node vm sandbox with a stub
+  document + minimal mock host (15 ops); asserts `videoApiProviders`
+  strips modelscope / disabled / empty-video_models entries; asserts
+  `resolveVideoProviderId` returns the requested id when it passes
+  the filter, falls back to the first provider when the id is
+  unknown or filtered out; asserts `providerVideoModels` returns
+  unique video_models for known provider and `[]` for unknown;
+  asserts `renderVideoImageInputs` produces one child per input;
+  exercises the full 15-op missing-host-op TypeError loop;
+  source-contracts the four wrapper-deletions + thin-wrapper seam
+  call shapes + syncGeneratorInputs + runVideoNode dispatcher
+  seam-call shapes + canvas.html load order (video-card-body before
+  video-provider-params before canvas.js) — +1 → 354 tests PASS).
+  **Wave 12 done** 2026-09-07T19:01+08:00 (output-grid-renderer
+  COMPAT seam: new bounded compat seam
+  `static/js/workbench/canvas/classic-output-grid.js`
+  (`WorkbenchCanvasClassicOutputGrid.create(host)` returns frozen
+  `{renderOutputGrid({node, pendingHtml}), bindOutputWrap({wrap, node}),
+  refreshOutputNodeContent({node})}`); canvas.js deletes the three
+  local function definitions (`bindOutputWrap` — ~95-line per-item
+  interaction binder that wires up drag/drop previews, lightbox open,
+  video play, download click, delete click, recover-query click;
+  `refreshOutputNodeContent` — ~53-line incremental grid refresh that
+  diffs `node.images` + `node._pending` against the existing DOM grid
+  and adds/removes/replaces children, then re-binds `output-img-wrap`
+  items; `renderOutputGrid` — 5-line full grid HTML builder); canvas.js's
+  three direct callers route through the seam: `refreshNodes`'s
+  output-node fast path rewrites from `refreshOutputNodeContent(node)`
+  to `ensureClassicOutputGrid().refreshOutputNodeContent({node})`; the
+  body dispatcher's `node.type === 'output'` branch rewrites from
+  `renderOutputGrid(node, pendingHtml)` to
+  `outputGrid.renderOutputGrid({node, pendingHtml})` and from
+  `bindOutputWrap(wrap, node)` to `outputGrid.bindOutputWrap({wrap, node})`
+  after a single `const outputGrid = ensureClassicOutputGrid();` line
+  alongside the Wave 5-11 patterns. The seam module requires 19 host
+  ops (document / nodesEl / setOutputDragPreview / openOutputLightbox
+  / downloadUrl / outputDownloadName / canvasActivateVideoPreview /
+  queryRecoverPendingOutput / outputUrlValue / outputGridLayout /
+  outputDomKeyForItem / outputDomKeyForPending / renderOutputMedia /
+  renderPendingOutput / bindCanvasPreviewImageFallbacks /
+  syncCanvasSelectedImageResolution / refreshOutputTimer / scheduleSave
+  / refreshNodes). canvas.html load order pinned `provider-controls →
+  card-body → comfy-controls → runninghub-controls → minimax-controls
+  → ltx-controls → video-card-body → video-provider-params →
+  output-grid → composer.js → media-tools.js → canvas.js`. The R4-31
+  inventory's `output-grid-renderer` row gains `evidence_target =
+  "static/js/workbench/canvas/classic-output-grid.js"` so the
+  inventory's evidence-grounding test now grounds the three output-
+  grid function names in the seam module instead of canvas.js. New
+  focused test
+  `test_classic_editor_routes_output_grid_renderer_through_classic_output_grid_seam`
+  drives all three seam methods in a Node vm sandbox with a stub
+  document + persistent nodesEl structure (19 ops); asserts
+  `renderOutputGrid` emits `output-grid` wrapper + includes
+  pendingHtml + omits output-img-wrap when images=[]; asserts
+  `refreshOutputNodeContent` returns `true` on stub nodesEl +
+  binds + timerRefreshes + syncRes; asserts `bindOutputWrap` sets
+  `wrap.draggable=true` when outputUrl is present; exercises the
+  full 19-op missing-host-op TypeError loop; source-contracts the
+  three wrapper-deletions + 3 dispatcher seam-call shapes +
+  canvas.html load order (video-provider-params before
+  output-grid before canvas.js) — +1 → 355 tests PASS).
+  **Wave 13 done** 2026-09-07T19:16+08:00 (generation-log COMPAT
+  seam: new bounded compat seam
+  `static/js/workbench/canvas/classic-generation-log.js`
+  (`WorkbenchCanvasClassicGenerationLog.create(host)` returns frozen
+  `{addGenerationLog(arg), renderCanvasLog()}`); canvas.js deletes
+  the two local function definitions (`addGenerationLog` — ~19-line
+  log entry writer that prepends a new `canvas.logs` entry capped at
+  500, plays the completion sound when outputs are present,
+  captures platform/nodeType/model/request/prompt/outputs/refs/runMs/
+  error metadata; `renderCanvasLog` — ~70-line log list HTML
+  renderer that emits `<div class="log-item">` rows with status/
+  platform/taskLabel/duration chips, subline (date + outputs count
+  + ID + backend), optional error line, prompt preview with
+  copy-on-click binding, and per-thumb lightbox click binding, plus
+  a refreshIcons() call); canvas.js keeps two thin page-side
+  wrappers (`addGenerationLog` + `renderCanvasLog`) as 1-liners
+  that delegate to the seam so the 22 caller sites of
+  `addGenerationLog` (run*Node success/failure handlers + miniMax
+  run + comfy run + pending-output recovery + group run + miniMax
+  log error wrapper) and the 1 caller of `renderCanvasLog`
+  (openCanvasLog) continue to call the page-side function — the
+  wrapper now delegates to the seam so the inventory's evidence-
+  grounding test grounds the two generation-log function names in
+  the seam module instead of canvas.js. The seam module requires
+  22 host ops (document / tr / getCanvas / escapeHtml / escapeAttr
+  / isMissingAssetUrl / mediaKindForOutputItem / canvasVideoPreviewHtml
+  / canvasPreviewImgHtml / runPlatformLabel / runTaskLabel /
+  logTaskLabel / formatRunDuration / langIsEn / windowObj /
+  outputUrlValue / playGenerationCompleteSound / copyTextToClipboard
+  / refreshIcons / bindCanvasPreviewImageFallbacks /
+  openOutputLightbox / uid). canvas.html load order pinned
+  `provider-controls → card-body → comfy-controls → runninghub-controls
+  → minimax-controls → ltx-controls → video-card-body →
+  video-provider-params → output-grid → generation-log →
+  composer.js → media-tools.js → canvas.js`. The R4-31 inventory's
+  `generation-log` row gains `evidence_target =
+  "static/js/workbench/canvas/classic-generation-log.js"` so the
+  inventory's evidence-grounding test now grounds the two
+  generation-log function names in the seam module instead of
+  canvas.js. New focused test
+  `test_classic_editor_routes_generation_log_through_classic_generation_log_seam`
+  drives both seam methods in a Node vm sandbox with a stub
+  document + persistent logList stub (22 ops); asserts
+  `addGenerationLog` no-ops when canvas is null; asserts the entry
+  has `id=uid('log')`, captures `runPlatformLabel(run)` and
+  `Number(runMs)`, plays `playGenerationCompleteSound` only when
+  outputs are present; asserts error path sets `status='failed'`
+  + captures `String(error)` without playing the sound; asserts
+  the 500-entry cap evicts the oldest entry; asserts
+  `renderCanvasLog` emits `log-item` rows with `status-ok` chip +
+  platform chip when logs are non-empty, and emits `log-empty`
+  when logs are empty; exercises the full 22-op missing-host-op
+  TypeError loop; source-contracts the two wrapper-deletions +
+  thin-wrapper seam-call shapes + canvas.html load order
+  (output-grid before generation-log before canvas.js) — +1 → 356
+  tests PASS). Independent review: pending. **Wave 1 done**
+  2026-09-07T15:33+08:00
   (comfy-result-normalization MIGRATED: deleted `comfyResultOutputs` /
   `resultMediaUrls` wrappers in canvas.js, inlined 6 call sites through
   `window.WorkbenchCanvasMediaResultNormalizer.extract`, focused test
@@ -142,13 +601,14 @@
   2 P2 nits — card line 13 stale "9 of 15" phrase fixed in
   follow-up commit `ef8a2cd`, seam module lacks trailing newline
   cosmetic + `git diff --check` PASS covers — both non-blocking).
-Next wave (recommended successor inside the same card): **Wave 7 —
-RunningHub workflow/params COMPAT seam** (`addRhNode` +
-`renderRhBody` + `renderRhParams` + `runningHubProvider` +
-`currentRunningHubWorkflow` + `currentRunningHubWorkflowConfig` as
-bounded compat per R4-31; the card-body / comfy-controls seam
-patterns apply — extract to
-`static/js/workbench/canvas/classic-runninghub-controls.js`).
+Next wave (recommended successor inside the same card): **Wave 7-13
+recovery reapplies** (runninghub / minimax / ltx / video-card-body /
+video-provider-params / output-grid / generation-log seam factories +
+thin page-side wrappers + canvas.js deletions — each requires the same
+pattern as Wave 14: create seam module (already done), add
+`ensureClassicXxx()` factory, add thin wrappers, delete local
+definitions). Then **Wave 15 DEFER-R8 re-validation** for asset-library
+and **Wave 16 shrink-to-bootstrap final** to close the card.
 
 ## Completed Tasks
 
@@ -701,7 +1161,7 @@ patterns apply — extract to
 1. `AGENTS.md`
 2. `.agent/AGENT_CONTRACT.md`
 3. `docs/status/CURRENT_EXECUTION_STATUS.md`
-4. `docs/tasks/active/R4-11-media-rendering.md`
+4. `docs/tasks/done/R4-11-media-rendering.md`
 
 Read architecture documents only as required by the card.
 
@@ -723,15 +1183,8 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Current Active Task (umbrella multi-wave, Wave 6 just reviewed PASS,
-next wave is Wave 7 RunningHub COMPAT seam — not activated, not
-executed):
-
-`R4-38 — Reduce canvas.js to Bootstrap/Compatibility Only` (`docs/tasks/active/R4-38-shrink-classic-runtime.md`)
-
-Expected successor after R4-38 itself closes (not activated, not
-executed):
-
-`R4-39 — Remove Legacy canvas.js Product Runtime` (`docs/tasks/backlog/R4-39-remove-classic-runtime.md`)
-
-Actual successor must still be checked against the repository's current verified state.
+Current Active Task: `R4-39 — Remove Legacy canvas.js Product Runtime`
+(`docs/tasks/active/R4-39-remove-classic-runtime.md`). R4-38 is archived in
+`docs/tasks/done/`. The next bounded slice is R4-39 Wave 4 (interaction,
+render, and graph/group lifecycle ownership); `R4-40` remains a
+backlog successor and is not authorized until R4-39 reaches its deletion gate.

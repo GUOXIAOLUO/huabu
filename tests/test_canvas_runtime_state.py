@@ -8,6 +8,10 @@ ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = ROOT / "static" / "js" / "workbench" / "canvas" / "runtime-state.js"
 GRAPH_GEOMETRY = ROOT / "static" / "js" / "workbench" / "canvas" / "graph-geometry.js"
 GRAPH_INTERACTION = ROOT / "static" / "js" / "workbench" / "canvas" / "graph-interaction.js"
+GRAPH_FRAGMENT = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-graph-fragment.js"
+WORKFLOW_UI = ROOT / "static" / "js" / "workbench" / "canvas" / "workflow-transfer-ui.js"
+PROMPT_DATA = ROOT / "static" / "js" / "workbench" / "canvas" / "prompt-template-data.js"
+MEDIA_EDITOR_STATE = ROOT / "static" / "js" / "workbench" / "canvas" / "media-editor-state.js"
 PORT_COMPATIBILITY = ROOT / "static" / "js" / "workbench" / "canvas" / "port-compatibility.js"
 EXECUTION_COMPATIBILITY = ROOT / "static" / "js" / "workbench" / "canvas" / "execution-compatibility.js"
 NODE_CLIENT = ROOT / "static" / "js" / "workbench" / "canvas" / "node-creation-client.js"
@@ -66,6 +70,82 @@ console.log(JSON.stringify({{forward:I.edgeIntentFromPortDrop({{nodeId:'a',port:
         self.assertEqual(payload["reverse"], expected)
         self.assertIsNone(payload["invalid"])
 
+    def test_shared_graph_fragment_removes_node_and_incident_edges_for_all_delete_paths(self):
+        result = subprocess.run(["node", "-e", f"""
+const fs=require('fs'), vm=require('vm'); const sandbox={{window:{{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(GRAPH_FRAGMENT))}, 'utf8'), sandbox);
+const G=sandbox.window.WorkbenchCanvasGraphFragment;
+const removed=G.removeGraphRecords({{nodes:[{{id:'a'}},{{id:'b'}}],connections:[{{id:'ab',from:'a',to:'b'}},{{id:'zz',from:'b',to:'b'}}],removeIds:['a']}});
+const edgeRemoved=G.removeConnection({{connections:[{{id:'ab'}},{{id:'zz'}}],connectionId:'ab'}});
+let next=0;
+const duplicate=G.duplicateSubgraph({{node:{{id:'g',type:'group',items:['a']}},nodes:[{{id:'g',type:'group',items:['a']}},{{id:'a',type:'image'}}],connections:[{{id:'in',from:'x',to:'a'}}],serializeNode:n=>JSON.parse(JSON.stringify(n)),createNodeId:type=>type+ ++next,childIds:n=>n.items||[],preserveConnections:true,canConnect:()=>true}});
+const expanded=[...G.expandNodeIds({{nodes:[{{id:'g',items:['a']}},{{id:'a'}}],initialIds:['g'],childIds:n=>n.items||[]}})];
+console.log(JSON.stringify({{removed,edgeRemoved,expanded,duplicate}}));
+"""], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), {
+            "removed": {"nodes": [{"id": "b"}], "connections": [{"id": "zz", "from": "b", "to": "b"}]},
+            "edgeRemoved": [{"id": "zz"}],
+            "expanded": ["g", "a"],
+            "duplicate": {"root": {"id": "group1", "type": "group", "items": ["image2"], "running": False}, "copies": [{"id": "group1", "type": "group", "items": ["image2"], "running": False}, {"id": "image2", "type": "image", "running": False}], "connections": [{"id": "c3", "from": "x", "to": "image2"}], "idMap": {}},
+        })
+        page_source = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        self.assertGreaterEqual(page_source.count("WorkbenchCanvasGraphFragment.removeGraphRecords"), 9)
+
+    def test_workflow_transfer_ui_owns_modal_lifecycle_and_metadata(self):
+        result = subprocess.run(["node", "-e", f"""
+const fs=require('fs'), vm=require('vm'); const events=[];
+const make=()=>({{classList:{{add:x=>events.push('add:'+x),remove:x=>events.push('remove:'+x)}}}});
+const sandbox={{window:{{}}, document:{{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(WORKFLOW_UI))}, 'utf8'), sandbox);
+const meta={{textContent:''}}, sub={{textContent:''}}, api=sandbox.window.WorkbenchCanvasWorkflowTransferUi.create({{
+  modal:make(),toggle:make(),dropZone:make(),meta,sub,refreshIcons:()=>events.push('icons'),
+  payload:()=>({{nodes:[{{id:'n'}}],connections:[{{id:'c'}}]}}),hasCanvas:()=>true,
+}});
+api.open(); api.close();
+console.log(JSON.stringify({{meta:meta.textContent,sub:sub.textContent,events}}));
+"""], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), {
+            "meta": "已选择 1 个节点，1 条连线",
+            "sub": "导出当前框选内容，或把工作流导入到当前画布",
+            "events": ["add:open", "add:active", "icons", "remove:open", "remove:active", "remove:drag-over"],
+        })
+
+    def test_workflow_transfer_client_owns_safe_export_filename_projection(self):
+        client = ROOT / "static" / "js" / "workbench" / "canvas" / "workflow-transfer-client.js"
+        result = subprocess.run(["node", "-e", f"""
+const fs=require('fs'), vm=require('vm'); const sandbox={{window:{{}},Date,URL, setTimeout}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
+console.log(sandbox.window.WorkbenchCanvasWorkflowTransfer.filenameForExport('A:/bad*name?', '.json', '2026-01-02T03:04:05.000Z'));
+"""], check=True, text=True, capture_output=True)
+        self.assertEqual(result.stdout.strip(), "A_bad_name_-20260102T030405.json")
+
+    def test_media_editor_state_owns_mode_normalization_and_presentation(self):
+        result = subprocess.run(["node", "-e", f"""
+const fs=require('fs'), vm=require('vm'); const sandbox={{window:{{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(MEDIA_EDITOR_STATE))}, 'utf8'), sandbox);
+const S=sandbox.window.WorkbenchCanvasMediaEditorState;
+console.log(JSON.stringify({{invalid:S.presentation('unknown'),grid:S.presentation('grid'),preview:S.presentation('preview')}}));
+"""], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), {
+            "invalid": {"mode": "crop", "preview": False, "icon": "crop", "labelKey": "canvas.applyCrop", "titleKey": "canvas.cropImage", "subKey": "canvas.cropHint"},
+            "grid": {"mode": "grid", "preview": False, "icon": "grid-3x3", "labelKey": "canvas.applyGrid", "titleKey": "canvas.modeGrid", "subKey": "canvas.gridHint"},
+            "preview": {"mode": "preview", "preview": True, "icon": "", "labelKey": "", "titleKey": "canvas.previewImage", "subKey": "canvas.previewHint"},
+        })
+
+    def test_prompt_template_data_owns_projection_and_filter_behavior(self):
+        result = subprocess.run(["node", "-e", f"""
+const fs=require('fs'), vm=require('vm'); const sandbox={{window:{{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(PROMPT_DATA))}, 'utf8'), sandbox);
+const P=sandbox.window.WorkbenchCanvasPromptTemplateData, item={{name:'中文',name_en:'English',scene:'scene',positive:'  bright  ',negative:'dark',params:{{steps:20}},category:'view'}};
+console.log(JSON.stringify({{name:P.name(item,false),english:P.name(item,true),text:P.text(item,'full'),search:P.searchText(item),visible:P.visibleItems({{items:[item,{{name:'other',category:'mine'}}],category:'view',query:'BRIGHT'}}).length,defaultName:P.defaultName('第一行\\n第二行'),category:P.categoryLabel('view',{{builtinLabels:{{view:'视图'}}}})}}));
+"""], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), {
+            "name": "中文", "english": "English",
+            "text": "bright\n\nNegative prompt:\ndark\n\nParams:\nsteps: 20",
+            "search": "中文 english scene    bright   dark ", "visible": 1, "defaultName": "第一行",
+            "category": "视图",
+        })
+
     def test_shared_port_compatibility_keeps_unknown_legacy_ports_and_rejects_declared_mismatch(self):
         source = PORT_COMPATIBILITY.read_text(encoding="utf-8")
         self.assertNotIn("node.type", source)
@@ -113,6 +193,35 @@ vm.runInNewContext(fs.readFileSync({json.dumps(str(NODE_CLIENT))}, 'utf8'), sand
 try {{ sandbox.window.WorkbenchNodeClient.createNodeAndEdge('canvas', {{}}, 'actor'); }} catch (error) {{ console.log(error.message); }}
 """], check=True, text=True, capture_output=True)
         self.assertIn("positive expected_revision", result.stdout)
+
+    def test_connection_result_projection_is_shared_and_revision_safe(self):
+        result = subprocess.run(["node", "-e", f"""
+const fs=require('fs'), vm=require('vm'); const sandbox={{window:{{location:{{hostname:'localhost',search:''}}}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(NODE_CLIENT))}, 'utf8'), sandbox);
+const C=sandbox.window.WorkbenchNodeClient;
+const connections=[], undoStack=[]; let revision=0; let committed=0;
+const edge=C.applyConnectionResult({{edge:{{id:'e1',from:'a',to:'b'}},canvas_revision:7}}, {{
+  connections, fromId:'a', toId:'b', undoStack, undoSnapshot:{{before:true}}, undoLimit:1,
+  onRevision:value=>{{revision=value;}}, onAfterCommit:()=>{{committed++;}}
+}});
+let invalid;
+try {{ C.applyConnectionResult({{edge:{{id:'e2',from:'a',to:'other'}}}}, {{connections,fromId:'a',toId:'b'}}); }}
+catch (error) {{ invalid=error.constructor.name+':'+error.message; }}
+console.log(JSON.stringify({{edge,connections,undo:undoStack.length,revision,committed,invalid}}));
+"""], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), {
+            "edge": {"id": "e1", "from": "a", "to": "b"},
+            "connections": [{"id": "e1", "from": "a", "to": "b"}],
+            "undo": 1, "revision": 7, "committed": 1,
+            "invalid": "TypeError:connection result must preserve the requested edge endpoints",
+        })
+        source = NODE_CLIENT.read_text(encoding="utf-8")
+        self.assertIn("applyConnectionResult", source)
+        page_source = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        connection_block = page_source[page_source.index("async function createVersionedConnection"):
+                                       page_source.index("function startLink", page_source.index("async function createVersionedConnection"))]
+        self.assertIn("WorkbenchNodeClient.applyConnectionResult", connection_block)
+        self.assertNotIn("connections.push({id:result.edge.id", connection_block)
 
     def test_shared_graph_geometry_has_symmetric_port_anchors_and_no_dom_dependency(self):
         source = GRAPH_GEOMETRY.read_text(encoding="utf-8")

@@ -81,7 +81,10 @@
                 body: JSON.stringify({payload: canonicalPayload(record), expected_revision: expected, client_id: String(record?.client_id || '')}),
             });
             if (canonical.status !== 503) {
-                rememberRevision(canvasId, canonical.revision);
+                // A stale response reports the server's current revision for
+                // diagnostics, but must not authorize retrying the rejected
+                // payload against that newer revision.
+                if (canonical.ok) rememberRevision(canvasId, canonical.revision);
                 return canonical;
             }
         }

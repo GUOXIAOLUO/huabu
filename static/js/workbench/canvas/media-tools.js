@@ -103,6 +103,20 @@
         return { x: Math.round(cx - w / 2), y: Math.round(cy - h / 2), w, h };
     }
 
+    function resizeDimensions(sourceW, sourceH, scale) {
+        const width = Math.max(1, Math.round(Number(sourceW) || 0));
+        const height = Math.max(1, Math.round(Number(sourceH) || 0));
+        const factor = clampResizeScale(scale);
+        return {sourceW: width, sourceH: height, scale: factor, targetW: Math.max(1, Math.round(width * factor)), targetH: Math.max(1, Math.round(height * factor))};
+    }
+
+    function gridLayout(rects, groupId) {
+        const items = Array.isArray(rects) ? rects : [];
+        const rows = Math.max(1, ...items.map(rect => Number(rect?.row || 0) + 1));
+        const cols = Math.max(1, ...items.map(rect => Number(rect?.col || 0) + 1));
+        return {type: 'grid-split', groupId: String(groupId || ''), rows, cols};
+    }
+
     global.WorkbenchCanvasMediaTools = Object.freeze({
         clampResizeScale,
         circledNumber,
@@ -111,5 +125,7 @@
         gridSplitRectsCustom,
         parseCropRatio,
         fitCropRectToAspect,
+        resizeDimensions,
+        gridLayout,
     });
 }(window));

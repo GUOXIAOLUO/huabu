@@ -67,6 +67,41 @@
             return Object.freeze([...mounted.keys()]);
         }
 
+        // A sweep owns reconciliation, including removals received from a
+        // remote record or undo. Page delete handlers must not have to know
+        // which renderer resources a disappearing node owns.
+        function retain(nodeIds) {
+            const keep = new Set(nodeIds.map(id => String(id)));
+            for (const id of [...mounted.keys()]) {
+                if (!keep.has(id)) {
+                    try { unmount(id); }
+                    finally { pendingMediaStates.delete(id); }
+                }
+            }
+            for (const id of pendingMediaStates.keys()) {
+                if (!keep.has(id)) pendingMediaStates.delete(id);
+            }
+        }
+
+        // Release the previous card BEFORE the builder initializes new
+        // resources on the same payload (for example a timeline editor).
+        // mount() alone is too late: legacy bodies are built before mounting.
+        function rebuild(nodeId, build) {
+            const key = String(nodeId || '');
+            if (!key || typeof build !== 'function') throw new TypeError('RenderRuntime rebuild requires a node id and builder');
+            unmount(key);
+            try {
+                return build();
+            } catch (error) {
+                unmount(key);
+                throw error;
+            } finally {
+                // A rollback/failed builder may never mount a shared shell.
+                // Its saved state must not leak into a later, unrelated card.
+                pendingMediaStates.delete(key);
+            }
+        }
+
         // Group family mount: the runtime owns the group record assembly, the
         // media-vs-legacy-content decision, the mount execution and its
         // lifecycle entry; pages supply only member resolution, intent
@@ -112,7 +147,7 @@
             return result;
         }
 
-        return Object.freeze({mount, mountAll, mountGroupCard, unmount, unmountAll, isMounted, mountedNodeIds});
+        return Object.freeze({mount, mountAll, mountGroupCard, unmount, unmountAll, isMounted, mountedNodeIds, retain, rebuild});
     }
 
     global.WorkbenchRenderRuntime = Object.freeze({create});

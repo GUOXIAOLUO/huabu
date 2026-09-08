@@ -4,9 +4,10 @@ The inventory (`docs/plans/R4_CLASSIC_CAPABILITY_INVENTORY.md`) classifies every
 Classic-only, product-relevant capability before the Classic runtime is
 retired. These tests anchor that classification to the real source: every
 inventoried capability must carry a valid disposition, a target owner, and
-evidence that actually names functions present in `static/js/canvas.js`. They
-also pin the coverage of the card's In-Scope areas and the disposition
-vocabulary, so the inventory cannot silently drift into fiction.
+evidence grounded in the declared owner source. They also pin the exact R4-38
+owner mapping, reject non-delegating same-name bodies in `static/js/canvas.js`,
+and cover the card's In-Scope areas and disposition vocabulary so the inventory
+cannot silently drift into fiction.
 """
 
 import json
@@ -33,6 +34,24 @@ REQUIRED_CATEGORY_MARKERS = (
     "Asset",
     "Cascade",
 )
+
+EXPECTED_CAPABILITY_OWNERS = {
+    "provider-node-creation": "static/js/workbench/canvas/classic-node-factories.js",
+    "provider-card-body": "static/js/workbench/canvas/classic-card-body-renderer.js",
+    "comfy-controls": "static/js/workbench/canvas/classic-comfy-controls.js",
+    "comfy-result-normalization": "static/js/workbench/canvas/classic-executor-runtime.js",
+    "runninghub": "static/js/workbench/canvas/classic-runninghub-controls.js",
+    "minimax": "static/js/workbench/canvas/classic-minimax-controls.js",
+    "ltx": "static/js/workbench/canvas/classic-ltx-controls.js",
+    "video-node-creation": "static/js/workbench/canvas/classic-node-factories.js",
+    "video-card-body": "static/js/workbench/canvas/classic-video-card-body.js",
+    "video-provider-params": "static/js/workbench/canvas/classic-video-provider-params.js",
+    "output-node-creation": "static/js/workbench/canvas/classic-node-factories.js",
+    "output-grid-renderer": "static/js/workbench/canvas/classic-output-grid.js",
+    "generation-log": "static/js/workbench/canvas/classic-generation-log.js",
+    "asset-library": "static/js/workbench/canvas/classic-asset-runtime.js",
+    "cascade": "static/js/workbench/canvas/classic-cascade-orchestrator.js",
+}
 
 
 def _manifest() -> dict:
@@ -112,7 +131,58 @@ class ClassicCapabilityInventoryTests(unittest.TestCase):
     def test_no_duplicate_capability_ids(self):
         ids = [capability["id"] for capability in self.manifest.get("capabilities", [])]
         self.assertEqual(len(ids), len(set(ids)), "capability ids must be unique")
+    def test_no_capability_body_is_grounded_in_the_monolith(self):
+        # R4-38 Wave 16, Owner-approved structural re-baseline (2026-09-07):
+        # the bootstrap-only contract is structural — every R4-31 capability
+        # row must ground its evidence OUTSIDE static/js/canvas.js (in a
+        # bounded compat seam module or a unified boundary). canvas.js keeps
+        # only dispatch, wiring, state access and bootstrap sequencing.
+        capabilities = self.manifest.get("capabilities", [])
+        actual_owners = {
+            capability["id"]: capability.get("evidence_target", "static/js/canvas.js")
+            for capability in capabilities
+        }
+        self.assertEqual(
+            actual_owners,
+            EXPECTED_CAPABILITY_OWNERS,
+            "R4-38 ownership is a pinned source contract, not a freely movable manifest pointer",
+        )
+        for capability in capabilities:
+            target = capability.get("evidence_target", "static/js/canvas.js")
+            with self.subTest(capability=capability.get("id"), target=target):
+                self.assertNotEqual(
+                    target, "static/js/canvas.js",
+                    f"capability {capability['id']!r} still grounds its body in the monolith; "
+                    "move it behind a bounded compat seam before R4-38 can stay closed")
+                self.assertTrue(
+                    (ROOT / target).exists(),
+                    f"evidence_target missing for {capability['id']!r}: {target}")
 
+                # If an evidence marker names a function, canvas.js may retain
+                # only a one-line seam delegator for caller compatibility.  A
+                # multiline function declaration under the old name is still
+                # an owned body and must keep this card open.
+                for evidence in capability.get("evidence", []):
+                    match = re.fullmatch(r"([A-Za-z_$][\w$]*)(?:\()?", evidence)
+                    if not match:
+                        continue
+                    name = match.group(1)
+                    declarations = list(re.finditer(
+                        rf"^(?:async\s+)?function\s+{re.escape(name)}\([^\n]*",
+                        self.source,
+                        flags=re.MULTILINE,
+                    ))
+                    for declaration in declarations:
+                        declaration_source = self.source[declaration.start():]
+                        self.assertIsNotNone(
+                            re.match(
+                                rf"^(?:async\s+)?function\s+{re.escape(name)}\([^\n]*\)\s*\{{\s*"
+                                rf"(?:return\s+)?ensureClassic[A-Za-z0-9_$]+\(\)\."
+                                rf"[A-Za-z0-9_$]+\([^;]*\);?\s*\}}",
+                                declaration_source,
+                            ),
+                            f"canvas.js still owns a non-delegating body for {name!r}",
+                        )
 
 if __name__ == "__main__":
     unittest.main()

@@ -80,6 +80,35 @@
         return node;
     }
 
+    function applyConnectionResult(result, options) {
+        const settings = options && typeof options === 'object' ? options : {};
+        if (!Array.isArray(settings.connections)) throw new TypeError('connection result requires a mutable connections array');
+        const source = result && result.edge;
+        if (!source || !String(source.id || '')) throw new TypeError('connection result requires a created edge id');
+        const fromId = String(settings.fromId || source.from || '');
+        const toId = String(settings.toId || source.to || '');
+        if (!fromId || !toId || String(source.from || '') !== fromId || String(source.to || '') !== toId) {
+            throw new TypeError('connection result must preserve the requested edge endpoints');
+        }
+        const edge = typeof settings.projectEdge === 'function'
+            ? settings.projectEdge(source)
+            : {id: String(source.id), from: fromId, to: toId};
+        if (!edge || !String(edge.id || '') || String(edge.from || '') !== fromId || String(edge.to || '') !== toId) {
+            throw new TypeError('projectEdge must return the requested edge');
+        }
+        if (Array.isArray(settings.undoStack) && Object.prototype.hasOwnProperty.call(settings, 'undoSnapshot')) {
+            settings.undoStack.push(settings.undoSnapshot);
+            const limit = Number(settings.undoLimit);
+            if (Number.isInteger(limit) && limit > 0 && settings.undoStack.length > limit) settings.undoStack.shift();
+        }
+        settings.connections.push(edge);
+        const revision = Number(result && result.canvas_revision);
+        if (settings.canvas && Number.isFinite(revision) && revision > 0) settings.canvas.updated_at = revision;
+        if (typeof settings.onRevision === 'function' && Number.isFinite(revision) && revision > 0) settings.onRevision(revision);
+        if (typeof settings.onAfterCommit === 'function') settings.onAfterCommit(edge);
+        return edge;
+    }
+
     global.WorkbenchNodeClient = Object.freeze({
         isLoopback: () => ['127.0.0.1', '::1', 'localhost'].includes(window.location.hostname),
         // R4 normal creation uses the canonical NodeCreationService on local
@@ -89,6 +118,7 @@
         isEnabled: () => new URLSearchParams(window.location.search).get('versioned_nodes') !== '0',
         applyCreationResult,
         applyGraphCreationResult,
+        applyConnectionResult,
         create: (canvasId, command, actorId) => request(`/api/v1/canvases/${encodeURIComponent(canvasId)}/nodes`, 'POST', command, actorId),
         update: (canvasId, nodeId, command, actorId) => request(`/api/v1/canvases/${encodeURIComponent(canvasId)}/nodes/${encodeURIComponent(nodeId)}`, 'PUT', command, actorId),
         remove: (canvasId, nodeId, command, actorId) => request(`/api/v1/canvases/${encodeURIComponent(canvasId)}/nodes/${encodeURIComponent(nodeId)}`, 'DELETE', command, actorId),

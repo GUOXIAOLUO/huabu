@@ -81,25 +81,34 @@ Out of scope (R8, not re-implemented): `ExecutorRegistry`, `ExecutionRuntime`,
 
 ## Evidence manifest
 
-Machine-readable; anchored by `tests/test_classic_execution_compatibility.py`.
+Machine-readable; anchored by
+`tests.test_frontend_workbench_modules.test_classic_execution_compatibility_manifest_is_grounded_in_source`.
+
+Update note (2026-09-07, R4-38 Wave 14 + reapply review repair): the cascade
+orchestrator implementation moved from `static/js/canvas.js` into the bounded
+compat seam module `static/js/workbench/canvas/classic-cascade-orchestrator.js`
+(and page-side callers now reach it through thin wrappers). Affected entries
+declare `evidence_target` so the grounding test reads the owning module; the
+dispositions below record the R4-33-era Canvas-lifecycle classification and
+are retained unchanged.
 
 ```json
 {
   "source": "static/js/canvas.js",
   "entry_points": [
-    {"id": "canvas-generate", "function": "runCanvasGenerate", "disposition": "seamed", "evidence": ["runCanvasGenerateLegacy"]},
-    {"id": "canvas-generate-legacy", "function": "runCanvasGenerateLegacy", "disposition": "host-candidate", "evidence": ["runCascadeNodeByType"]},
-    {"id": "llm-node", "function": "runLLMNode", "disposition": "host-cutover", "evidence": ["callCanvasLLM", "llmInputText"]},
-    {"id": "cascade-by-type", "function": "runCascadeNodeByType", "disposition": "host-candidate", "evidence": ["runGenerator", "runComfyNode"]},
-    {"id": "cascade-loop-context", "function": "runCascadeNodeWithLoopContext", "disposition": "host-candidate", "evidence": ["runCascadeNodeByType"]},
-    {"id": "cascade-limited-rounds", "function": "runLimitedCascadeRounds", "disposition": "host-candidate", "evidence": ["cascadeParallelLimit"]},
+    {"id": "canvas-generate", "function": "runCanvasGenerate", "disposition": "seamed", "evidence_target": "static/js/workbench/canvas/classic-cascade-orchestrator.js", "evidence": ["runCanvasGenerateLegacy"]},
+    {"id": "canvas-generate-legacy", "function": "runCanvasGenerateLegacy", "disposition": "host-candidate", "evidence_target": "static/js/workbench/canvas/classic-cascade-orchestrator.js", "evidence": ["runCascadeNodeByType"]},
+    {"id": "llm-node", "function": "runLLMNode", "disposition": "host-cutover", "evidence_target": "static/js/workbench/canvas/classic-executor-runtime.js", "evidence": ["callCanvasLLM", "llmInputText"]},
+    {"id": "cascade-by-type", "function": "runCascadeNodeByType", "disposition": "host-candidate", "evidence_target": "static/js/workbench/canvas/classic-cascade-orchestrator.js", "evidence": ["runGenerator", "runComfyNode"]},
+    {"id": "cascade-loop-context", "function": "runCascadeNodeWithLoopContext", "disposition": "host-candidate", "evidence_target": "static/js/workbench/canvas/classic-cascade-orchestrator.js", "evidence": ["runCascadeNodeByType"]},
+    {"id": "cascade-limited-rounds", "function": "runLimitedCascadeRounds", "disposition": "host-candidate", "evidence_target": "static/js/workbench/canvas/classic-cascade-orchestrator.js", "evidence": ["cascadeParallelLimit"]},
     {"id": "cascade-order", "function": "computeCascadeOrder", "disposition": "flag-only", "evidence": ["resolveCascadeLoop"]},
-    {"id": "workflow-order", "function": "computeConnectedWorkflowOrder", "disposition": "flag-only", "evidence": ["canvasWorkflowEdges"]},
-    {"id": "node-cascade", "function": "runNodeCascade", "disposition": "host-candidate", "evidence": ["beginCascade", "finalizeCascade"]},
-    {"id": "one-cascade-pass", "function": "runOneCascadePass", "disposition": "host-candidate", "evidence": ["runGenerator", "runLLMNode"]},
-    {"id": "retry-downstream", "function": "retryNodeAndDownstream", "disposition": "host-candidate", "evidence": ["runOneCascadePass", "beginCascade"]},
-    {"id": "begin-cascade", "function": "beginCascade", "disposition": "host-candidate", "evidence": ["createCascadeContext"]},
-    {"id": "finalize-cascade", "function": "finalizeCascade", "disposition": "host-candidate", "evidence": ["queueCascadeCleanup", "clearCascadeNodeState"]},
+    {"id": "workflow-order", "function": "computeConnectedWorkflowOrder", "disposition": "flag-only", "evidence_target": "static/js/workbench/canvas/classic-cascade-orchestrator.js", "evidence": ["canvasWorkflowEdges"]},
+    {"id": "node-cascade", "function": "runNodeCascade", "disposition": "host-candidate", "evidence_target": "static/js/workbench/canvas/classic-cascade-orchestrator.js", "evidence": ["beginCascade", "finalizeCascade"]},
+    {"id": "one-cascade-pass", "function": "runOneCascadePass", "disposition": "host-candidate", "evidence_target": "static/js/workbench/canvas/classic-cascade-orchestrator.js", "evidence": ["runGenerator", "runLLMNode"]},
+    {"id": "retry-downstream", "function": "retryNodeAndDownstream", "disposition": "host-candidate", "evidence_target": "static/js/workbench/canvas/classic-cascade-orchestrator.js", "evidence": ["runOneCascadePass", "beginCascade"]},
+    {"id": "begin-cascade", "function": "beginCascade", "disposition": "host-candidate", "evidence_target": "static/js/workbench/canvas/classic-cascade-orchestrator.js", "evidence": ["createCascadeContext"]},
+    {"id": "finalize-cascade", "function": "finalizeCascade", "disposition": "host-candidate", "evidence_target": "static/js/workbench/canvas/classic-cascade-orchestrator.js", "evidence": ["queueCascadeCleanup", "clearCascadeNodeState"]},
     {"id": "cascade-stop", "function": "requestCascadeStop", "disposition": "flag-only", "evidence": ["ensureCascadeActive"]},
     {"id": "cancel-cascade", "function": "cancelCascade", "disposition": "flag-only", "evidence": ["requestCascadeStop"]}
   ]

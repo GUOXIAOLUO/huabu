@@ -15,7 +15,41 @@
     'use strict';
 
     const CLASSIC_GROUP_MEMBER_TYPES = Object.freeze(['image', 'prompt']);
+    // Historical graph/output eligibility, retained until executor migration.
+    // These classifications must survive removal of provider body builders.
+    const CLASSIC_GENERATOR_TYPES = Object.freeze(['generator', 'midjourney', 'msgen', 'comfy', 'ltxDirector', 'video', 'rh', 'minimax']);
+    const CLASSIC_MEDIA_OUTPUT_TYPES = CLASSIC_GENERATOR_TYPES;
     const SMART_LOOP_PREVIEW = Object.freeze({});
+
+    function canClassicConnect({nodes = [], connections = [], fromId, toId} = {}) {
+        if (!fromId || !toId || fromId === toId) return false;
+        const from = nodes.find(node => node.id === fromId);
+        const to = nodes.find(node => node.id === toId);
+        if (!from || !to) return false;
+        if (to.type === 'group') return CLASSIC_GROUP_MEMBER_TYPES.includes(from.type);
+        if (CLASSIC_GENERATOR_TYPES.includes(from.type)) {
+            if (to.type === 'output') return true;
+            if (CLASSIC_MEDIA_OUTPUT_TYPES.includes(from.type) && CLASSIC_GENERATOR_TYPES.includes(to.type)) {
+                const seen = new Set();
+                const reachesSource = id => {
+                    if (id === fromId) return true;
+                    if (seen.has(id)) return false;
+                    seen.add(id);
+                    return connections.filter(edge => edge.from === id).some(edge => reachesSource(edge.to));
+                };
+                return !reachesSource(toId);
+            }
+            return false;
+        }
+        if (to.type === 'loop') {
+            const allowImage = Boolean(to.imageInput) && ['image', 'group', 'output'].includes(from.type);
+            const allowPrompt = Boolean(to.showPrompt) && ['prompt', 'promptGroup', 'loop', 'llm'].includes(from.type);
+            return allowImage || allowPrompt;
+        }
+        if (to.type === 'llm') return ['prompt', 'loop', 'promptGroup', 'llm', 'image', 'group', 'output'].includes(from.type);
+        if (from.type === 'llm') return CLASSIC_GENERATOR_TYPES.includes(to.type);
+        return CLASSIC_GENERATOR_TYPES.includes(to.type) && ['image', 'prompt', 'loop', 'group', 'promptGroup', 'output', 'llm'].includes(from.type);
+    }
 
     function isClassicGroupMemberEligible(node) {
         return Boolean(node) && CLASSIC_GROUP_MEMBER_TYPES.includes(node.type);
@@ -166,6 +200,9 @@
 
     global.WorkbenchLegacyGraphCompatibility = Object.freeze({
         CLASSIC_GROUP_MEMBER_TYPES,
+        CLASSIC_GENERATOR_TYPES,
+        CLASSIC_MEDIA_OUTPUT_TYPES,
+        canClassicConnect,
         SMART_LOOP_PREVIEW,
         isClassicGroupMemberEligible,
         isSmartImageNode,

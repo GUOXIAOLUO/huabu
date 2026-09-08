@@ -47,6 +47,12 @@
         return new Blob([JSON.stringify(payload, null, 2)], {type: 'application/json'});
     }
 
+    function filenameForExport(title, extension, timestamp) {
+        const safeTitle = String(title || 'canvas-workflow').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 48) || 'canvas-workflow';
+        const stamp = new Date(timestamp == null ? Date.now() : timestamp).toISOString().replace(/[-:]/g, '').slice(0, 15);
+        return `${safeTitle}-${stamp}.${String(extension || 'json').replace(/^\./, '')}`;
+    }
+
     function downloadBlob(blob, filename, options = {}) {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -63,6 +69,7 @@
         importArchive,
         normalizeImported,
         jsonExportBlob,
+        filenameForExport,
         downloadBlob,
         errorMessage,
     });

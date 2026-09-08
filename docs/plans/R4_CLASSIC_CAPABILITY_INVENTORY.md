@@ -50,35 +50,35 @@ characterization deliverable — no code is deleted or migrated by this card
 
 | Capability | Disposition | Target owner | Key functions |
 |---|---|---|---|
-| RunningHub workflow/params | COMPAT | Legacy execution seam (R8) | `addRhNode`, `renderRhBody`, `runningHubProvider`, `currentRunningHubWorkflow`, `currentRunningHubWorkflowConfig`, `renderRhParams` |
+| RunningHub workflow/params | COMPAT | Legacy execution seam (R8) | `addRhNode`, `renderRhBody`, `runningHubProvider`, `currentRunningHubWorkflow`, `currentRunningHubWorkflowConfig`, `renderRhParams` (in `static/js/workbench/canvas/classic-runninghub-controls.js` host seam) |
 
 ### 4. MiniMax
 
 | Capability | Disposition | Target owner | Key functions |
 |---|---|---|---|
-| MiniMax timeline/player/generation | COMPAT | Legacy execution seam (R8, readable) | `addMiniMaxNode`, `renderMiniMaxBody`, `bindMiniMaxWorkbench`, `miniMaxEngine`, `miniMaxPlayerHtml`, `miniMaxSyncPlayerDom` |
+| MiniMax timeline/player/generation | COMPAT | Legacy execution seam (R8, readable) | `addMiniMaxNode`, `renderMiniMaxBody`, `bindMiniMaxWorkbench`, `miniMaxEngine`, `miniMaxPlayerHtml`, `miniMaxSyncPlayerDom` (in `static/js/workbench/canvas/classic-minimax-controls.js` host seam) |
 
 ### 5. LTX
 
 | Capability | Disposition | Target owner | Key functions |
 |---|---|---|---|
-| LTX director timeline/relay | COMPAT | Legacy execution seam (R8) | `addLTXDirectorNode`, `renderLTXDirectorBody`, `destroyLTXEditor`, `ltxParseTimeline`, `ltxFlushTimelineToNode`, `ltxBuildContiguousRelay` |
+| LTX director timeline/relay | COMPAT | Legacy execution seam (R8) | `addLTXDirectorNode`, `renderLTXDirectorBody`, `destroyLTXEditor`, `ltxParseTimeline`, `ltxFlushTimelineToNode`, `ltxBuildContiguousRelay` (in `static/js/workbench/canvas/classic-ltx-controls.js` host seam) |
 
 ### 6. Video
 
 | Capability | Disposition | Target owner | Key functions |
 |---|---|---|---|
 | Video node creation | MIGRATED | Unified creation/mutation boundary | `addVideo(` (in `static/js/workbench/canvas/classic-node-factories.js` host seam) |
-| Video card body | COMPAT | Legacy execution seam (R8) | `renderVideoBody` |
-| Video provider/params | COMPAT | Legacy execution seam (R8) | `videoApiProviders`, `resolveVideoProviderId`, `providerVideoModels`, `renderVideoImageInputs` |
+| Video card body | COMPAT | Legacy execution seam (R8) | `renderVideoBody` (in `static/js/workbench/canvas/classic-video-card-body.js`) |
+| Video provider/params | COMPAT | Legacy execution seam (R8) | `videoApiProviders`, `resolveVideoProviderId`, `providerVideoModels`, `renderVideoImageInputs` (in `static/js/workbench/canvas/classic-video-provider-params.js`) |
 
 ### 7. Output / log
 
 | Capability | Disposition | Target owner | Key functions |
 |---|---|---|---|
 | Output node creation | MIGRATED | Unified creation/mutation boundary | `addOutput(` (in `static/js/workbench/canvas/classic-node-factories.js` host seam) |
-| Output grid renderer | COMPAT | Unified media renderer / render runtime | `refreshOutputNodeContent`, `renderOutputGrid`, `bindOutputWrap` |
-| Generation log panel | COMPAT | Legacy execution seam (R8 result tray) | `addGenerationLog`, `renderCanvasLog` |
+| Output grid renderer | COMPAT | Unified media renderer / render runtime | `refreshOutputNodeContent`, `renderOutputGrid`, `bindOutputWrap` (in `static/js/workbench/canvas/classic-output-grid.js`) |
+| Generation log panel | COMPAT | Legacy execution seam (R8 result tray) | `addGenerationLog`, `renderCanvasLog` (in `static/js/workbench/canvas/classic-generation-log.js`) |
 
 ### 8. Asset
 
@@ -90,7 +90,7 @@ characterization deliverable — no code is deleted or migrated by this card
 
 | Capability | Disposition | Target owner | Key functions |
 |---|---|---|---|
-| Cascade graph resolution / run / stop | COMPAT | Legacy execution seam (R8) | `beginCascade`, `computeCascadeOrder`, `resolveCascadeLoop`, `bindCascadeButtons`, `runCascadeNodeByType`, `requestCascadeStop`, `finalizeCascade` |
+| Cascade graph resolution / run / stop | COMPAT | Legacy execution seam (R8) | `classic-cascade-orchestrator.js` seam module (`beginCascade` / `computeCascadeOrder` / `resolveCascadeLoop` / `bindCascadeButtons` / `runCascadeNodeByType` / `requestCascadeStop` / `finalizeCascade` + 33 helpers) |
 
 ## Summary
 
@@ -124,25 +124,25 @@ Machine-readable; anchored by `tests/test_classic_capability_inventory.py`.
     {"id": "provider-card-body", "category": "Provider cards", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8 Provider/Model registry)", "evidence_target": "static/js/workbench/canvas/classic-card-body-renderer.js", "evidence": ["renderGeneratorBody", "renderMidjourneyBody", "renderMsGenBody", "renderLLMBody"]},
 
     {"id": "comfy-controls", "category": "Comfy", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8)", "evidence_target": "static/js/workbench/canvas/classic-comfy-controls.js", "evidence": ["addComfyNode", "renderComfyBody", "renderComfySettings", "updateComfyField", "comfyWorkflowOptions"]},
-    {"id": "comfy-result-normalization", "category": "Comfy", "disposition": "MIGRATED", "target_owner": "Unified media-result normalizer", "evidence": ["window.WorkbenchCanvasMediaResultNormalizer.extract"]},
+    {"id": "comfy-result-normalization", "category": "Comfy", "disposition": "MIGRATED", "target_owner": "Unified media-result normalizer", "evidence_target": "static/js/workbench/canvas/classic-executor-runtime.js", "evidence": ["window.WorkbenchCanvasMediaResultNormalizer.extract"]},
 
-    {"id": "runninghub", "category": "RunningHub", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8)", "evidence": ["addRhNode", "renderRhBody", "runningHubProvider", "currentRunningHubWorkflow", "currentRunningHubWorkflowConfig", "renderRhParams"]},
+    {"id": "runninghub", "category": "RunningHub", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8)", "evidence_target": "static/js/workbench/canvas/classic-runninghub-controls.js", "evidence": ["addRhNode", "renderRhBody", "runningHubProvider", "currentRunningHubWorkflow", "currentRunningHubWorkflowConfig", "renderRhParams"]},
 
-    {"id": "minimax", "category": "MiniMax", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8, readable)", "evidence": ["addMiniMaxNode", "renderMiniMaxBody", "bindMiniMaxWorkbench", "miniMaxEngine", "miniMaxPlayerHtml", "miniMaxSyncPlayerDom"]},
+    {"id": "minimax", "category": "MiniMax", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8, readable)", "evidence_target": "static/js/workbench/canvas/classic-minimax-controls.js", "evidence": ["addMiniMaxNode", "renderMiniMaxBody", "bindMiniMaxWorkbench", "miniMaxEngine", "miniMaxPlayerHtml", "miniMaxSyncPlayerDom"]},
 
-    {"id": "ltx", "category": "LTX", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8)", "evidence": ["addLTXDirectorNode", "renderLTXDirectorBody", "destroyLTXEditor", "ltxParseTimeline", "ltxFlushTimelineToNode", "ltxBuildContiguousRelay"]},
+    {"id": "ltx", "category": "LTX", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8)", "evidence_target": "static/js/workbench/canvas/classic-ltx-controls.js", "evidence": ["addLTXDirectorNode", "renderLTXDirectorBody", "destroyLTXEditor", "ltxParseTimeline", "ltxFlushTimelineToNode", "ltxBuildContiguousRelay"]},
 
     {"id": "video-node-creation", "category": "Video", "disposition": "MIGRATED", "target_owner": "Unified creation/mutation boundary", "evidence_target": "static/js/workbench/canvas/classic-node-factories.js", "evidence": ["addVideo("]},
-    {"id": "video-card-body", "category": "Video", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8)", "evidence": ["renderVideoBody"]},
-    {"id": "video-provider-params", "category": "Video", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8)", "evidence": ["videoApiProviders", "resolveVideoProviderId", "providerVideoModels", "renderVideoImageInputs"]},
+    {"id": "video-card-body", "category": "Video", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8)", "evidence": ["renderVideoBody"], "evidence_target": "static/js/workbench/canvas/classic-video-card-body.js"},
+    {"id": "video-provider-params", "category": "Video", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8)", "evidence": ["videoApiProviders", "resolveVideoProviderId", "providerVideoModels", "renderVideoImageInputs"], "evidence_target": "static/js/workbench/canvas/classic-video-provider-params.js"},
 
     {"id": "output-node-creation", "category": "Output / log", "disposition": "MIGRATED", "target_owner": "Unified creation/mutation boundary", "evidence_target": "static/js/workbench/canvas/classic-node-factories.js", "evidence": ["addOutput("]},
-    {"id": "output-grid-renderer", "category": "Output / log", "disposition": "COMPAT", "target_owner": "Unified media renderer / render runtime", "evidence": ["refreshOutputNodeContent", "renderOutputGrid", "bindOutputWrap"]},
-    {"id": "generation-log", "category": "Output / log", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8 result tray)", "evidence": ["addGenerationLog", "renderCanvasLog"]},
+    {"id": "output-grid-renderer", "category": "Output / log", "disposition": "COMPAT", "target_owner": "Unified media renderer / render runtime", "evidence": ["refreshOutputNodeContent", "renderOutputGrid", "bindOutputWrap"], "evidence_target": "static/js/workbench/canvas/classic-output-grid.js"},
+    {"id": "generation-log", "category": "Output / log", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8 result tray)", "evidence": ["addGenerationLog", "renderCanvasLog"], "evidence_target": "static/js/workbench/canvas/classic-generation-log.js"},
 
-    {"id": "asset-library", "category": "Asset", "disposition": "DEFER-R8", "target_owner": "Collection/asset runtime", "evidence": ["revealCanvasAssetControls", "renderCanvasAssetLibrary", "toggleCanvasAssetLibrary", "openAssetManager", "renderAssetManager", "mediaKindForUpload"]},
+    {"id": "asset-library", "category": "Asset", "disposition": "DEFER-R8", "target_owner": "Collection/asset runtime", "evidence": ["revealCanvasAssetControls", "renderCanvasAssetLibrary", "toggleCanvasAssetLibrary", "openAssetManager", "renderAssetManager", "mediaKindForUpload"], "evidence_target": "static/js/workbench/canvas/classic-asset-runtime.js"},
 
-    {"id": "cascade", "category": "Cascade / execution", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8)", "evidence": ["beginCascade", "computeCascadeOrder", "resolveCascadeLoop", "bindCascadeButtons", "runCascadeNodeByType", "requestCascadeStop", "finalizeCascade"]}
+    {"id": "cascade", "category": "Cascade / execution", "disposition": "COMPAT", "target_owner": "Legacy execution seam (R8)", "evidence_target": "static/js/workbench/canvas/classic-cascade-orchestrator.js", "evidence": ["WorkbenchCanvasClassicCascadeOrchestrator"]}
   ]
 }
 ```

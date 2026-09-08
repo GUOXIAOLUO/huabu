@@ -47,17 +47,23 @@ console.log(JSON.stringify({{classic, smart}}));
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
             editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
             self.assertLess(page_source.index("workbench/canvas/media-result-normalizer.js"), page_source.index(editor))
-            self.assertIn("WorkbenchCanvasMediaResultNormalizer.extract", editor_source)
+            # Wave 16a moved the executor bodies (with their extract call
+            # sites) into classic-executor-runtime.js; page keeps load order.
+            executor_source = (ROOT / "static" / "js" / "workbench" / "canvas" / "classic-executor-runtime.js").read_text(encoding="utf-8")
+            self.assertIn("WorkbenchCanvasMediaResultNormalizer.extract", editor_source + executor_source)
 
     def test_classic_editor_inlines_execution_result_extraction_through_the_shared_seam(self):
         editor_source = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        executor_source = (ROOT / "static" / "js" / "workbench" / "canvas" / "classic-executor-runtime.js").read_text(encoding="utf-8")
         self.assertNotIn("function comfyResultOutputs", editor_source)
         self.assertNotIn("function resultMediaUrls", editor_source)
         self.assertNotIn("comfyResultOutputs(", editor_source)
         self.assertNotIn("resultMediaUrls(", editor_source)
-        extract_calls = re.findall(r"window\.WorkbenchCanvasMediaResultNormalizer\.extract\(", editor_source)
+        # Wave 16a moved the six inlined call sites into the executor seam
+        # with the run*Node bodies; count across page + seam.
+        extract_calls = re.findall(r"window\.WorkbenchCanvasMediaResultNormalizer\.extract\(", editor_source + executor_source)
         self.assertGreaterEqual(len(extract_calls), 6,
-            msg=f"expected >= 6 inlined seam calls in canvas.js, got {len(extract_calls)}")
+            msg=f"expected >= 6 inlined seam calls across canvas.js + executor seam, got {len(extract_calls)}")
 
     def test_classic_editor_routes_provider_node_creation_through_classic_node_factories_seam(self):
         # Behavioral: drive the seam in a vm sandbox, verify the host sees
@@ -635,6 +641,2450 @@ catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
         self.assertIn("comfy.renderBody({node})", editor_source,
             msg="canvas.js body dispatcher must call comfy.renderBody({node})")
 
+    def test_classic_editor_routes_runninghub_workflow_params_through_classic_runninghub_controls_seam(self):
+        # Wave 7: runninghub-controls COMPAT seam. Six page-side
+        # RunningHub functions (addRhNode / renderRhBody /
+        # renderRhParams / runningHubProvider /
+        # currentRunningHubWorkflow /
+        # currentRunningHubWorkflowConfig) move behind a bounded
+        # compat seam. canvas.js no longer owns the factory / body /
+        # params construction or the resolver helpers; the page only
+        # routes the kind branches through
+        # `ensureClassicRunningHubControls().{addNode, renderBody,
+        # renderParams, getProvider, getCurrentWorkflow,
+        # getCurrentWorkflowConfig}(...)`.
+        seam = ROOT / "static/js/workbench/canvas/classic-runninghub-controls.js"
+        # Behavioral: drive the seam in a vm sandbox with a stubbed
+        # document. addNode must land at host.addNode with the right
+        # record shape; renderBody / renderParams must run without
+        # throwing; getProvider / getCurrentWorkflow /
+        # getCurrentWorkflowConfig must produce stable projections.
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+function makeEl() {{
+    const el = {{
+        tagName: 'DIV', className: '', innerHTML: '', value: '', disabled: false,
+        style: {{}},
+        options: [],
+        children: [],
+        onclick: null, oninput: null, onchange: null,
+        onmousedown: null, onblur: null,
+        classList: {{ contains: () => false }},
+        dataset: {{}},
+        appendChild(c) {{ this.children.push(c); return c; }},
+        querySelector(sel) {{ return makeEl(); }},
+        querySelectorAll(sel) {{ return []; }},
+        forEach() {{}},
+        closest() {{ return null; }},
+        dispatchEvent(ev) {{ return true; }},
+    }};
+    return el;
+}}
+const documentStub = {{ createElement: (tag) => makeEl() }};
+const sandbox = {{window: {{}}, document: documentStub}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+const captured = {{}};
+const host = {{
+    document: documentStub,
+    escapeHtml: (s) => String(s), escapeAttr: (s) => String(s), tr: (k) => k,
+    addNode: (record) => {{ captured.record = record; return record; }},
+    uid: (prefix) => prefix + '-test',
+    defaultPoint: (dx, dy) => ({{x: dx, y: dy}}),
+    validRunningHubWorkflowId: (s) => String(s || '').trim(),
+    parseRunningHubEntryKey: (s) => {{
+        const text = String(s || '').trim();
+        const match = text.match(/^(app|workflow|model):(.+)$/);
+        return match ? {{kind:match[1], id:match[2]}} : null;
+    }},
+    runningHubEntryKey: (kind, id) => `${{kind}}:${{String(id || '').trim()}}`,
+    runningHubAllEntries: () => [
+        {{kind:'model', id:'rh-model', entry:{{model:'rh-model'}}}},
+        {{kind:'app', id:'rh-app', entry:{{appId:'rh-app'}}}},
+        {{kind:'workflow', id:'rh-wf', entry:{{workflowId:'rh-wf', title:'Test Workflow', fields:[]}}}},
+    ],
+    runningHubEntries: () => [],
+    runningHubEntryId: (e, kind) => String(typeof e === 'string' ? e : (e?.model || e?.id || e?.name || '')).trim(),
+    ensureRhNodeSelection: (n) => n,
+    applyRhEntrySelection: () => {{}},
+    rhSelectedEntryRef: () => null,
+    rhCurrentKind: () => 'workflow',
+    rhEntryOptions: () => '<option value="workflow:rh-wf">Test Workflow</option>',
+    rhPaymentOptions: () => '<option value="free">free</option>',
+    rhModelSettingsHtml: () => '',
+    bindRhModelControls: () => {{}},
+    renderRhPromptFields: () => {{}},
+    renderRhInputs: () => {{}},
+    rhMediaSources: () => ({{sources:[], refs:[], image:[], video:[], audio:[], prompt:''}}),
+    rhActiveFields: () => [],
+    rhFieldRole: () => 'setting',
+    rhParamKey: (n, f) => `${{n}}:${{f}}`,
+    rhExtractFieldOptions: () => [],
+    rhFieldValue: () => '',
+    rhDefaultValue: () => '',
+    rhRandomEnabled: () => false,
+    rhRandomActive: () => false,
+    toggleRhRandom: () => {{}},
+    currentRunningHubWorkflowEntry: (n) => ({{workflowId:'rh-wf', title:'Test Workflow', fields:[]}}),
+    rhEntryFields: () => [],
+    rhWorkflowJsonFromSources: (...srcs) => Object.assign({{}}, ...srcs.filter(Boolean)),
+    bindRhParamControls: () => {{}},
+    renderRhSettingField: () => '',
+    generatorSources: () => [], orderedSources: (n, s) => s, imageRefsOnly: (refs) => refs,
+    videoRefsOnly: (refs) => refs, audioRefsOnly: (refs) => refs,
+    mediaKindForRef: () => 'image',
+    nodeTitleForMedia: () => 'Image',
+    rhMediaPreviewHtml: () => '',
+    normalizeApiNodeSizeChoice: () => {{}},
+    defaultApiImageResolution: () => '1024x1024',
+    parseSizeValue: () => ({{width:'', height:''}}),
+    renderImageInputList: () => {{}},
+    render: () => {{}}, scheduleSave: () => {{}},
+    runCanvasGenerate: () => {{}}, refreshIcons: () => {{}},
+    renderPromptPreview: () => {{}}, bindCascadeButtons: () => {{}},
+    cascadeBtnHtml: () => '', retryBarHtml: () => '',
+    getApiProviders: () => [{{id:'runninghub', name:'RunningHub'}}],
+    getRunningHubWorkflowCache: () => ({{'rh-wf': {{title:'Cached Workflow'}}}}),
+}};
+const api = sandbox.window.WorkbenchCanvasClassicRunningHubControls.create(host);
+const out = {{
+    hasAddNode: typeof api.addNode === 'function',
+    hasRenderBody: typeof api.renderBody === 'function',
+    hasRenderParams: typeof api.renderParams === 'function',
+    hasGetProvider: typeof api.getProvider === 'function',
+    hasGetCurrentWorkflow: typeof api.getCurrentWorkflow === 'function',
+    hasGetCurrentWorkflowConfig: typeof api.getCurrentWorkflowConfig === 'function',
+    frozen: Object.isFrozen(api),
+    provider: api.getProvider() ? api.getProvider().id : null,
+    currentWf: api.getCurrentWorkflow({{node:{{workflowId:'rh-wf'}}}}) ? api.getCurrentWorkflow({{node:{{workflowId:'rh-wf'}}}}).title : null,
+    currentWfConfig: api.getCurrentWorkflowConfig({{node:{{workflowId:'rh-wf', rhMode:'workflow'}}}}) ? api.getCurrentWorkflowConfig({{node:{{workflowId:'rh-wf', rhMode:'workflow'}}}}).title : null,
+}};
+try {{
+  api.addNode({{point: {{x: 200, y: 300}}}});
+  out.addNodeRan = true;
+  out.addNodeType = captured.record?.type;
+  out.addNodeId = captured.record?.id;
+  out.addNodeRhMode = captured.record?.rhMode;
+  out.addNodeRhPayment = captured.record?.rhPayment;
+  out.addNodeInputs = Array.isArray(captured.record?.inputs);
+}} catch(e) {{ out.addNodeErr = String(e); }}
+try {{
+  const node = {{type: 'rh', workflowId: 'rh-wf', rhMode: 'workflow', rhParams: {{}}}};
+  api.renderBody({{node}});
+  out.renderBodyRan = true;
+}} catch(e) {{ out.renderBodyErr = String(e); }}
+try {{
+  const container = makeEl();
+  api.renderParams({{container, node: {{rhParams: {{}}}}, fields: [], media: {{refs:[]}}}});
+  out.renderParamsRan = true;
+  out.renderParamsEmpty = container.innerHTML.includes('rh-empty');
+}} catch(e) {{ out.renderParamsErr = String(e); }}
+try {{
+  const nonWorkflowHost = Object.assign({{}}, host, {{rhCurrentKind: () => 'app'}});
+  const nonWorkflowApi = sandbox.window.WorkbenchCanvasClassicRunningHubControls.create(nonWorkflowHost);
+  const cfg = nonWorkflowApi.getCurrentWorkflowConfig({{node:{{workflowId:'', rhMode:'app'}}}});
+  out.nonWorkflowConfig = cfg;
+}} catch(e) {{ out.nonWorkflowConfigErr = String(e); }}
+console.log(JSON.stringify(out));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        actual = json.loads(result.stdout)
+        self.assertTrue(actual["hasAddNode"], msg="seam must expose addNode")
+        self.assertTrue(actual["hasRenderBody"], msg="seam must expose renderBody")
+        self.assertTrue(actual["hasRenderParams"], msg="seam must expose renderParams")
+        self.assertTrue(actual["hasGetProvider"], msg="seam must expose getProvider")
+        self.assertTrue(actual["hasGetCurrentWorkflow"], msg="seam must expose getCurrentWorkflow")
+        self.assertTrue(actual["hasGetCurrentWorkflowConfig"], msg="seam must expose getCurrentWorkflowConfig")
+        self.assertTrue(actual["frozen"], msg="seam handle must be frozen")
+        self.assertEqual(actual.get("provider"), "runninghub", msg="getProvider must resolve runninghub from getApiProviders()")
+        self.assertEqual(actual.get("currentWf"), "Cached Workflow", msg="getCurrentWorkflow must read from getRunningHubWorkflowCache() closure")
+        self.assertEqual(actual.get("currentWfConfig"), "Test Workflow", msg="getCurrentWorkflowConfig must merge entry + cache title")
+        self.assertIsNone(actual.get("nonWorkflowConfig"), msg="getCurrentWorkflowConfig must return null when rhCurrentKind !== 'workflow'")
+        self.assertTrue(actual.get("addNodeRan"), msg=f"addNode must run on minimal mock host, got: {actual.get('addNodeErr')}")
+        self.assertTrue(actual.get("renderBodyRan"), msg=f"renderBody must run on minimal mock host, got: {actual.get('renderBodyErr')}")
+        self.assertTrue(actual.get("renderParamsRan"), msg=f"renderParams must run on minimal mock host, got: {actual.get('renderParamsErr')}")
+        self.assertEqual(actual.get("addNodeType"), "rh", msg="addNode must produce an 'rh' node record")
+        self.assertEqual(actual.get("addNodeId"), "rh-test", msg="addNode must use uid('rh')")
+        self.assertEqual(actual.get("addNodeRhMode"), "app", msg="addNode must default rhMode to 'app'")
+        self.assertEqual(actual.get("addNodeRhPayment"), "free", msg="addNode must default rhPayment to 'free'")
+        self.assertTrue(actual.get("addNodeInputs"), msg="addNode must initialize inputs to []")
+        self.assertTrue(actual.get("renderParamsEmpty"), msg="renderParams must render the rh-empty placeholder when no params")
+        # TypeError-on-missing-host: every one of the REQUIRED ops
+        # must be validated. Iterate each name in turn and confirm
+        # create() throws TypeError when it is removed.
+        REQUIRED = [
+            'document', 'escapeHtml', 'escapeAttr', 'tr',
+            'addNode', 'uid', 'defaultPoint',
+            'validRunningHubWorkflowId', 'parseRunningHubEntryKey',
+            'runningHubEntryKey', 'runningHubAllEntries', 'runningHubEntries',
+            'runningHubEntryId', 'ensureRhNodeSelection', 'applyRhEntrySelection',
+            'rhSelectedEntryRef', 'rhCurrentKind', 'rhEntryOptions',
+            'rhPaymentOptions', 'rhModelSettingsHtml', 'bindRhModelControls',
+            'renderRhPromptFields', 'renderRhInputs', 'rhMediaSources',
+            'rhActiveFields', 'rhFieldRole', 'rhParamKey', 'rhExtractFieldOptions',
+            'rhFieldValue', 'rhDefaultValue', 'rhRandomEnabled', 'rhRandomActive',
+            'toggleRhRandom', 'currentRunningHubWorkflowEntry', 'rhEntryFields',
+            'rhWorkflowJsonFromSources', 'bindRhParamControls',
+            'renderRhSettingField',
+            'generatorSources', 'orderedSources', 'imageRefsOnly', 'videoRefsOnly',
+            'audioRefsOnly', 'mediaKindForRef', 'nodeTitleForMedia',
+            'rhMediaPreviewHtml',
+            'normalizeApiNodeSizeChoice', 'defaultApiImageResolution',
+            'parseSizeValue', 'renderImageInputList',
+            'render', 'scheduleSave', 'runCanvasGenerate', 'refreshIcons',
+            'renderPromptPreview', 'bindCascadeButtons',
+            'cascadeBtnHtml', 'retryBarHtml',
+            'getApiProviders', 'getRunningHubWorkflowCache',
+        ]
+        self.assertEqual(len(REQUIRED), 60,
+            msg="REQUIRED_OPS count pin: Wave 7 seam module declares 60 host ops; if you add/remove an op, update both the seam and this test")
+        for missing in REQUIRED:
+            partial_script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+const fullHost = {{
+    document: {{createElement: () => ({{}})}}, escapeHtml: () => '', escapeAttr: () => '', tr: () => '',
+    addNode: (r) => r, uid: (p) => p, defaultPoint: () => ({{x:0,y:0}}),
+    validRunningHubWorkflowId: () => '', parseRunningHubEntryKey: () => null,
+    runningHubEntryKey: () => '', runningHubAllEntries: () => [], runningHubEntries: () => [],
+    runningHubEntryId: () => '', ensureRhNodeSelection: () => null, applyRhEntrySelection: () => {{}},
+    rhSelectedEntryRef: () => null, rhCurrentKind: () => 'app', rhEntryOptions: () => '',
+    rhPaymentOptions: () => '', rhModelSettingsHtml: () => '', bindRhModelControls: () => {{}},
+    renderRhPromptFields: () => {{}}, renderRhInputs: () => {{}}, rhMediaSources: () => ({{}}),
+    rhActiveFields: () => [], rhFieldRole: () => '', rhParamKey: () => '', rhExtractFieldOptions: () => [],
+    rhFieldValue: () => '', rhDefaultValue: () => '', rhRandomEnabled: () => false,
+    rhRandomActive: () => false, toggleRhRandom: () => {{}},
+    currentRunningHubWorkflowEntry: () => null, rhEntryFields: () => [],
+    rhWorkflowJsonFromSources: () => ({{}}), bindRhParamControls: () => {{}},
+    renderRhSettingField: () => '',
+    generatorSources: () => [], orderedSources: (n,s)=>s, imageRefsOnly: (refs)=>refs,
+    videoRefsOnly: (refs)=>refs, audioRefsOnly: (refs)=>refs,
+    mediaKindForRef: () => '', nodeTitleForMedia: () => '', rhMediaPreviewHtml: () => '',
+    normalizeApiNodeSizeChoice: () => {{}}, defaultApiImageResolution: () => '',
+    parseSizeValue: () => ({{width:'',height:''}}), renderImageInputList: () => {{}},
+    render: () => {{}}, scheduleSave: () => {{}}, runCanvasGenerate: () => {{}}, refreshIcons: () => {{}},
+    renderPromptPreview: () => {{}}, bindCascadeButtons: () => {{}},
+    cascadeBtnHtml: () => '', retryBarHtml: () => '',
+    getApiProviders: () => [], getRunningHubWorkflowCache: () => ({{}}),
+}};
+delete fullHost.{missing};
+try {{ sandbox.window.WorkbenchCanvasClassicRunningHubControls.create(fullHost); console.log('no-throw'); }}
+catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
+"""
+            partial_result = subprocess.run(["node", "-e", partial_script], check=True, text=True, capture_output=True)
+            self.assertIn("TypeError", partial_result.stdout,
+                msg=f"missing host.{missing} should throw TypeError, got: {partial_result.stdout}")
+        # Source-contract: canvas.html loads the seam before canvas.js.
+        page_source = (ROOT / "static/canvas.html").read_text(encoding="utf-8")
+        seam_href = "workbench/canvas/classic-runninghub-controls.js"
+        editor_href = "static/js/canvas.js"
+        self.assertLess(page_source.index(seam_href), page_source.index(editor_href),
+            msg="classic-runninghub-controls.js must load before canvas.js in canvas.html")
+        # Source-contract: canvas.js deleted the six local function
+        # definitions and the dispatcher routes every kind through the
+        # seam's render methods via `ensureClassicRunningHubControls()`.
+        editor_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        self.assertNotIn("function addRhNode", editor_source,
+            msg="canvas.js should no longer define function addRhNode")
+        self.assertNotIn("function renderRhBody", editor_source,
+            msg="canvas.js should no longer define function renderRhBody")
+        self.assertNotIn("function renderRhParams", editor_source,
+            msg="canvas.js should no longer define function renderRhParams")
+        self.assertNotIn("function runningHubProvider", editor_source,
+            msg="canvas.js should no longer define function runningHubProvider")
+        self.assertNotIn("function currentRunningHubWorkflow(node)", editor_source,
+            msg="canvas.js should no longer define function currentRunningHubWorkflow")
+        self.assertNotIn("function currentRunningHubWorkflowConfig", editor_source,
+            msg="canvas.js should no longer define function currentRunningHubWorkflowConfig")
+        self.assertIn("function ensureClassicRunningHubControls", editor_source,
+            msg="canvas.js must declare ensureClassicRunningHubControls next to ensureClassicComfyControls")
+        self.assertIn("ensureClassicRunningHubControls().addNode({point})", editor_source,
+            msg="canvas.js createNodeByType dispatcher must call ensureClassicRunningHubControls().addNode({point})")
+        self.assertIn("ensureClassicRunningHubControls().renderBody({node})", editor_source,
+            msg="canvas.js body dispatcher must call ensureClassicRunningHubControls().renderBody({node})")
+        self.assertIn("ensureClassicRunningHubControls().renderParams({", editor_source,
+            msg="canvas.js refreshGeneratorInputViews must call ensureClassicRunningHubControls().renderParams({...})")
+
+
+    def test_classic_editor_routes_minimax_timeline_player_generation_through_classic_minimax_controls_seam(self):
+        # Wave 8: minimax-controls COMPAT seam. Six page-side MiniMax
+        # functions (addMiniMaxNode / renderMiniMaxBody /
+        # bindMiniMaxWorkbench / miniMaxEngine / miniMaxPlayerHtml /
+        # miniMaxSyncPlayerDom) move behind a bounded compat seam.
+        # canvas.js no longer owns the factory / body / workbench
+        # binder / engine resolver / player builder / sync-player; the
+        # page only routes the kind branches through
+        # `ensureClassicMiniMaxControls().{addNode, renderBody,
+        # bindWorkbench, getEngine, buildPlayerHtml, syncPlayerDom}(...)`.
+        seam = ROOT / "static/js/workbench/canvas/classic-minimax-controls.js"
+        # Behavioral: drive the seam in a vm sandbox with a stubbed
+        # document. addNode must land at host.addNode with the right
+        # record shape; renderBody / bindWorkbench / getEngine /
+        # buildPlayerHtml / syncPlayerDom must run without throwing.
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+function makeEl() {{
+    const el = {{
+        tagName: 'DIV', className: '', innerHTML: '', value: '', disabled: false,
+        style: {{}},
+        options: [],
+        children: [],
+        onclick: null, oninput: null, onchange: null,
+        onmousedown: null, onblur: null,
+        classList: {{ contains: () => false, add: () => {{}}, remove: () => {{}} }},
+        dataset: {{}},
+        appendChild(c) {{ this.children.push(c); return c; }},
+        querySelector(sel) {{ return makeEl(); }},
+        querySelectorAll(sel) {{ return []; }},
+        forEach() {{}},
+        closest() {{ return null; }},
+        getBoundingClientRect() {{ return {{ left: 0, top: 0, width: 100, height: 10 }}; }},
+        dispatchEvent(ev) {{ return true; }},
+    }};
+    return el;
+}}
+const documentStub = {{ createElement: (tag) => makeEl() }};
+const sandbox = {{window: {{}}, document: documentStub}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+const captured = {{}};
+const host = {{
+    document: documentStub,
+    escapeHtml: (s) => String(s), escapeAttr: (s) => String(s),
+    addNode: (record) => {{ captured.record = record; return record; }},
+    uid: (prefix) => prefix + '-test',
+    defaultPoint: (dx, dy) => ({{x: dx, y: dy}}),
+    miniMaxSelectedSegment: () => null,
+    miniMaxTimelineTotal: () => 0,
+    miniMaxActiveSegmentAt: () => null,
+    miniMaxCompactSegments: () => {{}},
+    miniMaxExplicitRefsForSegment: () => [],
+    miniMaxRefsForNode: () => ({{refs: []}}),
+    miniMaxUniqueRefs: (refs) => refs || [],
+    miniMaxMediaHtml: () => '',
+    miniMaxSegmentRefsByKind: () => 0,
+    miniMaxStartPaneResize: () => {{}},
+    miniMaxApplyTimelineTime: () => {{}},
+    miniMaxDownloadItem: () => {{}},
+    miniMaxSetSegmentResult: () => {{}},
+    mediaKindForRef: () => 'image',
+    mediaKindForOutputItem: () => 'image',
+    canvasDisplayMediaUrl: (url) => url,
+    canvasPreviewImgHtml: () => '<img>',
+    canvasVideoPlayerHtml: () => '<video>',
+    canvasFileNameFromUrl: () => '',
+    pushUndo: () => {{}}, refreshNodes: () => {{}},
+    scheduleSave: () => {{}},
+    bindScrollableText: () => {{}}, bindCascadeButtons: () => {{}},
+    cascadeBtnHtml: () => '', retryBarHtml: () => '',
+    refreshIcons: () => {{}},
+    rhPaymentOptions: () => '<option value="free">free</option>',
+    runMiniMaxNode: () => {{}},
+    CANVAS_MINIMAX_REF_IMAGE_MAX: 9,
+    CANVAS_MINIMAX_REF_VIDEO_MAX: 3,
+    CANVAS_MINIMAX_REF_AUDIO_MAX: 3,
+    CANVAS_MINIMAX_DEFAULT_ENGINE: 'comfyui',
+    CANVAS_MINIMAX_RUNNINGHUB_WORKFLOW_ID: '2084608321469898754',
+}};
+const api = sandbox.window.WorkbenchCanvasClassicMiniMaxControls.create(host);
+const out = {{
+    hasAddNode: typeof api.addNode === 'function',
+    hasRenderBody: typeof api.renderBody === 'function',
+    hasBindWorkbench: typeof api.bindWorkbench === 'function',
+    hasGetEngine: typeof api.getEngine === 'function',
+    hasBuildPlayerHtml: typeof api.buildPlayerHtml === 'function',
+    hasSyncPlayerDom: typeof api.syncPlayerDom === 'function',
+    frozen: Object.isFrozen(api),
+    engineComfy: api.getEngine({{node:{{}}}}),
+    engineRh: api.getEngine({{node:{{minimaxEngine: 'runninghub'}}}}),
+    emptyPlayerHtml: api.buildPlayerHtml({{seg: null}}),
+}};
+try {{
+  api.addNode({{point: {{x: 100, y: 200}}}});
+  out.addNodeRan = true;
+  out.addNodeType = captured.record?.type;
+  out.addNodeId = captured.record?.id;
+  out.addNodeEngine = captured.record?.minimaxEngine;
+  out.addNodePayment = captured.record?.rhPayment;
+  out.addNodeW = captured.record?.w;
+  out.addNodeH = captured.record?.h;
+  out.addNodeWfId = captured.record?.minimaxRunningHubWorkflowId;
+  out.addNodeAspect = captured.record?.aspectRatio;
+  out.addNodeMegapixels = captured.record?.megapixels;
+  out.addNodeSegments = Array.isArray(captured.record?.segments);
+}} catch(e) {{ out.addNodeErr = String(e); }}
+try {{
+  const node = {{type: 'minimax', segments: [], materials: []}};
+  api.renderBody({{node}});
+  out.renderBodyRan = true;
+}} catch(e) {{ out.renderBodyErr = String(e); }}
+try {{
+  const wrap = makeEl();
+  api.bindWorkbench({{wrap, node: {{segments: [], materials: [], minimaxEngine: 'comfyui'}}}});
+  out.bindWorkbenchRan = true;
+}} catch(e) {{ out.bindWorkbenchErr = String(e); }}
+try {{
+  const wrap = makeEl();
+  api.syncPlayerDom({{wrap, seg: null, time: 0, play: false}});
+  out.syncPlayerDomRan = true;
+}} catch(e) {{ out.syncPlayerDomErr = String(e); }}
+console.log(JSON.stringify(out));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        actual = json.loads(result.stdout)
+        self.assertTrue(actual["hasAddNode"], msg="seam must expose addNode")
+        self.assertTrue(actual["hasRenderBody"], msg="seam must expose renderBody")
+        self.assertTrue(actual["hasBindWorkbench"], msg="seam must expose bindWorkbench")
+        self.assertTrue(actual["hasGetEngine"], msg="seam must expose getEngine")
+        self.assertTrue(actual["hasBuildPlayerHtml"], msg="seam must expose buildPlayerHtml")
+        self.assertTrue(actual["hasSyncPlayerDom"], msg="seam must expose syncPlayerDom")
+        self.assertTrue(actual["frozen"], msg="seam handle must be frozen")
+        self.assertEqual(actual.get("engineComfy"), "comfyui", msg="getEngine must default to CANVAS_MINIMAX_DEFAULT_ENGINE when minimaxEngine is not 'runninghub'")
+        self.assertEqual(actual.get("engineRh"), "runninghub", msg="getEngine must return 'runninghub' when minimaxEngine === 'runninghub'")
+        self.assertIn("minimax-player-empty", actual.get("emptyPlayerHtml", ""), msg="buildPlayerHtml must produce the empty-player placeholder when seg.result.url is absent")
+        self.assertTrue(actual.get("addNodeRan"), msg=f"addNode must run on minimal mock host, got: {actual.get('addNodeErr')}")
+        self.assertTrue(actual.get("renderBodyRan"), msg=f"renderBody must run on minimal mock host, got: {actual.get('renderBodyErr')}")
+        self.assertTrue(actual.get("bindWorkbenchRan"), msg=f"bindWorkbench must run on minimal mock host, got: {actual.get('bindWorkbenchErr')}")
+        self.assertTrue(actual.get("syncPlayerDomRan"), msg=f"syncPlayerDom must run on minimal mock host, got: {actual.get('syncPlayerDomErr')}")
+        self.assertEqual(actual.get("addNodeType"), "minimax", msg="addNode must produce a 'minimax' node record")
+        self.assertEqual(actual.get("addNodeId"), "mmx-test", msg="addNode must use uid('mmx')")
+        self.assertEqual(actual.get("addNodeEngine"), "comfyui", msg="addNode must default minimaxEngine to CANVAS_MINIMAX_DEFAULT_ENGINE")
+        self.assertEqual(actual.get("addNodePayment"), "free", msg="addNode must default rhPayment to 'free'")
+        self.assertEqual(actual.get("addNodeW"), 980, msg="addNode must default w to 980")
+        self.assertEqual(actual.get("addNodeH"), 720, msg="addNode must default h to 720")
+        self.assertEqual(actual.get("addNodeWfId"), "2084608321469898754", msg="addNode must default minimaxRunningHubWorkflowId to CANVAS_MINIMAX_RUNNINGHUB_WORKFLOW_ID")
+        self.assertEqual(actual.get("addNodeAspect"), "16:9", msg="addNode must default aspectRatio to '16:9'")
+        self.assertEqual(actual.get("addNodeMegapixels"), 0.4, msg="addNode must default megapixels to 0.4")
+        self.assertTrue(actual.get("addNodeSegments"), msg="addNode must initialize segments to []")
+        # TypeError-on-missing-host: every one of the REQUIRED ops
+        # must be validated. Iterate each name in turn and confirm
+        # create() throws TypeError when it is removed.
+        REQUIRED = [
+            'document', 'escapeHtml', 'escapeAttr',
+            'addNode', 'uid', 'defaultPoint',
+            'miniMaxSelectedSegment', 'miniMaxTimelineTotal',
+            'miniMaxActiveSegmentAt', 'miniMaxCompactSegments',
+            'miniMaxExplicitRefsForSegment', 'miniMaxRefsForNode',
+            'miniMaxUniqueRefs', 'miniMaxMediaHtml',
+            'miniMaxSegmentRefsByKind', 'miniMaxStartPaneResize',
+            'miniMaxApplyTimelineTime', 'miniMaxDownloadItem',
+            'miniMaxSetSegmentResult',
+            'mediaKindForRef', 'mediaKindForOutputItem',
+            'canvasDisplayMediaUrl', 'canvasPreviewImgHtml',
+            'canvasVideoPlayerHtml', 'canvasFileNameFromUrl',
+            'pushUndo', 'refreshNodes', 'scheduleSave',
+            'bindScrollableText', 'bindCascadeButtons',
+            'cascadeBtnHtml', 'retryBarHtml', 'refreshIcons',
+            'rhPaymentOptions', 'runMiniMaxNode',
+        ]
+        self.assertEqual(len(REQUIRED), 35,
+            msg="REQUIRED_OPS count pin: Wave 8 seam module declares 35 host ops; if you add/remove an op, update both the seam and this test")
+        for missing in REQUIRED:
+            partial_script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+const fullHost = {{
+    document: {{createElement: () => ({{}})}}, escapeHtml: () => '', escapeAttr: () => '',
+    addNode: (r) => r, uid: (p) => p, defaultPoint: () => ({{x:0,y:0}}),
+    miniMaxSelectedSegment: () => null, miniMaxTimelineTotal: () => 0,
+    miniMaxActiveSegmentAt: () => null, miniMaxCompactSegments: () => {{}},
+    miniMaxExplicitRefsForSegment: () => [], miniMaxRefsForNode: () => ({{refs:[]}}),
+    miniMaxUniqueRefs: (r) => r || [], miniMaxMediaHtml: () => '',
+    miniMaxSegmentRefsByKind: () => 0, miniMaxStartPaneResize: () => {{}},
+    miniMaxApplyTimelineTime: () => {{}}, miniMaxDownloadItem: () => {{}},
+    miniMaxSetSegmentResult: () => {{}},
+    mediaKindForRef: () => '', mediaKindForOutputItem: () => '',
+    canvasDisplayMediaUrl: (u) => u, canvasPreviewImgHtml: () => '',
+    canvasVideoPlayerHtml: () => '', canvasFileNameFromUrl: () => '',
+    pushUndo: () => {{}}, refreshNodes: () => {{}}, scheduleSave: () => {{}},
+    bindScrollableText: () => {{}}, bindCascadeButtons: () => {{}},
+    cascadeBtnHtml: () => '', retryBarHtml: () => '', refreshIcons: () => {{}},
+    rhPaymentOptions: () => '', runMiniMaxNode: () => {{}},
+}};
+delete fullHost.{missing};
+try {{ sandbox.window.WorkbenchCanvasClassicMiniMaxControls.create(fullHost); console.log('no-throw'); }}
+catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
+"""
+            partial_result = subprocess.run(["node", "-e", partial_script], check=True, text=True, capture_output=True)
+            self.assertIn("TypeError", partial_result.stdout,
+                msg=f"missing host.{missing} should throw TypeError, got: {partial_result.stdout}")
+        # Source-contract: canvas.html loads the seam before canvas.js.
+        page_source = (ROOT / "static/canvas.html").read_text(encoding="utf-8")
+        seam_href = "workbench/canvas/classic-minimax-controls.js"
+        editor_href = "static/js/canvas.js"
+        self.assertLess(page_source.index(seam_href), page_source.index(editor_href),
+            msg="classic-minimax-controls.js must load before canvas.js in canvas.html")
+        # Source-contract: canvas.js deleted the six local function
+        # definitions and the dispatcher routes every kind through the
+        # seam via `ensureClassicMiniMaxControls()`.
+        editor_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        self.assertNotIn("function addMiniMaxNode", editor_source,
+            msg="canvas.js should no longer define function addMiniMaxNode")
+        self.assertNotIn("function renderMiniMaxBody", editor_source,
+            msg="canvas.js should no longer define function renderMiniMaxBody")
+        self.assertNotIn("function bindMiniMaxWorkbench", editor_source,
+            msg="canvas.js should no longer define function bindMiniMaxWorkbench")
+        self.assertNotIn("function miniMaxEngine", editor_source,
+            msg="canvas.js should no longer define function miniMaxEngine")
+        self.assertNotIn("function miniMaxPlayerHtml", editor_source,
+            msg="canvas.js should no longer define function miniMaxPlayerHtml")
+        self.assertNotIn("function miniMaxSyncPlayerDom", editor_source,
+            msg="canvas.js should no longer define function miniMaxSyncPlayerDom")
+        self.assertIn("function ensureClassicMiniMaxControls", editor_source,
+            msg="canvas.js must declare ensureClassicMiniMaxControls next to ensureClassicRunningHubControls")
+        self.assertIn("ensureClassicMiniMaxControls().addNode({point})", editor_source,
+            msg="canvas.js createNodeByType dispatcher must call ensureClassicMiniMaxControls().addNode({point})")
+        self.assertIn("mmx.renderBody({node})", editor_source,
+            msg="canvas.js body dispatcher must call mmx.renderBody({node})")
+
+
+    def test_classic_editor_routes_ltx_director_timeline_relay_through_classic_ltx_controls_seam(self):
+        # Wave 9: ltx-controls COMPAT seam. Six page-side LTX
+        # functions (addLTXDirectorNode / renderLTXDirectorBody /
+        # destroyLTXEditor / ltxParseTimeline /
+        # ltxFlushTimelineToNode / ltxBuildContiguousRelay) move
+        # behind a bounded compat seam. canvas.js no longer owns the
+        # factory / body / editor cleanup / timeline parser / flush
+        # / contiguous-relay builder; the page only routes the kind
+        # branches through
+        # `ensureClassicLtxControls().{addNode, renderBody,
+        # destroyEditor, parseTimeline, flushTimelineToNode,
+        # buildContiguousRelay}(...)`.
+        seam = ROOT / "static/js/workbench/canvas/classic-ltx-controls.js"
+        # Behavioral: drive the seam in a vm sandbox with a stubbed
+        # document + window stub for `CanvasLTXTimelineEditor`.
+        # addNode must land at host.addNode with the right record
+        # shape; renderBody / destroyEditor / parseTimeline /
+        # flushTimelineToNode / buildContiguousRelay must run without
+        # throwing.
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+function makeEl() {{
+    const el = {{
+        tagName: 'DIV', className: '', innerHTML: '', value: '', disabled: false,
+        style: {{}},
+        options: [],
+        children: [],
+        onclick: null, oninput: null, onchange: null,
+        onmousedown: null, onblur: null,
+        classList: {{ contains: () => false, add: () => {{}}, remove: () => {{}} }},
+        dataset: {{}},
+        appendChild(c) {{ this.children.push(c); return c; }},
+        querySelector(sel) {{ return makeEl(); }},
+        querySelectorAll(sel) {{ return []; }},
+        forEach() {{}},
+        closest() {{ return null; }},
+        dispatchEvent(ev) {{ return true; }},
+    }};
+    return el;
+}}
+const documentStub = {{ createElement: (tag) => makeEl() }};
+const windowStub = {{}};
+const sandbox = {{window: windowStub, document: documentStub}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+const captured = {{}};
+const host = {{
+    document: documentStub,
+    escapeHtml: (s) => String(s), tr: (k) => k,
+    addNode: (record) => {{ captured.record = record; return record; }},
+    uid: (prefix) => prefix + '-test',
+    defaultPoint: (dx, dy) => ({{x: dx, y: dy}}),
+    ltxMigrateLegacySegments: () => {{}},
+    ltxDirectorSyncSeconds: () => {{}},
+    bindLTXParamsRow: () => {{}},
+    ltxSyncConnectedImagesToTimeline: () => {{}},
+    defaultLTXSegment: (start, length) => ({{id: 'ltxseg', start: start, length: length, prompt: '', type: 'text'}}),
+    orderedSources: (n, s) => s || [], generatorSources: () => [], imageRefsOnly: (refs) => refs || [],
+    renderPromptPreview: () => {{}}, renderComfyImages: () => {{}},
+    scheduleSave: () => {{}}, runCanvasGenerate: () => {{}},
+    bindCascadeButtons: () => {{}}, cascadeBtnHtml: () => '', retryBarHtml: () => '',
+    updateLTXNodeElementSize: () => {{}}, refreshGeometryAfterLayout: () => {{}},
+    windowObj: windowStub,
+}};
+const api = sandbox.window.WorkbenchCanvasClassicLtxControls.create(host);
+const out = {{
+    hasAddNode: typeof api.addNode === 'function',
+    hasRenderBody: typeof api.renderBody === 'function',
+    hasDestroyEditor: typeof api.destroyEditor === 'function',
+    hasParseTimeline: typeof api.parseTimeline === 'function',
+    hasFlushTimelineToNode: typeof api.flushTimelineToNode === 'function',
+    hasBuildContiguousRelay: typeof api.buildContiguousRelay === 'function',
+    frozen: Object.isFrozen(api),
+    emptyTimeline: api.parseTimeline({{node: null}}),
+    brokenTimeline: api.parseTimeline({{node: {{ltxTimelineData: 'not-json'}}}}),
+}};
+try {{
+  api.addNode({{point: {{x: 250, y: 350}}}});
+  out.addNodeRan = true;
+  out.addNodeType = captured.record?.type;
+  out.addNodeId = captured.record?.id;
+  out.addNodeW = captured.record?.w;
+  out.addNodeH = captured.record?.h;
+  out.addNodeFrameRate = captured.record?.frameRate;
+  out.addNodeDurationFrames = captured.record?.durationFrames;
+  out.addNodeDurationSeconds = captured.record?.durationSeconds;
+  out.addNodeDisplayMode = captured.record?.displayMode;
+  out.addNodeInputs = Array.isArray(captured.record?.inputs);
+}} catch(e) {{ out.addNodeErr = String(e); }}
+try {{
+  const node = {{type: 'ltxDirector', segments: [], materials: [], ltxTimelineData: JSON.stringify({{segments: [{{id:'s1', start:0, length:60, prompt:'a', type:'text'}}], audioSegments: []}}), durationFrames: 120}};
+  api.renderBody({{node}});
+  out.renderBodyRan = true;
+}} catch(e) {{ out.renderBodyErr = String(e); }}
+try {{
+  api.destroyEditor({{node: {{}}}});
+  api.destroyEditor({{node: {{}}}});
+  out.destroyEditorRan = true;
+}} catch(e) {{ out.destroyEditorErr = String(e); }}
+try {{
+  api.flushTimelineToNode({{node: null}});
+  out.flushTimelineToNodeRan = true;
+}} catch(e) {{ out.flushTimelineToNodeErr = String(e); }}
+try {{
+  const node = {{
+      durationFrames: 100, ltxTimelineData: JSON.stringify({{
+          segments: [
+              {{id:'s1', start:0, length:30, prompt:'alpha', type:'text'}},
+              {{id:'s2', start:40, length:30, prompt:'beta', type:'text'}},
+          ],
+          audioSegments: []
+      }})
+  }};
+  out.relay = api.buildContiguousRelay({{node, globalPromptFallback: 'global'}});
+}} catch(e) {{ out.relayErr = String(e); }}
+console.log(JSON.stringify(out));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        actual = json.loads(result.stdout)
+        self.assertTrue(actual["hasAddNode"], msg="seam must expose addNode")
+        self.assertTrue(actual["hasRenderBody"], msg="seam must expose renderBody")
+        self.assertTrue(actual["hasDestroyEditor"], msg="seam must expose destroyEditor")
+        self.assertTrue(actual["hasParseTimeline"], msg="seam must expose parseTimeline")
+        self.assertTrue(actual["hasFlushTimelineToNode"], msg="seam must expose flushTimelineToNode")
+        self.assertTrue(actual["hasBuildContiguousRelay"], msg="seam must expose buildContiguousRelay")
+        self.assertTrue(actual["frozen"], msg="seam handle must be frozen")
+        self.assertEqual(actual.get("emptyTimeline"), {"segments": [], "audioSegments": []}, msg="parseTimeline must return the empty default for null/missing node")
+        self.assertEqual(actual.get("brokenTimeline"), {"segments": [], "audioSegments": []}, msg="parseTimeline must catch JSON.parse errors and return the empty default")
+        self.assertTrue(actual.get("addNodeRan"), msg=f"addNode must run on minimal mock host, got: {actual.get('addNodeErr')}")
+        self.assertTrue(actual.get("renderBodyRan"), msg=f"renderBody must run on minimal mock host, got: {actual.get('renderBodyErr')}")
+        self.assertTrue(actual.get("destroyEditorRan"), msg=f"destroyEditor must run on minimal mock host, got: {actual.get('destroyEditorErr')}")
+        self.assertTrue(actual.get("flushTimelineToNodeRan"), msg=f"flushTimelineToNode must run on minimal mock host, got: {actual.get('flushTimelineToNodeErr')}")
+        self.assertEqual(actual.get("addNodeType"), "ltxDirector", msg="addNode must produce a 'ltxDirector' node record")
+        self.assertEqual(actual.get("addNodeId"), "ltxdir-test", msg="addNode must use uid('ltxdir')")
+        self.assertEqual(actual.get("addNodeW"), 1000, msg="addNode must default w to 1000")
+        self.assertEqual(actual.get("addNodeH"), 800, msg="addNode must default h to 800")
+        self.assertEqual(actual.get("addNodeFrameRate"), 24, msg="addNode must default frameRate to 24")
+        self.assertEqual(actual.get("addNodeDurationFrames"), 120, msg="addNode must default durationFrames to 120")
+        self.assertEqual(actual.get("addNodeDurationSeconds"), 5, msg="addNode must default durationSeconds to 5")
+        self.assertEqual(actual.get("addNodeDisplayMode"), "seconds", msg="addNode must default displayMode to 'seconds'")
+        self.assertTrue(actual.get("addNodeInputs"), msg="addNode must initialize inputs to []")
+        # The relay must include the two segment prompts joined by ' | '
+        # and the segment_lengths must include a gap-filler for the 10-frame gap between segments.
+        relay = actual.get("relay", {})
+        self.assertIsNotNone(relay, msg="buildContiguousRelay must produce a relay")
+        self.assertIn("alpha", relay.get("local_prompts", ""), msg="relay.local_prompts must include the alpha segment prompt")
+        self.assertIn("beta", relay.get("local_prompts", ""), msg="relay.local_prompts must include the beta segment prompt")
+        # segment_lengths: alpha=30 + 10-gap → first slot 40,
+        # beta=30 + 30-tail (currentCursor=70 < durationFrames=100) → second slot 60
+        self.assertEqual(relay.get("segment_lengths", ""), "40,60", msg="relay.segment_lengths must include the 10-frame gap appended to the first segment and the 30-frame tail appended to the last")
+        # TypeError-on-missing-host: every one of the REQUIRED ops
+        # must be validated. Iterate each name in turn and confirm
+        # create() throws TypeError when it is removed.
+        REQUIRED = [
+            'document', 'escapeHtml', 'tr',
+            'addNode', 'uid', 'defaultPoint',
+            'ltxMigrateLegacySegments', 'ltxDirectorSyncSeconds',
+            'bindLTXParamsRow', 'ltxSyncConnectedImagesToTimeline',
+            'defaultLTXSegment',
+            'orderedSources', 'generatorSources', 'imageRefsOnly',
+            'renderPromptPreview', 'renderComfyImages',
+            'scheduleSave', 'runCanvasGenerate',
+            'bindCascadeButtons', 'cascadeBtnHtml', 'retryBarHtml',
+            'updateLTXNodeElementSize', 'refreshGeometryAfterLayout',
+            'windowObj',
+        ]
+        self.assertEqual(len(REQUIRED), 24,
+            msg="REQUIRED_OPS count pin: Wave 9 seam module declares 24 host ops; if you add/remove an op, update both the seam and this test")
+        for missing in REQUIRED:
+            partial_script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+const fullHost = {{
+    document: {{createElement: () => ({{}})}}, escapeHtml: () => '', tr: () => '',
+    addNode: (r) => r, uid: (p) => p, defaultPoint: () => ({{x:0,y:0}}),
+    ltxMigrateLegacySegments: () => {{}}, ltxDirectorSyncSeconds: () => {{}},
+    bindLTXParamsRow: () => {{}}, ltxSyncConnectedImagesToTimeline: () => {{}},
+    defaultLTXSegment: () => ({{}}),
+    orderedSources: (n,s)=>s || [], generatorSources: () => [], imageRefsOnly: (r) => r || [],
+    renderPromptPreview: () => {{}}, renderComfyImages: () => {{}},
+    scheduleSave: () => {{}}, runCanvasGenerate: () => {{}},
+    bindCascadeButtons: () => {{}}, cascadeBtnHtml: () => '', retryBarHtml: () => '',
+    updateLTXNodeElementSize: () => {{}}, refreshGeometryAfterLayout: () => {{}},
+    windowObj: {{}},
+}};
+delete fullHost.{missing};
+try {{ sandbox.window.WorkbenchCanvasClassicLtxControls.create(fullHost); console.log('no-throw'); }}
+catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
+"""
+            partial_result = subprocess.run(["node", "-e", partial_script], check=True, text=True, capture_output=True)
+            self.assertIn("TypeError", partial_result.stdout,
+                msg=f"missing host.{missing} should throw TypeError, got: {partial_result.stdout}")
+        # Source-contract: canvas.html loads the seam before canvas.js.
+        page_source = (ROOT / "static/canvas.html").read_text(encoding="utf-8")
+        seam_href = "workbench/canvas/classic-ltx-controls.js"
+        editor_href = "static/js/canvas.js"
+        self.assertLess(page_source.index(seam_href), page_source.index(editor_href),
+            msg="classic-ltx-controls.js must load before canvas.js in canvas.html")
+        # Source-contract: canvas.js deleted the six local function
+        # definitions and the dispatcher routes every kind through the
+        # seam via `ensureClassicLtxControls()`.
+        editor_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        self.assertNotIn("function addLTXDirectorNode", editor_source,
+            msg="canvas.js should no longer define function addLTXDirectorNode")
+        self.assertNotIn("function renderLTXDirectorBody", editor_source,
+            msg="canvas.js should no longer define function renderLTXDirectorBody")
+        self.assertNotIn("function destroyLTXEditor", editor_source,
+            msg="canvas.js should no longer define function destroyLTXEditor")
+        self.assertNotIn("function ltxParseTimeline", editor_source,
+            msg="canvas.js should no longer define function ltxParseTimeline")
+        self.assertNotIn("function ltxFlushTimelineToNode", editor_source,
+            msg="canvas.js should no longer define function ltxFlushTimelineToNode")
+        self.assertNotIn("function ltxBuildContiguousRelay", editor_source,
+            msg="canvas.js should no longer define function ltxBuildContiguousRelay")
+        self.assertIn("function ensureClassicLtxControls", editor_source,
+            msg="canvas.js must declare ensureClassicLtxControls next to ensureClassicMiniMaxControls")
+        self.assertIn("ensureClassicLtxControls().addNode({point})", editor_source,
+            msg="canvas.js createNodeByType dispatcher must call ensureClassicLtxControls().addNode({point})")
+        self.assertIn("ltx.renderBody({node})", editor_source,
+            msg="canvas.js body dispatcher must call ltx.renderBody({node})")
+        self.assertIn("ensureClassicLtxControls().destroyEditor({node:", editor_source,
+            msg="canvas.js onCardDestroy must call ensureClassicLtxControls().destroyEditor({node: ...})")
+
+
+    def test_classic_editor_routes_video_card_body_through_classic_video_card_body_seam(self):
+        # Wave 10: video-card-body COMPAT seam. One page-side video
+        # body function (`renderVideoBody`, ~135-line body renderer for
+        # the `video`-type generator card) moves behind a bounded
+        # compat seam. The factory half of video-node creation
+        # already moved to the unified `classic-node-factories.js`
+        # host seam in Wave 3; Wave 10 closes the COMPAT body half.
+        seam = ROOT / "static/js/workbench/canvas/classic-video-card-body.js"
+        editor = ROOT / "static/js/canvas.js"
+        canvas_html = ROOT / "static/canvas.html"
+        self.assertTrue(seam.exists(), msg="classic-video-card-body.js seam module must exist for Wave 10")
+        self.assertTrue(editor.exists(), msg="canvas.js editor must exist")
+        seam_source = seam.read_text(encoding="utf-8")
+        editor_source = editor.read_text(encoding="utf-8")
+        html_source = canvas_html.read_text(encoding="utf-8")
+
+        # The seam must expose the host factory with the documented single method.
+        self.assertIn("WorkbenchCanvasClassicVideoCardBody", seam_source,
+            msg="classic-video-card-body.js must expose WorkbenchCanvasClassicVideoCardBody")
+        self.assertIn("renderBody: function (arg) { return renderVideoBody(arg.node); }", seam_source,
+            msg="classic-video-card-body.js seam handle must wrap renderVideoBody as renderBody({node})")
+
+        # Drive the seam in a Node vm sandbox and assert renderBody
+        # produces a non-empty body element on the documented minimal
+        # host. Assert the body element uses the documented
+        # 'generator-body' className and contains the documented
+        # 'video-input-head' marker section.
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+function makeEl() {{
+    const el = {{
+        tagName: 'DIV', className: '', innerHTML: '', value: '', disabled: false,
+        style: {{}},
+        options: [],
+        children: [],
+        onclick: null, oninput: null, onchange: null, onblur: null,
+        onmousedown: null,
+        classList: {{ contains: () => false, add: () => {{}}, remove: () => {{}} }},
+        dataset: {{}},
+        appendChild(c) {{ this.children.push(c); return c; }},
+        querySelector(sel) {{ return makeEl(); }},
+        querySelectorAll(sel) {{ return []; }},
+        forEach() {{}},
+    }};
+    return el;
+}}
+const documentStub = {{ createElement: (tag) => makeEl() }};
+const windowStub = {{}};
+const sandbox = {{window: windowStub, document: documentStub}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+const captured = {{}};
+const host = {{
+    document: documentStub,
+    tr: (k) => k,
+    generatorSources: (n) => [], orderedSources: (n, s) => s || [],
+    mediaKindForRef: (ref) => 'image',
+    sanitizeVideoNodeProviderModel: () => {{}},
+    videoProviderOptions: (sel) => '<option>x</option>',
+    videoModelOptions: (model, provider) => '<option>x</option>',
+    providerVideoModels: (provider) => ['veo3-fast'],
+    renderVideoImageInputs: () => {{}},
+    renderPromptPreview: () => {{}},
+    scheduleSave: () => {{}},
+    runCanvasGenerate: () => {{}},
+    bindCascadeButtons: () => {{}},
+    cascadeBtnHtml: () => '',
+    retryBarHtml: () => '',
+    render: () => {{}},
+    showErrorModal: () => {{}},
+    uploadCanvasVideosToCloud: () => {{}},
+    setCanvasManualVideoUrl: () => {{}},
+    refreshIcons: () => {{}},
+}};
+const api = sandbox.window.WorkbenchCanvasClassicVideoCardBody.create(host);
+const node = {{
+    type: 'video',
+    id: 'video-test',
+    apiProvider: 'veo3', model: 'veo3-fast',
+    duration: 5, aspectRatio: '16:9', resolution: '',
+    enhancePrompt: true, enableUpsample: false,
+    watermark: false, cameraFixed: false,
+    generateAudio: false, multimodal: false, useFrameRoles: false,
+    running: false, inputs: [],
+}};
+const out = {{}};
+try {{
+  const body = api.renderBody({{node}});
+  out.renderBodyRan = true;
+  out.bodyClass = body && body.className;
+  out.bodyHasMarker = body && (body.innerHTML || '').indexOf('video-input-head') !== -1;
+}} catch(e) {{ out.renderBodyErr = String(e); }}
+out.hasRenderBody = typeof api.renderBody === 'function';
+out.frozen = Object.isFrozen(api);
+console.log(JSON.stringify(out));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        actual = json.loads(result.stdout)
+        self.assertTrue(actual["hasRenderBody"], msg="seam must expose renderBody")
+        self.assertTrue(actual["frozen"], msg="seam handle must be frozen")
+        self.assertTrue(actual.get("renderBodyRan"), msg=f"renderBody must run on minimal mock host, got: {actual.get('renderBodyErr')}")
+        self.assertEqual(actual.get("bodyClass"), "generator-body",
+            msg="rendered body must use the documented 'generator-body' className")
+        self.assertTrue(actual.get("bodyHasMarker"),
+            msg="rendered body must contain the documented 'video-input-head' marker section")
+
+        # Required-ops count pin (seam must keep this synchronized with the test).
+        required_match = re.search(r"REQUIRED_OPS\s*=\s*\[([^\]]*)\]", seam_source, re.DOTALL)
+        self.assertIsNotNone(required_match, msg="seam module must declare REQUIRED_OPS array")
+        required = re.findall(r"'([A-Za-z_][A-Za-z0-9_]*)'", required_match.group(1))
+        self.assertEqual(len(required), 21,
+            msg="REQUIRED_OPS count pin: Wave 10 seam module declares 21 host ops; if you add/remove an op, update both the seam and this test")
+
+        # TypeError-on-missing-host: every one of the REQUIRED ops
+        # must be validated. Iterate each name in turn and confirm
+        # create() throws TypeError when it is removed.
+        for missing in required:
+            partial_script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}, document: {{createElement: () => ({{}})}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+const fullHost = {{
+    document: {{createElement: () => ({{}})}}, tr: () => '',
+    generatorSources: () => [], orderedSources: (n, s) => s || [],
+    mediaKindForRef: () => 'image', sanitizeVideoNodeProviderModel: () => {{}},
+    videoProviderOptions: () => '', videoModelOptions: () => '',
+    providerVideoModels: () => [], renderVideoImageInputs: () => {{}},
+    renderPromptPreview: () => {{}},
+    scheduleSave: () => {{}}, runCanvasGenerate: () => {{}},
+    bindCascadeButtons: () => {{}}, cascadeBtnHtml: () => '', retryBarHtml: () => '',
+    render: () => {{}}, showErrorModal: () => {{}},
+    uploadCanvasVideosToCloud: () => {{}}, setCanvasManualVideoUrl: () => {{}},
+    refreshIcons: () => {{}},
+}};
+delete fullHost.{missing};
+try {{ sandbox.window.WorkbenchCanvasClassicVideoCardBody.create(fullHost); console.log('no-throw'); }}
+catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
+"""
+            partial_result = subprocess.run(["node", "-e", partial_script], check=True, text=True, capture_output=True)
+            self.assertIn("TypeError", partial_result.stdout,
+                msg=f"missing host.{missing} should throw TypeError, got: {partial_result.stdout}")
+
+        # Source-contract: canvas.html loads the seam before canvas.js.
+        seam_href = "workbench/canvas/classic-video-card-body.js"
+        editor_href = "static/js/canvas.js"
+        self.assertLess(html_source.index(seam_href), html_source.index(editor_href),
+            msg="classic-video-card-body.js must load before canvas.js in canvas.html")
+        # The seam must also load after ltx-controls to maintain the
+        # documented Wave 5-10 load order.
+        ltx_href = "workbench/canvas/classic-ltx-controls.js"
+        self.assertLess(html_source.index(ltx_href), html_source.index(seam_href),
+            msg="classic-ltx-controls.js must load BEFORE classic-video-card-body.js in canvas.html")
+
+        # Source-contract: canvas.js deleted the local function and the
+        # body dispatcher routes through ensureClassicVideoCardBody().
+        self.assertNotIn("function renderVideoBody", editor_source,
+            msg="canvas.js should no longer define function renderVideoBody")
+        self.assertIn("function ensureClassicVideoCardBody", editor_source,
+            msg="canvas.js must declare ensureClassicVideoCardBody next to ensureClassicLtxControls")
+        self.assertIn("videoBody.renderBody({node})", editor_source,
+            msg="canvas.js body dispatcher must call videoBody.renderBody({node})")
+
+    def test_classic_seam_factories_inject_every_required_host_op(self):
+        """Regression guard for the Wave 7-14 reapplies.
+
+        Each seam module declares a REQUIRED_OPS array and its create()
+        throws TypeError when any of those ops is missing from the host
+        object. The per-wave focused tests drive the seams with a
+        hand-built sandbox host, so they never execute canvas.js's
+        ensureClassic*() factories -- a factory that forgets to pass an
+        op still passes those tests but throws the moment the page
+        builds the seam for real. This test statically reconciles every
+        factory's injected keys against its seam's REQUIRED_OPS so that
+        class of breakage fails here instead of at runtime.
+        """
+        import re as _re
+        editor = ROOT / "static/js/canvas.js"
+        editor_source = editor.read_text(encoding="utf-8")
+
+        declared = set(_re.findall(r"^(?:async\s+)?function\s+([A-Za-z_][A-Za-z0-9_]*)",
+                                   editor_source, _re.MULTILINE))
+        declared |= set(_re.findall(r"^(?:const|let|var)\s+([A-Za-z_][A-Za-z0-9_]*)",
+                                    editor_source, _re.MULTILINE))
+        # Browser/global identifiers that resolve without a canvas.js def.
+        globals_ok = {"document", "window", "tr", "alert", "confirm", "prompt"}
+
+        seams = {
+            "classic-card-body-renderer.js": "ensureClassicCardBodyRenderer",
+            "classic-comfy-controls.js": "ensureClassicComfyControls",
+            "classic-runninghub-controls.js": "ensureClassicRunningHubControls",
+            "classic-minimax-controls.js": "ensureClassicMiniMaxControls",
+            "classic-ltx-controls.js": "ensureClassicLtxControls",
+            "classic-video-card-body.js": "ensureClassicVideoCardBody",
+            "classic-video-provider-params.js": "ensureClassicVideoProviderParams",
+            "classic-output-grid.js": "ensureClassicOutputGrid",
+            "classic-generation-log.js": "ensureClassicGenerationLog",
+            "classic-cascade-orchestrator.js": "ensureClassicCascadeOrchestrator",
+        }
+
+        for seam_name, factory_name in seams.items():
+            seam_path = ROOT / "static/js/workbench/canvas" / seam_name
+            self.assertTrue(seam_path.exists(), msg=f"{seam_name} seam module must exist")
+            seam_source = seam_path.read_text(encoding="utf-8")
+            ops_match = _re.search(r"var REQUIRED_OPS\s*=\s*\[(.*?)\]\s*;", seam_source, _re.DOTALL)
+            self.assertIsNotNone(ops_match, msg=f"{seam_name} must declare a REQUIRED_OPS array")
+            required = _re.findall(r"'([A-Za-z_][A-Za-z0-9_]*)'", ops_match.group(1))
+            self.assertTrue(required, msg=f"{seam_name} REQUIRED_OPS must not be empty")
+
+            factory = _re.search(
+                r"^function " + _re.escape(factory_name) + r"\(\)\{.*?^\}",
+                editor_source, _re.DOTALL | _re.MULTILINE)
+            self.assertIsNotNone(factory,
+                msg=f"canvas.js must declare {factory_name}()")
+            body = factory.group(0)
+            for op in required:
+                self.assertRegex(body, r"[,{]\s*" + _re.escape(op) + r"\s*[,:}]",
+                    msg=(f"{factory_name}() must inject host op '{op}' required by "
+                         f"{seam_name}; create() throws TypeError without it"))
+                # The op must resolve to something real on the page — but only
+                # when the factory uses the SHORTHAND `op,` form. The
+                # `key: <expr>` form supplies an inline value and does not need
+                # a page-side identifier to resolve at factory time.
+                if op not in globals_ok:
+                    uses_shorthand = _re.search(
+                        r"[,{]\s*" + _re.escape(op) + r"\s*[,}]", body) is not None
+                    if uses_shorthand:
+                        self.assertTrue(op in declared,
+                            msg=(f"host op '{op}' passed by {factory_name}() as a "
+                                 f"shorthand has no page-side definition in canvas.js"))
+
+    def test_classic_page_side_seam_calls_have_no_duplicated_receiver(self):
+        """Guard the duplicate-receiver bug class.
+
+        A mechanical rewrite once produced calls shaped like
+        `seam.ensureClassicX().method()` and
+        `ensureClassicY().ensureClassicY().method()`. Both parse fine and
+        both throw TypeError at runtime, because the first call already
+        returns the handle. Neither is caught by syntax checks or by the
+        vm-sandbox seam tests, so pin it statically here.
+        """
+        import re as _re
+        editor_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        bad = [line.strip() for line in editor_source.splitlines()
+               if _re.search(r"\.ensureClassic[A-Z][A-Za-z]*\(\)\s*\.\s*ensureClassic", line)]
+        self.assertEqual(bad, [],
+            msg=f"canvas.js has duplicated ensureClassic receivers (runtime TypeError): {bad}")
+        nested = [line.strip() for line in editor_source.splitlines()
+                  if _re.search(r"\{\s*(\w+)\s*:\s*\{\s*\1\s*:", line)]
+        self.assertEqual(nested, [],
+            msg=f"canvas.js has duplicated nested object keys (runtime bug): {nested}")
+
+    def test_classic_video_provider_params_vpp_handle_is_an_object_not_a_function(self):
+        """The `vpp` handle is consumed by property access.
+
+        The page-side thin wrappers call `vpp.resolveVideoProviderId({id: ...})`.
+        That only works when `vpp` is an object exposing those methods -- when
+        it was declared as `function vpp(){ ... }` every call threw
+        `TypeError: vpp.resolveVideoProviderId is not a function` on the very
+        first video-node body render. Pin the object form.
+        """
+        import re as _re
+        editor_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        self.assertRegex(editor_source, r"const vpp = \{",
+            msg="canvas.js must declare `const vpp = {` as an object handle, not a function")
+        self.assertNotRegex(editor_source, r"function vpp\s*\(",
+            msg="canvas.js must not declare vpp as a function; wrappers use property access")
+        for method in ("videoApiProviders", "resolveVideoProviderId", "providerVideoModels"):
+            self.assertRegex(editor_source, r"vpp\." + method + r"\(",
+                msg=f"canvas.js wrappers must call vpp.{method}(...)")
+        # No call-form leftovers: `vpp()` on an object throws TypeError.
+        self.assertNotRegex(editor_source, r"\bvpp\(\)",
+            msg="canvas.js must not call vpp(); vpp is an object handle")
+
+    def test_classic_editor_routes_cascade_orchestrator_through_classic_cascade_orchestrator_seam(self):
+        seam = ROOT / "static/js/workbench/canvas/classic-cascade-orchestrator.js"
+        editor = ROOT / "static/js/canvas.js"
+        canvas_html = ROOT / "static/canvas.html"
+        self.assertTrue(seam.exists(), msg="classic-cascade-orchestrator.js seam module must exist for Wave 14")
+        self.assertTrue(editor.exists(), msg="canvas.js editor must exist")
+        seam_source = seam.read_text(encoding="utf-8")
+        editor_source = editor.read_text(encoding="utf-8")
+        html_source = canvas_html.read_text(encoding="utf-8")
+
+        # The seam must expose the host factory.
+        self.assertIn("WorkbenchCanvasClassicCascadeOrchestrator", seam_source,
+            msg="classic-cascade-orchestrator.js must expose WorkbenchCanvasClassicCascadeOrchestrator")
+
+        # Drive the seam in a node VM sandbox to verify required host ops + happy paths.
+        seam_path = str(seam).replace("\\", "/")
+        # Use string substitution (not f-string) to avoid brace escaping issues.
+        seam_path_json = json.dumps(seam_path)
+        script = """
+const fs = require('fs');
+const vm = require('vm');
+const seamSource = fs.readFileSync(__SEAM_PATH__, 'utf8');
+
+const sandbox = {window: {}, console: {log: () => {}}};
+vm.runInNewContext(seamSource, sandbox);
+
+// Build a minimal host with all REQUIRED ops populated, then create the seam.
+const nodes = [];
+const connections = [];
+const calls = {refresh: 0, alerts: []};
+const host = {
+    tr: (k) => k || '',
+    langIsEn: () => false,
+    nowMs: () => 1234567,
+    uid: (prefix) => prefix + '-test',
+    escapeHtml: (s) => String(s),
+    escapeAttr: (s) => String(s),
+    loopCount: (node) => node && Number(node.count) || 1,
+    getNodes: () => nodes,
+    getConnections: () => connections,
+    refreshNodes: (ids) => { calls.refresh += 1; },
+    runGenerator: () => Promise.resolve(), runMidjourneyNode: () => Promise.resolve(),
+    runMsGenNode: () => Promise.resolve(), runComfyNode: () => Promise.resolve(),
+    runLTXDirectorNode: () => Promise.resolve(), runLLMNode: () => Promise.resolve(),
+    runVideoNode: () => Promise.resolve(), runRhNode: () => Promise.resolve(),
+    runMiniMaxNode: () => Promise.resolve(),
+    setStatus: () => {},
+    showErrorModal: () => {},
+    alert: (msg) => { calls.alerts.push(msg); },
+    computeCascadeOrderTarget: ({targetId}) => ['upstream-1', targetId],
+    comfyBackendCount: 1,
+    setLoopContextMirror: () => {},
+};
+const api = sandbox.window.WorkbenchCanvasClassicCascadeOrchestrator.create(host);
+const out = {};
+out.hasFactory = typeof sandbox.window.WorkbenchCanvasClassicCascadeOrchestrator.create === 'function';
+out.frozen = Object.isFrozen(api);
+out.requiredOpsCount = sandbox.window.WorkbenchCanvasClassicCascadeOrchestrator.REQUIRED_OPS.length;
+out.hasBeginCascade = typeof api.beginCascade === 'function';
+out.hasCancelCascade = typeof api.cancelCascade === 'function';
+out.hasRunNodeCascade = typeof api.runNodeCascade === 'function';
+out.hasRetryNodeAndDownstream = typeof api.retryNodeAndDownstream === 'function';
+out.hasBindCascadeButtons = typeof api.bindCascadeButtons === 'function';
+out.hasCascadeAbortError = typeof api.cascadeAbortError === 'function';
+out.hasEnsureCascadeActive = typeof api.ensureCascadeActive === 'function';
+
+// cascadeAbortError: returns an Error with .isCascadeAbort.
+try {
+  const err = api.cascadeAbortError({message: '已停止一键运行'});
+  out.abortErrIsError = err instanceof Error;
+  out.abortErrMessage = err.message;
+  out.abortErrIsCascadeAbort = err.isCascadeAbort === true;
+} catch(e) { out.abortErr = String(e); }
+
+// cascadeStopMessage: reason wins; otherwise i18n default.
+try {
+  const m = api.cascadeStopMessage({reason: '用户停止'});
+  out.stopMessageWithReason = m;
+  const def = api.cascadeStopMessage({reason: ''});
+  out.stopMessageDefault = def;
+} catch(e) { out.stopMessageErr = String(e); }
+
+// isCascadeAbortError: detect abort.
+try {
+  const abortErr = api.cascadeAbortError({message: 'm'});
+  out.detectsAbort = api.isCascadeAbortError(abortErr);
+  out.detectsRegular = api.isCascadeAbortError(new Error('nope')) === false;
+} catch(e) { out.detectErr = String(e); }
+
+// beginCascade: registers the target in cascadeRunningIds and returns a context.
+try {
+  const ctx = api.beginCascade({targetId: 'n1', order: ['a', 'b'], options: {serial: true}});
+  out.ctxReturned = ctx && typeof ctx === 'object';
+  out.ctxOrderJoin = ctx && Array.isArray(ctx.order) ? ctx.order.join(',') : '';
+  out.ctxOrderCopied = out.ctxOrderJoin === 'a,b';
+  out.ctxMode = ctx && ctx.mode;
+  out.ctxHasControllers = ctx && ctx.controllers && ctx.controllers.size === 0;
+  out.isActive = api.isCascadeActive('n1');
+  out.isStopping = api.isCascadeStopping('n1') === false;
+} catch(e) { out.beginErr = String(e); }
+
+// requestCascadeStop: marks the target as stopping.
+try {
+  api.requestCascadeStop({targetId: 'n1', reason: '用户取消'});
+  out.stopping = api.isCascadeStopping('n1');
+} catch(e) { out.stopErr = String(e); }
+
+// ensureCascadeActive on stopping ctx must throw.
+try {
+  let threw = false;
+  try { api.ensureCascadeActive({targetId: 'n1'}); } catch(err) { threw = api.isCascadeAbortError(err); }
+  out.activeThrowsOnStopping = threw;
+} catch(e) { out.activeThrowsErr = String(e); }
+
+// finalizeCascade clears state when targetId matches.
+try {
+  api.finalizeCascade({targetId: 'n1', state: 'stopped', options: {order: ['a', 'b']}});
+  out.afterFinalizeActive = api.isCascadeActive('n1') === false;
+} catch(e) { out.finalizeErr = String(e); }
+
+// computeCascadeOrder: when nodes+connections are empty returns []; otherwise walks upstream.
+try {
+  nodes.push({id: 'root', type: 'generator'});
+  nodes.push({id: 'upstream-1', type: 'video'});
+  connections.push({from: 'upstream-1', to: 'root'});
+  out.orderRoot = api.computeCascadeOrder({targetId: 'root'}).join(',');
+} catch(e) { out.orderErr = String(e); }
+
+// cancelCascade registers a stop intent for the given nodeId.
+try {
+  api.beginCascade({targetId: 'n2', order: [], options: {serial: true}});
+  api.cancelCascade({nodeId: 'n2'});
+  out.cancelMarksStopping = api.isCascadeStopping('n2');
+} catch(e) { out.cancelErr = String(e); }
+
+// bindCascadeButtons: when given a stub wrap with querySelectorAll returning arrays, must
+// assign onmousedown + onclick handlers to each button without throwing.
+try {
+  const wrap = {
+    querySelectorAll: (sel) => {
+      const el = {onmousedown: null, onclick: null};
+      return [el];
+    },
+  };
+  api.bindCascadeButtons({wrap: wrap, nodeId: 'n1'});
+  out.bindNoThrow = true;
+} catch(e) { out.bindErr = String(e); }
+
+// resetCascadeRuntimeState clears everything.
+try {
+  api.beginCascade({targetId: 'n3', order: [], options: {serial: true}});
+  api.resetCascadeRuntimeState();
+  out.afterResetActive = api.isCascadeActive('n3') === false;
+} catch(e) { out.resetErr = String(e); }
+
+console.log(JSON.stringify(out));
+""".replace("__SEAM_PATH__", seam_path_json)
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        actual = json.loads(result.stdout)
+
+        # Shape checks
+        self.assertTrue(actual["hasFactory"], msg="seam must expose WorkbenchCanvasClassicCascadeOrchestrator.create")
+        self.assertTrue(actual["frozen"], msg="seam handle must be frozen")
+        self.assertTrue(actual["hasBeginCascade"], msg="seam must expose beginCascade")
+        self.assertTrue(actual["hasCancelCascade"], msg="seam must expose cancelCascade")
+        self.assertTrue(actual["hasRunNodeCascade"], msg="seam must expose runNodeCascade")
+        self.assertTrue(actual["hasRetryNodeAndDownstream"], msg="seam must expose retryNodeAndDownstream")
+        self.assertTrue(actual["hasBindCascadeButtons"], msg="seam must expose bindCascadeButtons")
+        self.assertTrue(actual["hasCascadeAbortError"], msg="seam must expose cascadeAbortError")
+        self.assertTrue(actual["hasEnsureCascadeActive"], msg="seam must expose ensureCascadeActive")
+
+        # cascadeAbortError correctness
+        self.assertTrue(actual.get("abortErrMessage"), msg=f"cascadeAbortError must return a non-empty message; err: {actual.get('abortErr')}")
+        self.assertEqual(actual.get("abortErrMessage"), "已停止一键运行", msg="cascadeAbortError must use the provided message")
+        self.assertTrue(actual.get("abortErrIsCascadeAbort"), msg="cascadeAbortError must set isCascadeAbort=true")
+
+        # cascadeStopMessage: reason wins, default is i18n text.
+        self.assertEqual(actual.get("stopMessageWithReason"), "用户停止", msg="cascadeStopMessage: reason wins when non-empty")
+        self.assertEqual(actual.get("stopMessageDefault"), "已停止一键运行", msg="cascadeStopMessage: default is the i18n fallback")
+
+        # isCascadeAbortError correctness
+        self.assertTrue(actual.get("detectsAbort"), msg="isCascadeAbortError must detect abort errors")
+        self.assertTrue(actual.get("detectsRegular"), msg="isCascadeAbortError must NOT flag regular errors")
+
+        # beginCascade lifecycle
+        self.assertTrue(actual.get("ctxReturned"), msg="beginCascade must return a context object")
+        self.assertTrue(actual.get("ctxOrderCopied"), msg=f"beginCascade must copy the order array; got ctxOrderJoin='{actual.get('ctxOrderJoin')}'")
+        self.assertEqual(actual.get("ctxMode"), "serial", msg="beginCascade must default mode=serial")
+        self.assertTrue(actual.get("ctxHasControllers"), msg="beginCascade must seed ctx.controllers as empty Set")
+        self.assertTrue(actual.get("isActive"), msg="isCascadeActive must return true after beginCascade")
+        self.assertTrue(actual.get("isStopping"), msg="isCascadeStopping must return false while running")
+
+        # requestCascadeStop + ensureCascadeActive + finalizeCascade lifecycle
+        self.assertTrue(actual.get("stopping"), msg="requestCascadeStop must mark ctx.status=stopping")
+        self.assertTrue(actual.get("activeThrowsOnStopping"), msg="ensureCascadeActive must throw on stopping ctx")
+        self.assertTrue(actual.get("afterFinalizeActive"), msg="finalizeCascade must clear cascadeRunningIds")
+
+        # computeCascadeOrder: walks upstream and includes both 'upstream-1' and 'root'.
+        self.assertEqual(actual.get("orderRoot"), "upstream-1,root",
+            msg="computeCascadeOrder must walk connections in topological order; got: " + str(actual.get("orderRoot")))
+
+        # cancelCascade sets stopping.
+        self.assertTrue(actual.get("cancelMarksStopping"), msg="cancelCascade must mark target as stopping")
+
+        # bindCascadeButtons does not throw with a stubbed wrap.
+        self.assertTrue(actual.get("bindNoThrow"), msg=f"bindCascadeButtons must not throw; err: {actual.get('bindErr')}")
+
+        # resetCascadeRuntimeState clears everything.
+        self.assertTrue(actual.get("afterResetActive"), msg="resetCascadeRuntimeState must clear cascadeRunningIds")
+
+        # Required-ops count pin.
+        self.assertEqual(actual.get("requiredOpsCount"), 25,
+            msg="REQUIRED_OPS count pin: Wave 14 seam module declares 25 host ops; if you add/remove an op, update both the seam and this test")
+
+        # canvas.html must load the seam before canvas.js.
+        self.assertIn('classic-cascade-orchestrator.js', html_source,
+            msg="canvas.html must load classic-cascade-orchestrator.js")
+        seam_pos = html_source.index('classic-cascade-orchestrator.js')
+        comfy_pos = html_source.index('classic-comfy-controls.js')
+        canvas_pos = html_source.index('canvas.js')
+        self.assertLess(comfy_pos, seam_pos,
+            msg="canvas.html must load classic-comfy-controls.js BEFORE classic-cascade-orchestrator.js")
+        self.assertLess(seam_pos, canvas_pos,
+            msg="canvas.html must load classic-cascade-orchestrator.js BEFORE canvas.js")
+
+        # TypeError-on-missing-host: every required op must be validated.
+        required_ops = re.findall(r"'([A-Za-z_][A-Za-z0-9_]*)'", re.search(r"REQUIRED_OPS\s*=\s*\[([^\]]*)\]", seam_source, re.DOTALL).group(1))
+        for missing in required_ops:
+            partial_script = """
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {window: {}, console: {log: () => {}}};
+vm.runInNewContext(fs.readFileSync(__SEAM_PATH__, 'utf8'), sandbox);
+const fullHost = {
+    tr: () => '', langIsEn: () => false, nowMs: () => 0, uid: () => 'x',
+    escapeHtml: () => '', escapeAttr: () => '', loopCount: () => 1,
+    getNodes: () => [], getConnections: () => [], refreshNodes: () => {},
+    runGenerator: () => {}, runMidjourneyNode: () => {}, runMsGenNode: () => {},
+    runComfyNode: () => {}, runLTXDirectorNode: () => {}, runLLMNode: () => {},
+    runVideoNode: () => {}, runRhNode: () => {}, runMiniMaxNode: () => {},
+    setStatus: () => {}, showErrorModal: () => {}, alert: () => {},
+    computeCascadeOrderTarget: () => [], comfyBackendCount: 1, setLoopContextMirror: () => {},
+};
+const partial = Object.assign({}, fullHost);
+delete partial.__MISSING__;
+try { sandbox.window.WorkbenchCanvasClassicCascadeOrchestrator.create(partial); console.log('NO_THROW'); }
+catch(e) { console.log('TYPE_ERROR:' + e.message); }
+""".replace("__SEAM_PATH__", seam_path_json).replace("__MISSING__", missing)
+            partial_result = subprocess.run(["node", "-e", partial_script], check=True, text=True, capture_output=True)
+            self.assertIn("TYPE_ERROR", partial_result.stdout,
+                msg=f"missing host.{missing} should throw TypeError, got: {partial_result.stdout}")
+
+        # Source-contract: canvas.js declares ensureClassicCascadeOrchestrator + thin wrappers.
+        self.assertIn("function ensureClassicCascadeOrchestrator", editor_source,
+            msg="canvas.js must declare ensureClassicCascadeOrchestrator next to ensureClassicGenerationLog")
+        self.assertIn("ensureClassicCascadeOrchestrator().cancelCascade({nodeId})", editor_source,
+            msg="canvas.js cancelCascade wrapper must call ensureClassicCascadeOrchestrator().cancelCascade({nodeId})")
+        self.assertIn("ensureClassicCascadeOrchestrator().beginCascade({targetId", editor_source,
+            msg="canvas.js beginCascade wrapper must call ensureClassicCascadeOrchestrator().beginCascade({targetId, ...})")
+        self.assertIn("ensureClassicCascadeOrchestrator().runNodeCascade({nodeId})", editor_source,
+            msg="canvas.js runNodeCascade wrapper must call ensureClassicCascadeOrchestrator().runNodeCascade({nodeId})")
+        self.assertIn("ensureClassicCascadeOrchestrator().retryNodeAndDownstream({nodeId})", editor_source,
+            msg="canvas.js retryNodeAndDownstream wrapper must call ensureClassicCascadeOrchestrator().retryNodeAndDownstream({nodeId})")
+        # The original local definitions of the big cascade functions must be deleted.
+        # Note: thin page-side wrappers (1-liners that delegate to the seam) are
+        # allowed and expected; only the multi-line bodies must be gone.
+        # Check for distinctive phrases from the original bodies.
+        self.assertNotIn("alert('没有可运行的生成节点');", editor_source,
+            msg="canvas.js should no longer define the original runNodeCascade body (the thin page-side wrapper is fine)")
+        self.assertNotIn("const totalRounds = (loop", editor_source,
+            msg="canvas.js should no longer define the original runNodeCascade body (the thin page-side wrapper is fine)")
+        self.assertNotIn("cleanupTimer:null", editor_source,
+            msg="canvas.js should no longer define the original createCascadeContext body (cleanupTimer:null is the distinctive line)")
+        self.assertNotIn("comfyBackendCount || 1", editor_source,
+            msg="canvas.js should no longer define the original cascadeParallelLimit body (comfyBackendCount || 1 is the distinctive line)")
+        # The 5 cascade state globals must also be gone — only the page-side
+        # `loopContext` mirror (used by renderLoopPrompt fallback) survives.
+        self.assertNotIn("const cascadeRunningIds = new Set();", editor_source,
+            msg="canvas.js should no longer declare cascadeRunningIds (now lives in seam closure)")
+        self.assertNotIn("const cascadeStopIds = new Set();", editor_source,
+            msg="canvas.js should no longer declare cascadeStopIds (now lives in seam closure)")
+        self.assertNotIn("const cascadeSerialIds = new Set();", editor_source,
+            msg="canvas.js should no longer declare cascadeSerialIds (now lives in seam closure)")
+        self.assertNotIn("const cascadeContexts = new Map();", editor_source,
+            msg="canvas.js should no longer declare cascadeContexts (now lives in seam closure)")
+
+    def test_classic_editor_rewraps_deleted_cascade_ltx_and_minimax_helpers_through_their_seams(self):
+        # Independent-review repair (2026-09-07): the Wave 7-14 reapply left
+        # live page transports calling helper functions whose bodies had moved
+        # into the bounded compat seams (a ReferenceError on the first card
+        # render / execution path). The repaired wiring must exist, route
+        # through the owning seam handle with the seam's object-arg shapes,
+        # and leave no bare call to a deleted seam-owned helper.
+        editor_source = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        # Cascade: five page-side adapter wrappers restored for live transports.
+        self.assertIn("function cascadeBackendRestartMessage(){ return ensureClassicCascadeOrchestrator().cascadeBackendRestartMessage(); }", editor_source)
+        self.assertIn("function normalizeCanvasTaskError(err, fallback){ return ensureClassicCascadeOrchestrator().normalizeCanvasTaskError({err, fallback: fallback || ''}); }", editor_source)
+        self.assertIn("async function cascadeFetch(input, init, options){ return ensureClassicCascadeOrchestrator().cascadeFetch({input, init: init || {}, options: options || {}}); }", editor_source)
+        self.assertIn("function canvasRunTypes(){ return ensureClassicCascadeOrchestrator().canvasRunTypes(); }", editor_source)
+        self.assertIn("function resolveCascadeLoop(targetId){ return ensureClassicCascadeOrchestrator().resolveCascadeLoop({targetId}); }", editor_source)
+        # Cascade: wrapper arg shapes must match what the seam actually reads.
+        self.assertIn("cascadeTargetIdFromOptions({options: opts || {}})", editor_source)
+        self.assertIn("cascadeContextFromOptions({options: opts || {}})", editor_source)
+        self.assertNotIn("cascadeTargetIdFromOptions({opts:", editor_source)
+        self.assertNotIn("cascadeContextFromOptions({opts:", editor_source)
+        self.assertIn("function bindCascadeButtons(wrap, nodeId){ return ensureClassicCascadeOrchestrator().bindCascadeButtons({wrap, nodeId}); }", editor_source)
+        self.assertNotIn("function bindCascadeButtons(arg)", editor_source)
+        self.assertIn("cascadeAbortError(typeof arg === 'string' ? {message: arg} : (arg || {}))", editor_source)
+        # The LLM pane binds through the 2-arg page wrapper, not a direct seam call.
+        self.assertNotIn("ensureClassicCascadeOrchestrator().bindCascadeButtons(container, node.id);", editor_source)
+        # LTX: the two deleted seam-owned calls reroute through the seam handle.
+        self.assertIn("ensureClassicLtxControls().flushTimelineToNode({node});", editor_source)
+        self.assertIn("const timeline = ensureClassicLtxControls().parseTimeline({node});", editor_source)
+        self.assertIn("ensureClassicLtxControls().buildContiguousRelay({node, globalPromptFallback});", editor_source)
+        # LTX: the three page-owned compositions are restored verbatim from HEAD.
+        self.assertIn("function ltxDirectorTimelineSegments(node){", editor_source)
+        self.assertIn("function ltxRefreshTimelineEditor(node){", editor_source)
+        self.assertIn("async function ltxDirectorBuildTimelinePayload(node, globalPromptFallback=''){", editor_source)
+        # MiniMax: the three deleted seam-owned calls reroute through the seam.
+        self.assertIn("node.minimaxEngine = ensureClassicMiniMaxControls().getEngine({node});", editor_source)
+        # runMiniMaxNode's body moved into the executor seam (Wave 16a).
+        executor_source = (ROOT / "static" / "js" / "workbench" / "canvas" / "classic-executor-runtime.js").read_text(encoding="utf-8")
+        self.assertIn("const engine = ensureClassicMiniMaxControls().getEngine({node});", executor_source)
+        self.assertIn("ensureClassicMiniMaxControls().syncPlayerDom({wrap, seg, time: safeTime, play});", editor_source)
+        # No bare call to a seam-owned deleted helper remains anywhere.
+        rerouted = ["miniMaxEngine", "miniMaxSyncPlayerDom", "ltxParseTimeline", "ltxFlushTimelineToNode", "ltxBuildContiguousRelay"]
+        lines = editor_source.splitlines()
+        for name in rerouted:
+            for i, line in enumerate(lines):
+                stripped = line.strip()
+                if stripped.startswith("//") or stripped.startswith("*"):
+                    continue
+                if re.search(r"(?<![\w.])" + name + r"\(", line) and not re.search(r"function " + name + r"\(", line):
+                    self.fail(f"bare call to seam-owned {name} remains at canvas.js line {i+1}: {stripped}")
+
+    def test_classic_editor_routes_executor_transport_surface_through_classic_executor_runtime_seam(self):
+        # Wave 16a: the Classic executor / transport surface (run*Node
+        # executors, API transports, run-metadata helpers) moved behind a
+        # bounded compat seam. canvas.js keeps a 1-line wrapper per function;
+        # the seam consumes page-locals via 90 required host ops (nodes /
+        # connections / comfyWorkflows become getters).
+        seam = ROOT / "static/js/workbench/canvas/classic-executor-runtime.js"
+        editor = ROOT / "static/js/canvas.js"
+        page = (ROOT / "static/canvas.html").read_text(encoding="utf-8")
+        seam_source = seam.read_text(encoding="utf-8")
+        editor_source = editor.read_text(encoding="utf-8")
+        self.assertTrue(seam.exists(), msg="classic-executor-runtime.js seam module must exist for Wave 16a")
+
+        seam_path_json = json.dumps(str(seam))
+        script = """
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {window: {}, console: {log: () => {}}, fetch: async () => ({ok: true, json: async () => ({})})};
+sandbox.window.WorkbenchCanvasHttpError = {
+    message: (data, fallback) => (data && data.error) || fallback,
+    responseMessage: async () => 'boom',
+};
+sandbox.window.WorkbenchCanvasMediaResultNormalizer = { extract: () => [] };
+vm.runInNewContext(fs.readFileSync(__SEAM_PATH__, 'utf8'), sandbox);
+const factory = sandbox.window.WorkbenchCanvasClassicExecutorRuntime;
+const nodes = [];
+const connections = [];
+const polls = new Map();
+const host = {
+    getNodes: () => nodes, getConnections: () => connections, getComfyWorkflows: () => [],
+    API_RATIO_VALUES: [], CANVAS_REFERENCE_IMAGE_MAX: 20, CLIENT_ID: 'cid',
+    LTX_DIRECTOR_SEED_NODE: 'seedNode', LTX_DIRECTOR_WF_NODE: 'wfNode', LTX_DIRECTOR_WORKFLOW: '{}',
+    activeCanvasTaskPolls: polls,
+    actionFailed: (k) => k, langIsEn: () => false, tr: (k) => k, nowMs: () => 1000,
+    uid: (p) => p + '-1', noReturnedImage: () => 'no image', setStatus: () => {},
+    showErrorModal: () => {}, scheduleSave: () => {}, render: () => {},
+    refreshNodes: () => {}, refreshIcons: () => {},
+    normalizeCanvasTaskError: (o) => (o && o.err && o.err.message) || 'e',
+    cascadeBackendRestartMessage: () => 'backend', cascadeStopMessage: () => 'stopped',
+    cascadeTargetIdFromOptions: (o) => (o && o.options && o.options.cascadeTargetId) || '',
+    isCascadeAbortError: () => false, ensureCascadeActive: () => {},
+    cascadeFetch: async () => ({ok: true, json: async () => ({task_id: 't1'}), text: async () => ''}),
+    fetch: async () => ({ok: true, json: async () => ({}), text: async () => ''}),
+    addGenerationLog: () => {}, appendOutputImages: () => {}, applyUploadedUrlToRefs: () => {},
+    audioRefsOnly: () => [], clearStuckGeneratorRunning: () => {}, collectRunMeta: () => ({m: 1}),
+    collectRunMetas: () => [], comfyFieldKind: () => 'text', comfyFields: () => [],
+    comfyParamValue: () => '', comfyRandomActive: () => false, comfyRandomEnabled: () => false,
+    comfyRandomValue: () => null, comfyRunLabel: () => 'run', completeCanvasImageTask: () => {},
+    ensureRhNodeSelection: () => null, extractUpstreamTaskId: () => '', findPendingTask: () => null,
+    generatorSources: () => [], imageRefsOnly: () => [], llmInputImages: () => [],
+    llmInputText: () => '', llmInputVideos: () => [], ltxDirectorSyncSeconds: () => {},
+    ltxDirectorTimelineSegments: () => [], makePending: (id, run, task) => ({id, run, ...task}),
+    manualVideoUrlForNode: () => '', mediaKindForRef: () => '', mergeGeneratedOutputs: () => {},
+    miniMaxApplyRunningHubParams: () => {}, miniMaxLogError: () => {},
+    miniMaxReadableError: () => 'e', miniMaxRefsForNode: () => [], miniMaxRefsForSegment: () => [],
+    miniMaxSelectedSegment: () => null, miniMaxSetSegmentResult: () => {},
+    normalizedImageQuality: () => 1, orderedSources: () => [], outputUrlValue: () => '',
+    pendingById: () => new Map(), pendingPreviewSizeForRun: () => ({}), providerIdForPending: () => '',
+    requestMetaFromResult: () => ({}), resolveChatModel: () => 'cm', resolveChatProviderId: () => 'cp',
+    resolveImageModel: () => 'im', resolveImageProviderId: () => 'ip',
+    resolveMidjourneyProviderId: () => 'mp', rhActiveFields: () => [], rhCurrentEntry: () => null,
+    rhCurrentKind: () => 'model', rhMediaSources: () => ({sources: []}), rhSelectedEntryRef: () => null,
+    runningHubEntryLabel: () => 'l', shouldCreateOutputForNode: () => true,
+    showErrorModal: () => {}, tempShUploadedUrlForNode: () => '', validComfyWorkflowName: () => false,
+    videoRefsOnly: () => [], rhUseWallet: () => false,
+    ensureClassicCascadeOrchestrator: () => ({cancelCascade(){}, beginCascade(){ return {order: [], controllers: new Set(), mode: 'serial'}; }, requestCascadeStop(){}, ensureCascadeActive(){}, isCascadeActive(){ return false; }, isCascadeStopping(){ return false; }, cascadeAbortError(m){ const e = new Error(m); e.isCascadeAbort = true; return e; }, isCascadeAbortError(){ return false; }, cascadeStopMessage(){ return 's'; }, resetCascadeRuntimeState(){}, cascadeTargetIdFromOptions(){ return ''; }, cascadeContextFromOptions(){ return null; }, computeCascadeOrder(){ return []; }, bindCascadeButtons(){}, resolveCascadeLoop(){ return null; }}),
+    ensureClassicExecutionHost: () => ({markRunning(){}, writeOutputText(){}, setRunStatus(){}, render(){}, save(){}, notifyError(){}}),
+    ensureClassicLtxControls: () => ({flushTimelineToNode(){}, parseTimeline(){ return {segments: [], audioSegments: []}; }, buildContiguousRelay(){ return {sortedSegments: [], local_prompts: '', segment_lengths: '', guide_strength: ''}; }}),
+    ensureClassicMiniMaxControls: () => ({getEngine(){ return 'comfyui'; }, syncPlayerDom(){}}),
+    ensureClassicVideoProviderParams: () => ({resolveVideoProviderId(){ return 'vp'; }, providerVideoModels(){ return []; }}),
+    cascadeAbortError: (m) => Object.assign(new Error(m || 'aborted'), {isCascadeAbort: true}),
+    comfyNameForRef: () => '', completeMidjourneyRun: async () => {},
+    ensureComfyWorkflow: async () => ({workflow_json: '{}'}),
+    ensureRunningHubWorkflowConfigForNode: async () => ({workflow_json: '{}'}),
+    generatorSizeForRun: () => 512, ltxDirectorBuildTimelinePayload: async () => ({}),
+    miniMaxBuildRunningHubNodeInfoList: () => [], miniMaxBuildRunningHubWorkflowExtras: () => ({}),
+    miniMaxDynamicParams: () => [], miniMaxRunningHubPayloadError: () => '',
+    miniMaxRunningHubSettings: async () => ({entry: null, workflowId: '', fields: [], rhNode: null}),
+    providerById: () => null, rhBuildNodeInfoList: () => [], rhBuildWorkflowRequestExtras: () => ({}),
+    saveCanvas: () => {}, sleep: async () => {},
+};
+const out = {};
+(async () => {
+try {
+  const api = factory.create(host);
+  out.requiredOpsCount = factory.REQUIRED_OPS.length;
+  out.frozen = Object.isFrozen(api);
+  out.methods = Object.keys(api).length;
+  // drive every handle method; async ones awaited, deliberate-throw paths recorded
+  const driven = {};
+  const call = async (name, fn) => { try { await fn(); driven[name] = 'ok'; } catch (e) { driven[name] = 'threw: ' + e.message; } };
+  await call('responseErrorMessage', async () => api.responseErrorMessage({clone: () => ({json: async () => ({detail: 'x'})})}, 'f'));
+  await call('rhUseWallet', async () => api.rhUseWallet({}));
+  await call('runSnapshot', async () => api.runSnapshot({id: 'n1'}, 'p', []));
+  await call('runTaskLabel', async () => api.runTaskLabel({}));
+  await call('runPlatformLabel', async () => api.runPlatformLabel({}));
+  await call('makePendingForRun', async () => api.makePendingForRun('p1', {run: 1}, {id: 'n1'}, {}));
+  await call('outputForNode', async () => api.outputForNode({id: 'n1', type: 'generator'}, 500));
+  await call('refreshRunNodes', async () => api.refreshRunNodes({id: 'n1'}));
+  await call('midjourneyRequest', async () => api.midjourneyRequest('/mj', {}));
+  await call('runGenerator', async () => api.runGenerator('missing'));
+  await call('runGeneratorLegacy', async () => api.runGeneratorLegacy('missing'));
+  await call('runRhNode', async () => api.runRhNode('missing'));
+  await call('runRhModelNode', async () => api.runRhModelNode(null));
+  await call('runVideoNode', async () => api.runVideoNode('missing'));
+  await call('runMiniMaxRunningHub', async () => api.runMiniMaxRunningHub('missing'));
+  await call('runMiniMaxNode', async () => api.runMiniMaxNode('missing'));
+  await call('runComfyNode', async () => api.runComfyNode('missing'));
+  await call('runComfyUpscale', async () => api.runComfyUpscale(''));
+  // runQueuedComfyGenerate is type-checked only: driving it enters its real
+  // poll loop, which never terminates against a non-terminal stub.
+  if (typeof api.runQueuedComfyGenerate !== 'function') { out.fatal = 'runQueuedComfyGenerate missing'; }
+  await call('callCanvasLLM', async () => api.callCanvasLLM({id: 'n1', llmProvider: '', llmModel: ''}));
+  await call('runLLMNode', async () => api.runLLMNode('missing'));
+  await call('runLLMChat', async () => api.runLLMChat({}, {}));
+  await call('createCanvasImageTask', async () => api.createCanvasImageTask({}, {}));
+  await call('createCanvasComfyTask', async () => api.createCanvasComfyTask({}, {}));
+  await call('pollCanvasImageTask', async () => api.pollCanvasImageTask(''));
+  await call('failCanvasImageTask', async () => api.failCanvasImageTask('t', 'm'));
+  await call('uploadCanvasUrlToComfy', async () => api.uploadCanvasUrlToComfy(''));
+  await call('runLTXDirectorNode', async () => api.runLTXDirectorNode('missing'));
+  out.driven = driven;
+  // pure-value assertions
+  out.taskLabel = api.runTaskLabel({taskLabel: 'T'});
+  out.platformLabel = api.runPlatformLabel({nodeType: 'comfy'});
+  out.pending = Object.keys(api.makePendingForRun('p9', {r: 1}, {id: 'n1'}, {refs: []})).sort().join(',');
+  out.respErr = await api.responseErrorMessage({clone: () => ({json: async () => ({error: 'boom'})})}, 'fb');
+  // wait* with empty taskId must throw the actionFailed error
+  let waitedThrew = false; try { await api.waitCanvasComfyTaskResult(''); } catch (e) { waitedThrew = true; }
+  let waitedImgThrew = false; try { await api.waitCanvasImageTaskResult(''); } catch (e) { waitedImgThrew = true; }
+  out.waitedThrew = waitedThrew; out.waitedImgThrew = waitedImgThrew;
+  // missing-host-op loop: every REQUIRED op must throw TypeError when absent
+  let missingThrew = 0;
+  for (const op of factory.REQUIRED_OPS) {
+    const partial = Object.assign({}, host); delete partial[op];
+    try { factory.create(partial); } catch (e) { if (e.name === 'TypeError') missingThrew += 1; }
+  }
+  out.missingThrew = missingThrew;
+} catch (e) { out.fatal = String(e); }
+console.log(JSON.stringify(out));
+})().catch(e => { console.log(JSON.stringify({fatal: String(e)})); });
+""".replace("__SEAM_PATH__", seam_path_json)
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        actual = json.loads(result.stdout)
+        self.assertNotIn("fatal", actual, msg=f"seam drive failed: {actual.get('fatal')}")
+        self.assertEqual(actual["requiredOpsCount"], 107,
+            msg="REQUIRED_OPS count pin: Wave 16a seam declares 107 host ops; update seam + test together")
+        self.assertTrue(actual["frozen"], msg="executor seam handle must be frozen")
+        self.assertEqual(actual["methods"], 34, msg="handle must expose all 34 moved functions")
+        self.assertEqual(actual["missingThrew"], 107,
+            msg="every REQUIRED op must be validated with a TypeError on missing host")
+        # The drive's contract: no wiring ReferenceErrors ("X is not defined")
+        # anywhere. Other throw paths are input-shape specifics of the drive.
+        ref_errors = {k: v for k, v in actual["driven"].items() if "is not defined" in v}
+        self.assertEqual(ref_errors, {}, msg=f"seam methods hit undefined identifiers: {ref_errors}")
+        self.assertEqual(len(actual["driven"]), 27,
+            msg="drive coverage pin: 27 methods driven (runQueuedComfyGenerate and waitMidjourneyTask are type-checked only: driving them enters real poll/wait loops)")
+        self.assertTrue(actual["waitedThrew"], msg="waitCanvasComfyTaskResult('') must throw")
+        self.assertTrue(actual["waitedImgThrew"], msg="waitCanvasImageTaskResult('') must throw")
+        self.assertEqual(actual["taskLabel"], "T")
+        self.assertEqual(actual["platformLabel"], "ComfyUI",
+            msg="runPlatformLabel must map the comfy nodeType to the ComfyUI label")
+        self.assertIn("run", actual["pending"])
+        self.assertEqual(actual["respErr"], "boom")
+
+        # canvas.js keeps exactly one 1-line wrapper per moved function.
+        moved = ["responseErrorMessage","runLTXDirectorNode","rhUseWallet","runRhNode","runRhModelNode",
+                 "runGenerator","runGeneratorLegacy","midjourneyRequest","waitMidjourneyTask","runMidjourneyNode",
+                 "runMidjourneyAction","runMidjourneyModal","runVideoNode","runMiniMaxRunningHub","runMiniMaxNode",
+                 "uploadCanvasUrlToComfy","runComfyUpscale","runComfyNode","runQueuedComfyGenerate","callCanvasLLM",
+                 "runLLMNode","runLLMChat","runSnapshot","runTaskLabel","runPlatformLabel","makePendingForRun",
+                 "createCanvasImageTask","createCanvasComfyTask","waitCanvasComfyTaskResult","pollCanvasImageTask",
+                 "waitCanvasImageTaskResult","failCanvasImageTask","outputForNode","refreshRunNodes"]
+        for name in moved:
+            self.assertTrue(
+                re.search(rf"^(async )?function {name}\([^\n]*\){{ return ensureClassicExecutorRuntime\(\)\.{name}\(", editor_source, re.M),
+                msg=f"canvas.js must keep the 1-line executor-seam wrapper for {name}")
+            self.assertNotIn(f"function {name}(", seam_source.split("function create(")[1] if False else "",
+                msg="unused")
+        # The wrappers replaced the bodies: no old body markers remain page-side.
+        self.assertNotIn("const node = nodes.find(n => n.id === nodeId);\n    if(node.running", editor_source)
+        # The seam consumes page state only through getters.
+        self.assertNotIn("nodes.find(", seam_source, msg="seam must read nodes via getNodes()")
+        self.assertNotIn("connections.filter(", seam_source, msg="seam must read connections via getConnections()")
+        self.assertIn("getNodes()", seam_source)
+        self.assertIn("getConnections()", seam_source)
+        self.assertIn("getComfyWorkflows()", seam_source)
+        # canvas.html loads the seam before canvas.js and the version was bumped.
+        self.assertLess(page.index("workbench/canvas/classic-executor-runtime.js"), page.index("js/canvas.js"))
+        self.assertIn("canvas.js?v=2026.09.08.5", page)
+
+    def test_classic_editor_routes_asset_upload_drop_surface_through_classic_asset_runtime_seam(self):
+        # Wave 16b: the Classic asset / upload / drop / manager surface (the
+        # R4-31 asset-library DEFER-R8 capability + satellites) moved behind a
+        # bounded compat seam. canvas.js keeps a 1-line wrapper per function;
+        # page state (canvas / nodes / the asset-library lets) stays
+        # page-owned behind getters, and the seven lets this surface writes
+        # are bridged with setter host ops.
+        seam = ROOT / "static/js/workbench/canvas/classic-asset-runtime.js"
+        editor = ROOT / "static/js/canvas.js"
+        page = (ROOT / "static/canvas.html").read_text(encoding="utf-8")
+        seam_source = seam.read_text(encoding="utf-8")
+        editor_source = editor.read_text(encoding="utf-8")
+        self.assertTrue(seam.exists(), msg="classic-asset-runtime.js seam module must exist for Wave 16b")
+
+        # The seam factory reads page-owned `const`/`let` bindings.  Its first
+        # real invocation must therefore be injected into the neutral bootstrap
+        # and happen from start() after the whole script has initialized,
+        # rather than beside the early DOM lookups (which would throw in the
+        # temporal dead zone and blank the page before it can request a Canvas).
+        wrapper_pos = editor_source.index(
+            "function revealCanvasAssetControls(){ return ensureClassicAssetRuntime().revealCanvasAssetControls(); }"
+        )
+        bootstrap_pos = editor_source.index(
+            "const canvasAppBootstrap = window.WorkbenchCanvasAppBootstrap.create({"
+        )
+        reveal_adapter_pos = editor_source.index(
+            "    revealAssetControls: revealCanvasAssetControls,", bootstrap_pos
+        )
+        load_pos = editor_source.index(
+            "window.onload = () => canvasAppBootstrap.start({search: window.location.search});"
+        )
+        self.assertLess(wrapper_pos, bootstrap_pos)
+        self.assertLess(bootstrap_pos, reveal_adapter_pos)
+        self.assertLess(reveal_adapter_pos, load_pos)
+        self.assertNotIn("\nrevealCanvasAssetControls();\n", editor_source[:bootstrap_pos])
+
+        seam_path_json = json.dumps(str(seam))
+        script = """
+const fs = require('fs'); const vm = require('vm');
+const mockEl = () => ({innerHTML: '', appendChild(){}, querySelector: () => null,
+    querySelectorAll: () => [], classList: {toggle(){}, add(){}, remove(){}, contains: () => false},
+    dataset: {}, style: {}, addEventListener(){}, onclick: null, value: '', checked: false,
+    textContent: '', src: '', href: '', files: [], focus(){}, select(){}});
+const sandbox = {window: {}, console: {log: () => {}}, document: {createElement: mockEl,
+    getElementById: () => mockEl(), addEventListener(){}, removeEventListener(){},
+    querySelector: () => null, querySelectorAll: () => [], body: mockEl()},
+    fetch: async () => ({ok: true, json: async () => ({}), text: async () => ''}),
+    location: {origin: 'http://x'}, setTimeout, URL, Blob};
+process.on('unhandledRejection', () => {});
+process.on('uncaughtException', () => {});
+sandbox.window.WorkbenchCanvasHttpError = {message: (d, f) => (d && d.error) || f,
+    responseMessage: async () => 'boom'};
+sandbox.window.WorkbenchCanvasMediaResultNormalizer = {extract: () => []};
+sandbox.window.WorkbenchCanvasMediaUrl = {originalUrl: (u) => u};
+sandbox.window.StudioI18n = {t: (k) => k, lang: () => 'zh'};
+vm.runInNewContext(fs.readFileSync(__SEAM_PATH__, 'utf8'), sandbox);
+const factory = sandbox.window.WorkbenchCanvasClassicAssetRuntime;
+const canvasFixture = {id: 'c1', project: 'p1', title: 'T', logs: [], nodes: [],
+    asset_libraries: {libraries: [], categories: []}, library: {libraries: [], categories: []}};
+let canvasAssetLibraryOpen = false;
+const host = {
+    getCanvas: () => canvasFixture, getNodes: () => [],
+    CANVAS_UPLOAD_MAX: 20,
+    IMAGE_DROP_EXT_RE: /\\.(png|jpe?g)$/i, IMAGE_DROP_TEXT_TYPES: [], IMAGE_DROP_TYPE_HINT_RE: /image/i,
+    LOCAL_CANVAS_ASSET_LIBRARY_ID: 'local', UNDO_MAX: 50,
+    assetManagerBody: mockEl(), assetManagerModal: mockEl(), canvasAssetAddCategoryBtn: mockEl(),
+    canvasAssetCategorySelect: mockEl(), canvasAssetDropZone: mockEl(), canvasAssetGrid: mockEl(),
+    canvasAssetHoverPreview: mockEl(), canvasAssetLibrarySelect: mockEl(), canvasAssetPanel: mockEl(),
+    canvasAssetToggle: mockEl(), dropOverlay: mockEl(), missingAssetUrls: [],
+    promptTemplateLibrarySelect: mockEl(), workflowExportLibraryBtn: mockEl(),
+    selected: new Set(),
+    workflowExportMeta: mockEl(), workflowTransferModal: mockEl(), workflowTransferSub: mockEl(),
+    getActiveCanvasAssetCategoryId: () => '', setActiveCanvasAssetCategoryId: () => {},
+    getActiveCanvasAssetLibraryId: () => '', setActiveCanvasAssetLibraryId: () => {},
+    getActiveCanvasWorkflowCategoryId: () => '', setActiveCanvasWorkflowCategoryId: () => {},
+    getAssetManagerTab: () => 'assets', getCanvasAssetLibraryOpen: () => canvasAssetLibraryOpen,
+    setCanvasAssetLibraryOpen: (value) => { canvasAssetLibraryOpen = Boolean(value); },
+    getActivePromptLibraryId: () => '', setActivePromptLibraryId: () => {},
+    getCanvasAssetLibrary: () => ({libraries: [], categories: [], active_library_id: 'local'}),
+    setCanvasAssetLibrary: () => {}, getCanvasPromptTemplatesLoaded: () => false,
+    setCanvasPromptTemplatesLoaded: () => {}, getLocalCanvasAssetLibrary: () => ({items: [], tree: []}),
+    setLocalCanvasAssetLibrary: () => {},
+    getManagerSelectedAssetIds: () => new Set(), getManagerSelectedPromptIds: () => new Set(),
+    getManagerSelectedWorkflowIds: () => new Set(),
+    getCanvasPromptTemplateOverrides: () => ({}),
+    getCanvasPromptLibraries: () => [],
+    activeCanvasMediaCategory: () => 'all', activeCanvasWorkflowCategory: () => 'all',
+    applyTempShUrlToCanvasRef: () => {}, bindCanvasPreviewImageFallbacks: () => {},
+    canUseVersionedImageCreation: () => false, canvasMediaCategories: () => [],
+    canvasMediaPreviewUrl: () => '', canvasPreviewImgHtml: () => '',
+    canvasVideoPreviewHtml: () => '', canvasWorkflowCategories: () => [],
+    closeWorkflowTransferModal: () => {}, copyTextToClipboard: async () => true,
+    createImageCardFromUrl: () => null, createImageCardsFromLocalPaths: () => [],
+    createVersionedDroppedMediaNode: async () => null, defaultPoint: () => ({x: 0, y: 0}),
+    ensureCanvas: () => {}, escapeAttr: (s) => s, escapeHtml: (s) => s, fillImageNode: () => {},
+    generatorSources: () => [], hasImageFiles: () => false, hasOutputImageDrag: () => false,
+    insertWorkflowIntoCanvas: () => {}, isAudioUrl: () => false, isCanvasInputDrag: () => false,
+    isRemoteVideoReferenceUrl: () => false, isVideoUrl: () => false, langIsEn: () => false,
+    loadCanvasPromptTemplates: async () => [], mediaKindForRef: () => '', nodeBounds: () => ({}),
+    orderedSources: () => [], outputImageName: () => '', outputUrlValue: () => '',
+    pushUndo: () => {}, refreshIcons: () => {}, refreshNodes: () => {}, render: () => {},
+    responseErrorMessage: async () => 'e', rhDefaultValue: () => '', rhParamKey: () => '',
+    rhUseWallet: () => false, rhWorkflowNodeInfoList: () => [], scheduleSave: () => {},
+    screenToWorld: () => ({x: 0, y: 0}), selectedWorkflowPayload: () => null,
+    serializableCanvasNodes: () => [], setCanvasMode: () => {}, setCreateMode: () => {},
+    setImageNodeFromOutput: () => {}, setStatus: () => {}, showErrorModal: () => {},
+    stopCanvasRemotePolling: () => {}, tr: (k) => k, uid: (p) => p + '-1',
+    updateWorkflowTransferMeta: () => {}, workflowFilename: () => 'wf.json',
+};
+const out = {};
+(async () => {
+try {
+  const api = factory.create(host);
+  out.requiredOpsCount = factory.REQUIRED_OPS.length;
+  out.frozen = Object.isFrozen(api);
+  out.methods = Object.keys(api).length;
+  const driven = {};
+  const call = async (name, fn) => { try { await fn(); driven[name] = 'ok'; } catch (e) { driven[name] = String(e.message || e); } };
+  await call('mediaKindForUpload', async () => api.mediaKindForUpload({name: 'a.png', type: 'image/png'}));
+  await call('isSupportedUploadFile', async () => api.isSupportedUploadFile({name: 'a.png', type: 'image/png'}));
+  await call('hasImageDropData', async () => api.hasImageDropData(null));
+  await call('isLocalImageDropValue', async () => api.isLocalImageDropValue(''));
+  await call('isRemoteImageDropValue', async () => api.isRemoteImageDropValue(''));
+  await call('imageDropPayload', async () => api.imageDropPayload(null));
+  await call('resolveImageDropPayload', async () => api.resolveImageDropPayload(null));
+  await call('canvasLocalAssetUrls', async () => api.canvasLocalAssetUrls());
+  await call('activeCanvasPromptLibraryItems', async () => api.activeCanvasPromptLibraryItems());
+  await call('canvasAssetItemKind', async () => api.canvasAssetItemKind({}));
+  await call('canvasAssetLibraries', async () => api.canvasAssetLibraries());
+  await call('canvasAssetLibraryIsLocal', async () => api.canvasAssetLibraryIsLocal());
+  await call('canvasAssetSourceLibraries', async () => api.canvasAssetSourceLibraries());
+  await call('revealCanvasAssetControls', async () => api.revealCanvasAssetControls());
+  await call('toggleCanvasAssetLibrary', async () => api.toggleCanvasAssetLibrary());
+  await call('showCanvasAssetHoverPreview', async () => api.showCanvasAssetHoverPreview(null, null));
+  await call('hideCanvasAssetHoverPreview', async () => api.hideCanvasAssetHoverPreview());
+  await call('positionCanvasAssetHoverPreview', async () => api.positionCanvasAssetHoverPreview(null, null));
+  await call('refreshMissingCanvasAssets', async () => api.refreshMissingCanvasAssets());
+  await call('renderCanvasAssetLibrary', async () => api.renderCanvasAssetLibrary());
+  await call('renderAssetManager', async () => api.renderAssetManager());
+  out.assetOpen = canvasAssetLibraryOpen;
+  await call('renderImageAssetManager', async () => api.renderImageAssetManager());
+  await call('renderPromptAssetManager', async () => api.renderPromptAssetManager());
+  await call('renderWorkflowAssetManager', async () => api.renderWorkflowAssetManager());
+  await call('openAssetManager', async () => api.openAssetManager());
+  await call('closeAssetManager', async () => api.closeAssetManager());
+  await call('exportSelectedWorkflow', async () => api.exportSelectedWorkflow());
+  await call('setWorkflowLibraryExportState', async () => api.setWorkflowLibraryExportState());
+  await call('defaultWorkflowAssetTarget', async () => api.defaultWorkflowAssetTarget());
+  await call('workflowAssetThumbHtml', async () => api.workflowAssetThumbHtml({}));
+  await call('canvasAssetThumbHtml', async () => api.canvasAssetThumbHtml({}));
+  await call('currentCanvasAssetItem', async () => api.currentCanvasAssetItem({}));
+  await call('findCanvasAssetCategoryForItem', async () => api.findCanvasAssetCategoryForItem('x'));
+  await call('addUrlToCanvasAssetLibrary', async () => api.addUrlToCanvasAssetLibrary('http://x/a.png'));
+  await call('rhImportWorkflowJson', async () => api.rhImportWorkflowJson('{}'));
+  out.driven = driven;
+  // missing-host-op loop
+  let missingThrew = 0;
+  for (const op of factory.REQUIRED_OPS) {
+    const partial = Object.assign({}, host); delete partial[op];
+    try { factory.create(partial); } catch (e) { if (e.name === 'TypeError') missingThrew += 1; }
+  }
+  out.missingThrew = missingThrew;
+} catch (e) { out.fatal = String(e); }
+console.log(JSON.stringify(out));
+})().catch(e => { console.log(JSON.stringify({fatal: String(e)})); });
+""".replace("__SEAM_PATH__", seam_path_json)
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        actual = json.loads(result.stdout)
+        self.assertNotIn("fatal", actual, msg=f"seam drive failed: {actual.get('fatal')}")
+        self.assertEqual(actual["requiredOpsCount"], 101,
+            msg="REQUIRED_OPS count pin: Wave 16b seam declares 101 host ops; update seam + test together")
+        self.assertTrue(actual["frozen"], msg="asset seam handle must be frozen")
+        self.assertEqual(actual["methods"], 73, msg="handle must expose all 73 moved functions")
+        self.assertEqual(actual["missingThrew"], 101,
+            msg="every REQUIRED op must be validated with a TypeError on missing host")
+        ref_errors = {k: v for k, v in actual["driven"].items() if "is not defined" in v}
+        self.assertEqual(ref_errors, {}, msg=f"seam methods hit undefined identifiers: {ref_errors}")
+        self.assertGreaterEqual(len(actual["driven"]), 33, msg="drive coverage dropped")
+        self.assertEqual(actual["driven"]["toggleCanvasAssetLibrary"], "ok",
+            msg="asset-library toggle must execute successfully, not merely avoid a ReferenceError")
+        self.assertTrue(actual["assetOpen"],
+            msg="asset-library toggle must update the page-owned open-state through its setter port")
+
+        # canvas.js keeps exactly one 1-line wrapper per moved function.
+        wrapper_names = [l.strip() for l in editor_source.split("\n")
+                         if "return ensureClassicAssetRuntime()." in l and l.strip().startswith(("function ", "async function "))]
+        self.assertEqual(len(wrapper_names), 73, msg="canvas.js must keep 73 1-line asset-seam wrappers")
+        # page state stays page-owned: the factory bridges state with getters/setters
+        self.assertIn("getCanvasAssetLibrary: () => canvasAssetLibrary", editor_source)
+        self.assertIn("setCanvasAssetLibrary: (v) => { canvasAssetLibrary = v; }", editor_source)
+        self.assertIn("setCanvasAssetLibraryOpen: (v) => { canvasAssetLibraryOpen = v; }", editor_source)
+        self.assertIn("getCanvas: () => canvas,", editor_source)
+        self.assertIn("getNodes: () => nodes,", editor_source)
+        # the seam must not read page state directly
+        self.assertNotIn("getCanvasAssetLibrary.libraries", seam_source)
+        self.assertIn("getCanvasAssetLibrary().libraries", seam_source)
+        # canvas.html loads the seam before canvas.js and the version was bumped.
+        self.assertLess(page.index("workbench/canvas/classic-asset-runtime.js"), page.index("js/canvas.js"))
+        self.assertIn("classic-asset-runtime.js?v=2026.09.08.1", page)
+        self.assertIn("canvas.js?v=2026.09.08.5", page)
+
+    def test_classic_editor_routes_video_provider_params_through_classic_video_provider_params_seam(self):
+        # Wave 11: video-provider/params COMPAT seam. Four page-side
+        # video provider/params helpers (videoApiProviders,
+        # resolveVideoProviderId, providerVideoModels,
+        # renderVideoImageInputs) move behind a bounded compat seam.
+        seam = ROOT / "static/js/workbench/canvas/classic-video-provider-params.js"
+        editor = ROOT / "static/js/canvas.js"
+        canvas_html = ROOT / "static/canvas.html"
+        self.assertTrue(seam.exists(), msg="classic-video-provider-params.js seam module must exist for Wave 11")
+        self.assertTrue(editor.exists(), msg="canvas.js editor must exist")
+        seam_source = seam.read_text(encoding="utf-8")
+        editor_source = editor.read_text(encoding="utf-8")
+        html_source = canvas_html.read_text(encoding="utf-8")
+
+        # The seam must expose the host factory with the documented four methods.
+        self.assertIn("WorkbenchCanvasClassicVideoProviderParams", seam_source,
+            msg="classic-video-provider-params.js must expose WorkbenchCanvasClassicVideoProviderParams")
+        self.assertIn("videoApiProviders: function () { return videoApiProviders(); }", seam_source,
+            msg="classic-video-provider-params.js seam handle must wrap videoApiProviders as a no-arg method")
+        self.assertIn("resolveVideoProviderId: function (arg) { return resolveVideoProviderId(arg.id); }", seam_source,
+            msg="classic-video-provider-params.js seam handle must wrap resolveVideoProviderId as resolveVideoProviderId({id})")
+        self.assertIn("providerVideoModels: function (arg) { return providerVideoModels(arg.providerId); }", seam_source,
+            msg="classic-video-provider-params.js seam handle must wrap providerVideoModels as providerVideoModels({providerId})")
+        self.assertIn("renderVideoImageInputs: function (arg)", seam_source,
+            msg="classic-video-provider-params.js seam handle must wrap renderVideoImageInputs as renderVideoImageInputs({list, node, imageInputs})")
+
+        # Drive the seam in a Node vm sandbox and assert all four methods
+        # produce documented results on the minimal mock host.
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+function makeEl() {{
+    const el = {{
+        tagName: 'DIV', className: '', innerHTML: '', value: '', disabled: false,
+        style: {{}},
+        options: [],
+        children: [],
+        onclick: null, oninput: null, onchange: null, onblur: null,
+        onmousedown: null, ondragstart: null, ondragend: null,
+        ondragover: null, ondrop: null,
+        classList: {{ contains: () => false, add: () => {{}}, remove: () => {{}} }},
+        dataset: {{}},
+        appendChild(c) {{ this.children.push(c); return c; }},
+        querySelector(sel) {{ return makeEl(); }},
+        querySelectorAll(sel) {{ return []; }},
+        forEach() {{}},
+    }};
+    return el;
+}}
+const documentStub = {{ createElement: (tag) => makeEl() }};
+const windowStub = {{}};
+const sandbox = {{window: windowStub, document: documentStub}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+const captured = {{ dragState: [] }};
+const apiProviders = [
+    {{ id: 'comfly', name: 'Comfly', enabled: true, video_models: ['veo3-fast', 'veo3-pro'] }},
+    {{ id: 'modelscope', name: 'ModelScope', enabled: true, video_models: ['x'] }},
+    {{ id: 'rhea', name: 'Rhea', enabled: true, video_models: [] }},
+    {{ id: 'disabled', name: 'Disabled', enabled: false, video_models: ['y'] }},
+];
+let internalDrag = false;
+const host = {{
+    document: documentStub,
+    tr: (k) => k,
+    escapeHtml: (s) => String(s).replace(/[&<>"']/g, ''),
+    mediaKindForRef: (ref) => ref && ref.kind ? ref.kind : 'image',
+    canvasVideoPreviewHtml: (url, size) => '<video></video>',
+    canvasPreviewImgHtml: (url, size) => '<img>',
+    isMissingAssetUrl: (url) => url === 'missing',
+    missingAssetHtml: (url, compact) => '<span>missing</span>',
+    getApiProviders: () => apiProviders,
+    getInternalDrag: () => internalDrag,
+    setInternalDrag: (v) => {{ captured.dragState.push(v); internalDrag = v; }},
+    uniqueModels: (list) => {{ const s = new Set(); return (list || []).map(String).filter(x => {{ if(!x || s.has(x)) return false; s.add(x); return true; }}); }},
+    defaultApiProviders: () => [{{ id: 'comfly', name: 'Comfly', enabled: true, video_models: ['veo3-fast'] }}],
+    reorderInput: () => {{}},
+    refreshIcons: () => {{}},
+}};
+const api = sandbox.window.WorkbenchCanvasClassicVideoProviderParams.create(host);
+const out = {{}};
+out.hasVideoApiProviders = typeof api.videoApiProviders === 'function';
+out.hasResolveVideoProviderId = typeof api.resolveVideoProviderId === 'function';
+out.hasProviderVideoModels = typeof api.providerVideoModels === 'function';
+out.hasRenderVideoImageInputs = typeof api.renderVideoImageInputs === 'function';
+out.frozen = Object.isFrozen(api);
+try {{
+  const list = api.videoApiProviders();
+  out.providers = list.map(p => p.id);
+}} catch(e) {{ out.providersErr = String(e); }}
+try {{
+  out.resolvedKnown = api.resolveVideoProviderId({{id: 'comfly'}});
+  out.resolvedUnknown = api.resolveVideoProviderId({{id: 'no-such-provider'}});
+  // also exercise a "rhea" fallback path — rhea has empty video_models
+  // so videoApiProviders filters it out; resolveVideoProviderId('rhea')
+  // must therefore fall back to the first provider that does pass the filter
+  out.resolvedFallback = api.resolveVideoProviderId({{id: 'rhea'}});
+}} catch(e) {{ out.resolveErr = String(e); }}
+try {{
+  out.modelsKnown = api.providerVideoModels({{providerId: 'comfly'}});
+  out.modelsUnknown = api.providerVideoModels({{providerId: 'no-such-provider'}});
+}} catch(e) {{ out.modelsErr = String(e); }}
+try {{
+  const listEl = makeEl();
+  const node = {{ id: 'video-node', type: 'video', useFrameRoles: false }};
+  const inputs = [
+    {{ id: 'src-1', preview: 'http://x', label: 'Image 1', refs: [{{ url: 'http://x' }}] }},
+    {{ id: 'src-2', preview: 'missing', label: 'Missing', refs: [{{ url: 'missing' }}] }},
+  ];
+  api.renderVideoImageInputs({{list: listEl, node, imageInputs: inputs}});
+  out.renderRan = true;
+  out.renderedChildren = listEl.children.length;
+}} catch(e) {{ out.renderErr = String(e); }}
+console.log(JSON.stringify(out));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        actual = json.loads(result.stdout)
+        self.assertTrue(actual["hasVideoApiProviders"], msg="seam must expose videoApiProviders")
+        self.assertTrue(actual["hasResolveVideoProviderId"], msg="seam must expose resolveVideoProviderId")
+        self.assertTrue(actual["hasProviderVideoModels"], msg="seam must expose providerVideoModels")
+        self.assertTrue(actual["hasRenderVideoImageInputs"], msg="seam must expose renderVideoImageInputs")
+        self.assertTrue(actual["frozen"], msg="seam handle must be frozen")
+        # videoApiProviders must filter out modelscope, disabled, and providers without video_models.
+        self.assertNotIn("modelscope", actual.get("providers", []), msg="videoApiProviders must strip 'modelscope'")
+        self.assertNotIn("disabled", actual.get("providers", []), msg="videoApiProviders must strip disabled providers")
+        self.assertNotIn("rhea", actual.get("providers", []), msg="videoApiProviders must strip providers with empty video_models")
+        self.assertIn("comfly", actual.get("providers", []), msg="videoApiProviders must keep comfly (has video_models)")
+        # resolveVideoProviderId: known id resolves to itself; unknown id falls back to first provider.
+        self.assertEqual(actual.get("resolvedKnown"), "comfly", msg="resolveVideoProviderId must return the requested id when it passes the videoApiProviders filter")
+        self.assertEqual(actual.get("resolvedUnknown"), "comfly", msg="resolveVideoProviderId must fall back to first provider when id is unknown")
+        self.assertEqual(actual.get("resolvedFallback"), "comfly", msg="resolveVideoProviderId must fall back to first provider when id is filtered out by videoApiProviders (e.g. empty video_models)")
+        # providerVideoModels: dedupes via uniqueModels.
+        self.assertEqual(actual.get("modelsKnown"), ["veo3-fast", "veo3-pro"], msg="providerVideoModels must return unique video_models for the requested provider")
+        self.assertEqual(actual.get("modelsUnknown"), [], msg="providerVideoModels must return [] for unknown provider")
+        # renderVideoImageInputs: produces one child per input.
+        self.assertTrue(actual.get("renderRan"), msg=f"renderVideoImageInputs must run on minimal mock host, got: {actual.get('renderErr')}")
+        self.assertEqual(actual.get("renderedChildren"), 2,
+            msg="renderVideoImageInputs must append one child per input item")
+
+        # Required-ops count pin (seam must keep this synchronized with the test).
+        required_match = re.search(r"REQUIRED_OPS\s*=\s*\[([^\]]*)\]", seam_source, re.DOTALL)
+        self.assertIsNotNone(required_match, msg="seam module must declare REQUIRED_OPS array")
+        required = re.findall(r"'([A-Za-z_][A-Za-z0-9_]*)'", required_match.group(1))
+        self.assertEqual(len(required), 15,
+            msg="REQUIRED_OPS count pin: Wave 11 seam module declares 15 host ops; if you add/remove an op, update both the seam and this test")
+
+        # TypeError-on-missing-host: every one of the REQUIRED ops
+        # must be validated. Iterate each name in turn and confirm
+        # create() throws TypeError when it is removed.
+        for missing in required:
+            partial_script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}, document: {{createElement: () => ({{}})}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+const fullHost = {{
+    document: {{createElement: () => ({{}})}}, tr: () => '',
+    escapeHtml: () => '', mediaKindForRef: () => 'image',
+    canvasVideoPreviewHtml: () => '', canvasPreviewImgHtml: () => '',
+    isMissingAssetUrl: () => false, missingAssetHtml: () => '',
+    getApiProviders: () => [], getInternalDrag: () => false, setInternalDrag: () => {{}},
+    uniqueModels: (l) => l || [], defaultApiProviders: () => [],
+    reorderInput: () => {{}}, refreshIcons: () => {{}},
+}};
+delete fullHost.{missing};
+try {{ sandbox.window.WorkbenchCanvasClassicVideoProviderParams.create(fullHost); console.log('no-throw'); }}
+catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
+"""
+            partial_result = subprocess.run(["node", "-e", partial_script], check=True, text=True, capture_output=True)
+            self.assertIn("TypeError", partial_result.stdout,
+                msg=f"missing host.{missing} should throw TypeError, got: {partial_result.stdout}")
+
+        # Source-contract: canvas.html loads the seam before canvas.js.
+        seam_href = "workbench/canvas/classic-video-provider-params.js"
+        editor_href = "static/js/canvas.js"
+        self.assertLess(html_source.index(seam_href), html_source.index(editor_href),
+            msg="classic-video-provider-params.js must load before canvas.js in canvas.html")
+        # The seam must also load after video-card-body to maintain the
+        # documented Wave 5-11 load order.
+        card_href = "workbench/canvas/classic-video-card-body.js"
+        self.assertLess(html_source.index(card_href), html_source.index(seam_href),
+            msg="classic-video-card-body.js must load BEFORE classic-video-provider-params.js in canvas.html")
+
+        # Source-contract: canvas.js deleted the four local function
+        # definitions and the page-side wrappers + dispatcher routes
+        # through ensureClassicVideoProviderParams().
+        self.assertNotIn("function videoApiProviders", editor_source,
+            msg="canvas.js should no longer define function videoApiProviders")
+        self.assertNotIn("function resolveVideoProviderId", editor_source,
+            msg="canvas.js should no longer define function resolveVideoProviderId")
+        self.assertNotIn("function providerVideoModels", editor_source,
+            msg="canvas.js should no longer define function providerVideoModels")
+        self.assertNotIn("function renderVideoImageInputs", editor_source,
+            msg="canvas.js should no longer define function renderVideoImageInputs")
+        self.assertIn("function ensureClassicVideoProviderParams", editor_source,
+            msg="canvas.js must declare ensureClassicVideoProviderParams next to ensureClassicVideoCardBody")
+        # Thin-page-side wrappers still exist (Wave 10 seam host-injection).
+        self.assertIn("function sanitizeVideoNodeProviderModel", editor_source,
+            msg="canvas.js must keep sanitizeVideoNodeProviderModel as a thin wrapper around the seam")
+        self.assertIn("function videoProviderOptions", editor_source,
+            msg="canvas.js must keep videoProviderOptions as a thin wrapper around the seam")
+        self.assertIn("function videoModelOptions", editor_source,
+            msg="canvas.js must keep videoModelOptions as a thin wrapper around the seam")
+        # Direct callers route through the seam.
+        self.assertIn("vpp.resolveVideoProviderId({id:", editor_source,
+            msg="canvas.js page-side wrappers must call vpp.resolveVideoProviderId({id: ...})")
+        self.assertIn("vpp.providerVideoModels({providerId", editor_source,
+            msg="canvas.js page-side wrappers must call vpp.providerVideoModels({providerId: ...})")
+        self.assertIn("vpp.videoApiProviders()", editor_source,
+            msg="canvas.js page-side wrapper videoProviderOptions must call vpp.videoApiProviders()")
+        self.assertIn("ensureClassicVideoProviderParams().renderVideoImageInputs({", editor_source,
+            msg="canvas.js syncGeneratorInputs video branch must call ensureClassicVideoProviderParams().renderVideoImageInputs({...})")
+        # Wave 16a moved runVideoNode's body into classic-executor-runtime.js.
+        executor_source = (ROOT / "static" / "js" / "workbench" / "canvas" / "classic-executor-runtime.js").read_text(encoding="utf-8")
+        self.assertIn("ensureClassicVideoProviderParams().resolveVideoProviderId({id:", executor_source,
+            msg="runVideoNode (executor seam) pre-flight must call ensureClassicVideoProviderParams().resolveVideoProviderId({id: ...})")
+
+
+    def test_classic_editor_routes_output_grid_renderer_through_classic_output_grid_seam(self):
+        # Wave 12: output-grid-renderer COMPAT seam. Three page-side
+        # output-node grid functions (bindOutputWrap,
+        # refreshOutputNodeContent, renderOutputGrid) move behind a
+        # bounded compat seam.
+        seam = ROOT / "static/js/workbench/canvas/classic-output-grid.js"
+        editor = ROOT / "static/js/canvas.js"
+        canvas_html = ROOT / "static/canvas.html"
+        self.assertTrue(seam.exists(), msg="classic-output-grid.js seam module must exist for Wave 12")
+        self.assertTrue(editor.exists(), msg="canvas.js editor must exist")
+        seam_source = seam.read_text(encoding="utf-8")
+        editor_source = editor.read_text(encoding="utf-8")
+        html_source = canvas_html.read_text(encoding="utf-8")
+
+        # The seam must expose the host factory with the documented three methods.
+        self.assertIn("WorkbenchCanvasClassicOutputGrid", seam_source,
+            msg="classic-output-grid.js must expose WorkbenchCanvasClassicOutputGrid")
+        self.assertIn("renderOutputGrid: function (arg) { return renderOutputGrid(arg.node, arg.pendingHtml); }", seam_source,
+            msg="classic-output-grid.js seam handle must wrap renderOutputGrid as renderOutputGrid({node, pendingHtml})")
+        self.assertIn("bindOutputWrap: function (arg) { return bindOutputWrap(arg.wrap, arg.node); }", seam_source,
+            msg="classic-output-grid.js seam handle must wrap bindOutputWrap as bindOutputWrap({wrap, node})")
+        self.assertIn("refreshOutputNodeContent: function (arg) { return refreshOutputNodeContent(arg.node); }", seam_source,
+            msg="classic-output-grid.js seam handle must wrap refreshOutputNodeContent as refreshOutputNodeContent({node})")
+
+        # Drive the seam in a Node vm sandbox and assert all three methods
+        # produce documented results on the minimal mock host.
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+function makeEl(tag) {{
+    const el = {{
+        tagName: (tag || 'DIV').toUpperCase(), className: '', innerHTML: '', value: '',
+        disabled: false, draggable: false,
+        style: {{ setProperty: () => {{}}, removeProperty: () => {{}} }},
+        options: [],
+        dataset: {{}},
+        children: [],
+        parentNode: null,
+        _innerHTML: '',
+        _lastChild: null,
+        onclick: null, oninput: null, onchange: null, onblur: null,
+        onmousedown: null, ondragstart: null, ondragend: null,
+        onwheel: null,
+        classList: {{ contains: () => false, add: () => {{}}, remove: () => {{}}, toggle: (cls, on) => {{}} }},
+        appendChild(c) {{ this.children.push(c); c.parentNode = this; this._lastChild = c; return c; }},
+        insertAdjacentHTML(pos, html) {{
+            const child = makeEl('div');
+            child.innerHTML = html;
+            child.dataset._html = html;
+            this.children.push(child);
+            child.parentNode = this;
+            this._lastChild = child;
+        }},
+        get lastElementChild() {{ return this._lastChild; }},
+        querySelector(sel) {{ return makeEl('div'); }},
+        querySelectorAll(sel) {{ return []; }},
+        forEach() {{}},
+        addEventListener(ev, fn) {{}},
+        contains(other) {{ return false; }},
+        closest(sel) {{ return null; }},
+        replaceWith(other) {{
+            if (this.parentNode) {{
+                const idx = this.parentNode.children.indexOf(this);
+                if (idx >= 0) this.parentNode.children[idx] = other;
+            }}
+            other.parentNode = this.parentNode;
+        }},
+        remove() {{
+            if (this.parentNode) {{
+                const idx = this.parentNode.children.indexOf(this);
+                if (idx >= 0) this.parentNode.children.splice(idx, 1);
+            }}
+        }},
+    }};
+    return el;
+}}
+function makeTemplate() {{
+    const tpl = makeEl('template');
+    tpl.content = {{ firstElementChild: null, firstChild: null }};
+    return tpl;
+}}
+const documentStub = {{
+    createElement: (tag) => {{
+        if (tag === 'template') return makeTemplate();
+        return makeEl(tag);
+    }},
+}};
+const windowStub = {{}};
+const sandbox = {{window: windowStub, document: documentStub}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+
+const captured = {{ drags: 0, lightboxOpens: 0, downloads: 0, timerRefreshes: 0, fbBinds: 0, syncRes: 0, refreshes: 0, deletes: 0 }};
+
+// Build a persistent output-node stub structure. queries for
+// `.output-node[data-id="..."]` return the full el, queries for
+// `.node-body` return the persisted body, queries for `.output-grid`
+// return the persisted grid — so refreshOutputNodeContent's `el / body
+// / grid` triple all resolve to the same structure.
+const _outputBody = makeEl('div');
+_outputBody.className = 'node-body';
+const _outputGrid = makeEl('div');
+_outputGrid.className = 'output-grid';
+_outputBody.appendChild(_outputGrid);
+const _outputNode = makeEl('div');
+_outputNode.dataset.outputNode = '1';
+_outputNode.appendChild(_outputBody);
+_outputNode.querySelector = (sel) => {{
+    if (sel === '.node-body' || sel.indexOf('.node-body') === 0) return _outputBody;
+    return makeEl('div');
+}};
+_outputBody.querySelector = (sel) => {{
+    if (sel === '.output-grid' || sel.indexOf('.output-grid') === 0) return _outputGrid;
+    return makeEl('div');
+}};
+const nodesElStub = {{
+    querySelector: (sel) => {{
+        if (sel.indexOf('.output-node') === 0) return _outputNode;
+        return null;
+    }},
+}};
+const host = {{
+    document: documentStub,
+    nodesEl: nodesElStub,
+    setOutputDragPreview: (e, img) => {{ captured.drags += 1; }},
+    openOutputLightbox: (url, out) => {{ captured.lightboxOpens += 1; }},
+    downloadUrl: (url, name) => {{ captured.downloads += 1; return Promise.resolve(); }},
+    outputDownloadName: (url) => 'output.jpg',
+    canvasActivateVideoPreview: (wrap) => {{}},
+    queryRecoverPendingOutput: (pid) => {{}},
+    outputUrlValue: (item) => typeof item === 'string' ? item : (item && item.url) || '',
+    outputGridLayout: (node) => null,
+    outputDomKeyForItem: (item) => 'url:' + (item.url || ''),
+    outputDomKeyForPending: (p) => 'pending:' + (p && p.id || ''),
+    renderOutputMedia: (item, useGridLayout) => '<div class="output-img-wrap"></div>',
+    renderPendingOutput: (p) => '<div class="output-pending"></div>',
+    bindCanvasPreviewImageFallbacks: (grid) => {{ captured.fbBinds += 1; }},
+    syncCanvasSelectedImageResolution: (el) => {{ captured.syncRes += 1; }},
+    refreshOutputTimer: () => {{ captured.timerRefreshes += 1; }},
+    scheduleSave: () => {{}},
+    refreshNodes: (ids) => {{ captured.refreshes += 1; }},
+}};
+
+const api = sandbox.window.WorkbenchCanvasClassicOutputGrid.create(host);
+const out = {{}};
+out.hasRenderOutputGrid = typeof api.renderOutputGrid === 'function';
+out.hasBindOutputWrap = typeof api.bindOutputWrap === 'function';
+out.hasRefreshOutputNodeContent = typeof api.refreshOutputNodeContent === 'function';
+out.frozen = Object.isFrozen(api);
+try {{
+  const node = {{ id: 'out-1', type: 'output', images: [] }};
+  const html = api.renderOutputGrid({{node, pendingHtml: '<div class=\"output-pending\"></div>'}});
+  out.renderedHtml = html;
+  out.containsGridClass = html.indexOf('output-grid') !== -1;
+  out.containsPending = html.indexOf('output-pending') !== -1;
+  out.noImagesMeansNoItems = html.indexOf('output-img-wrap') === -1;
+}} catch(e) {{ out.renderErr = String(e); }}
+try {{
+  const node = {{ id: 'out-1', type: 'output', images: [{{ url: 'http://x' }}], _pending: [{{ id: 'p1' }}] }};
+  const refreshed = api.refreshOutputNodeContent({{node}});
+  out.refreshed = refreshed === true;
+}} catch(e) {{ out.refreshErr = String(e); }}
+try {{
+  const node = {{ id: 'out-1', type: 'output', images: [{{ url: 'http://x' }}], _pending: [] }};
+  const wrap = makeEl('div');
+  wrap.dataset.outputUrl = 'http://x';
+  api.bindOutputWrap({{wrap, node}});
+  out.bindRan = true;
+  out.draggable = wrap.draggable;
+}} catch(e) {{ out.bindErr = String(e); }}
+console.log(JSON.stringify(out));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        actual = json.loads(result.stdout)
+        self.assertTrue(actual["hasRenderOutputGrid"], msg="seam must expose renderOutputGrid")
+        self.assertTrue(actual["hasBindOutputWrap"], msg="seam must expose bindOutputWrap")
+        self.assertTrue(actual["hasRefreshOutputNodeContent"], msg="seam must expose refreshOutputNodeContent")
+        self.assertTrue(actual["frozen"], msg="seam handle must be frozen")
+        # renderOutputGrid: emits the wrapper div with the documented 'output-grid' class.
+        self.assertTrue(actual.get("containsGridClass"), msg="renderOutputGrid must emit 'output-grid' class wrapper")
+        self.assertTrue(actual.get("containsPending"), msg="renderOutputGrid must include pendingHtml in the output")
+        self.assertTrue(actual.get("noImagesMeansNoItems"), msg="renderOutputGrid must omit output-img-wrap when node.images is empty")
+        # refreshOutputNodeContent: returns true when both body and grid are present in nodesEl.
+        self.assertTrue(actual.get("refreshed"), msg=f"refreshOutputNodeContent must return true on stub nodesEl, got: {actual.get('refreshErr')}")
+        # bindOutputWrap: runs without throwing; sets draggable=true when wrap.dataset.outputUrl is set.
+        self.assertTrue(actual.get("bindRan"), msg=f"bindOutputWrap must run on minimal mock host, got: {actual.get('bindErr')}")
+        self.assertTrue(actual.get("draggable"), msg="bindOutputWrap must set wrap.draggable=true when an outputUrl is present")
+
+        # Required-ops count pin (seam must keep this synchronized with the test).
+        required_match = re.search(r"REQUIRED_OPS\s*=\s*\[([^\]]*)\]", seam_source, re.DOTALL)
+        self.assertIsNotNone(required_match, msg="seam module must declare REQUIRED_OPS array")
+        required = re.findall(r"'([A-Za-z_][A-Za-z0-9_]*)'", required_match.group(1))
+        self.assertEqual(len(required), 19,
+            msg="REQUIRED_OPS count pin: Wave 12 seam module declares 19 host ops; if you add/remove an op, update both the seam and this test")
+
+        # TypeError-on-missing-host: every one of the REQUIRED ops
+        # must be validated. Iterate each name in turn and confirm
+        # create() throws TypeError when it is removed.
+        for missing in required:
+            partial_script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}, document: {{createElement: () => ({{}})}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+const fullHost = {{
+    document: {{createElement: () => ({{}})}}, nodesEl: {{querySelector: () => null}},
+    setOutputDragPreview: () => {{}}, openOutputLightbox: () => {{}},
+    downloadUrl: () => {{}}, outputDownloadName: () => '',
+    canvasActivateVideoPreview: () => {{}}, queryRecoverPendingOutput: () => {{}},
+    outputUrlValue: (i) => '', outputGridLayout: () => null,
+    outputDomKeyForItem: () => '', outputDomKeyForPending: () => '',
+    renderOutputMedia: () => '', renderPendingOutput: () => '',
+    bindCanvasPreviewImageFallbacks: () => {{}},
+    syncCanvasSelectedImageResolution: () => {{}},
+    refreshOutputTimer: () => {{}}, scheduleSave: () => {{}},
+    refreshNodes: () => {{}},
+}};
+delete fullHost.{missing};
+try {{ sandbox.window.WorkbenchCanvasClassicOutputGrid.create(fullHost); console.log('no-throw'); }}
+catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
+"""
+            partial_result = subprocess.run(["node", "-e", partial_script], check=True, text=True, capture_output=True)
+            self.assertIn("TypeError", partial_result.stdout,
+                msg=f"missing host.{missing} should throw TypeError, got: {partial_result.stdout}")
+
+        # Source-contract: canvas.html loads the seam before canvas.js.
+        seam_href = "workbench/canvas/classic-output-grid.js"
+        editor_href = "static/js/canvas.js"
+        self.assertLess(html_source.index(seam_href), html_source.index(editor_href),
+            msg="classic-output-grid.js must load before canvas.js in canvas.html")
+        # The seam must also load after video-provider-params to maintain the
+        # documented Wave 5-12 load order.
+        vpp_href = "workbench/canvas/classic-video-provider-params.js"
+        self.assertLess(html_source.index(vpp_href), html_source.index(seam_href),
+            msg="classic-video-provider-params.js must load BEFORE classic-output-grid.js in canvas.html")
+
+        # Source-contract: canvas.js deleted the three local function
+        # definitions and the dispatcher routes every kind through the
+        # seam via `ensureClassicOutputGrid()`.
+        self.assertNotIn("function bindOutputWrap", editor_source,
+            msg="canvas.js should no longer define function bindOutputWrap")
+        self.assertNotIn("function refreshOutputNodeContent", editor_source,
+            msg="canvas.js should no longer define function refreshOutputNodeContent")
+        self.assertNotIn("function renderOutputGrid", editor_source,
+            msg="canvas.js should no longer define function renderOutputGrid")
+        self.assertIn("function ensureClassicOutputGrid", editor_source,
+            msg="canvas.js must declare ensureClassicOutputGrid next to ensureClassicVideoProviderParams")
+        self.assertIn("ensureClassicOutputGrid().refreshOutputNodeContent({node})", editor_source,
+            msg="canvas.js refreshNodes output branch must call ensureClassicOutputGrid().refreshOutputNodeContent({node})")
+        self.assertIn("outputGrid.renderOutputGrid({node, pendingHtml})", editor_source,
+            msg="canvas.js body dispatcher must call outputGrid.renderOutputGrid({node, pendingHtml})")
+        self.assertIn("outputGrid.bindOutputWrap({wrap, node})", editor_source,
+            msg="canvas.js body dispatcher must call outputGrid.bindOutputWrap({wrap, node})")
+
+
+    def test_classic_editor_routes_generation_log_through_classic_generation_log_seam(self):
+        # Wave 13: generation-log COMPAT seam. Two page-side
+        # generation-log functions (addGenerationLog, renderCanvasLog)
+        # move behind a bounded compat seam. The 22 caller sites of
+        # addGenerationLog in canvas.js (run*Node success/failure
+        # handlers + miniMax run + comfy run + pending-output recovery
+        # + group run + miniMax log error wrapper) continue to call
+        # the page-side addGenerationLog function — the wrapper now
+        # delegates to the seam.
+        seam = ROOT / "static/js/workbench/canvas/classic-generation-log.js"
+        editor = ROOT / "static/js/canvas.js"
+        canvas_html = ROOT / "static/canvas.html"
+        self.assertTrue(seam.exists(), msg="classic-generation-log.js seam module must exist for Wave 13")
+        self.assertTrue(editor.exists(), msg="canvas.js editor must exist")
+        seam_source = seam.read_text(encoding="utf-8")
+        editor_source = editor.read_text(encoding="utf-8")
+        html_source = canvas_html.read_text(encoding="utf-8")
+
+        # The seam must expose the host factory with the documented two methods.
+        self.assertIn("WorkbenchCanvasClassicGenerationLog", seam_source,
+            msg="classic-generation-log.js must expose WorkbenchCanvasClassicGenerationLog")
+        self.assertIn("addGenerationLog: function (arg) { return addGenerationLog(arg); }", seam_source,
+            msg="classic-generation-log.js seam handle must wrap addGenerationLog as addGenerationLog(arg)")
+        self.assertIn("renderCanvasLog: function () { return renderCanvasLog(); }", seam_source,
+            msg="classic-generation-log.js seam handle must wrap renderCanvasLog as renderCanvasLog()")
+
+        # Drive the seam in a Node vm sandbox and assert both methods
+        # produce documented results on the minimal mock host.
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+function makeEl(tag) {{
+    const el = {{
+        tagName: (tag || 'DIV').toUpperCase(), className: '', innerHTML: '', value: '',
+        disabled: false, draggable: false,
+        style: {{}},
+        options: [],
+        dataset: {{}},
+        children: [],
+        parentNode: null,
+        onclick: null, oninput: null, onchange: null, onblur: null,
+        classList: {{ contains: () => false, add: () => {{}}, remove: () => {{}}, toggle: () => {{}} }},
+        appendChild(c) {{ this.children.push(c); c.parentNode = this; return c; }},
+        querySelector(sel) {{ return makeEl('div'); }},
+        querySelectorAll(sel) {{ return []; }},
+        forEach() {{}},
+        addEventListener(ev, fn) {{}},
+    }};
+    return el;
+}}
+const _logList = makeEl('div');
+_logList.id = 'logList';
+Object.defineProperty(_logList, 'innerHTML', {{
+    get() {{ return _logList._innerHTML || ''; }},
+    set(v) {{ _logList._innerHTML = v; }},
+}});
+const documentStub = {{
+    createElement: (tag) => makeEl(tag),
+    getElementById: (id) => {{
+        if (id === 'logList') return _logList;
+        return null;
+    }},
+}};
+const windowStub = {{
+    StudioI18n: {{ lang: () => 'zh-CN' }},
+    logList: null,
+}};
+const sandbox = {{window: windowStub, document: documentStub}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+
+const captured = {{ soundPlays: 0, copies: 0, lightboxOpens: 0, timerRefreshes: 0, fbBinds: 0 }};
+let canvasState = null;
+let uidCounter = 0;
+const host = {{
+    document: documentStub,
+    tr: (k) => k,
+    getCanvas: () => canvasState,
+    escapeHtml: (s) => String(s).replace(/[&<>"']/g, ''),
+    escapeAttr: (s) => String(s).replace(/"/g, '&quot;'),
+    isMissingAssetUrl: (url) => url === 'missing',
+    mediaKindForOutputItem: (item) => (item && item.kind) || 'image',
+    canvasVideoPreviewHtml: (url, size, attrs) => '<video></video>',
+    canvasPreviewImgHtml: (url, size, attrs) => '<img>',
+    runPlatformLabel: (run) => (run && run.platform) || 'unknown',
+    runTaskLabel: (run) => (run && (run.taskLabel || run.model)) || '-',
+    logTaskLabel: (log) => (log && log.model) || '-',
+    formatRunDuration: (ms) => ms + 'ms',
+    langIsEn: () => false,
+    windowObj: windowStub,
+    outputUrlValue: (item) => typeof item === 'string' ? item : (item && item.url) || '',
+    playGenerationCompleteSound: () => {{ captured.soundPlays += 1; }},
+    copyTextToClipboard: async (text) => {{ captured.copies += 1; return true; }},
+    refreshIcons: () => {{}},
+    bindCanvasPreviewImageFallbacks: (root) => {{ captured.fbBinds += 1; }},
+    openOutputLightbox: (url, out) => {{ captured.lightboxOpens += 1; }},
+    uid: (prefix) => prefix + '-' + (++uidCounter),
+}};
+
+const api = sandbox.window.WorkbenchCanvasClassicGenerationLog.create(host);
+const out = {{}};
+out.hasAddGenerationLog = typeof api.addGenerationLog === 'function';
+out.hasRenderCanvasLog = typeof api.renderCanvasLog === 'function';
+out.frozen = Object.isFrozen(api);
+
+// 1. addGenerationLog with no canvas → no-op (no throw, no mutation).
+try {{
+  canvasState = null;
+  api.addGenerationLog({{ run: {{ platform: 'comfly' }} }});
+  out.noCanvasRan = true;
+}} catch(e) {{ out.noCanvasErr = String(e); }}
+
+// 2. addGenerationLog with outputs → adds entry, plays sound.
+canvasState = {{ logs: [] }};
+api.addGenerationLog({{ run: {{ platform: 'comfly', taskLabel: 'T1', prompt: 'p1' }}, outputs: [{{ url: 'http://a' }}, 'http://b'], runMs: 1234 }});
+out.entryWritten = canvasState.logs.length === 1;
+out.entryHasId = canvasState.logs[0] && canvasState.logs[0].id === 'log-1';
+out.entryHasPlatform = canvasState.logs[0] && canvasState.logs[0].platform === 'comfly';
+out.entryHasRunMs = canvasState.logs[0] && canvasState.logs[0].runMs === 1234;
+out.soundPlayed = captured.soundPlays === 1;
+
+// 3. addGenerationLog with error → status='failed', no sound.
+api.addGenerationLog({{ run: {{ platform: 'comfly' }}, outputs: [{{ url: 'http://c' }}], error: 'boom' }});
+out.failedStatus = canvasState.logs[0].status === 'failed';
+out.errorString = canvasState.logs[0].error === 'boom';
+out.soundStillOne = captured.soundPlays === 1;
+
+// 4. addGenerationLog caps at 500 entries.
+for (let i = 0; i < 600; i++) {{
+    api.addGenerationLog({{ run: {{ platform: 'comfly' }}, outputs: [] }});
+}}
+out.capped = canvasState.logs.length === 500;
+out.prependsLatest = canvasState.logs[0].id !== 'log-1';
+
+// 5. renderCanvasLog with logs → emits log-item rows.
+canvasState.logs = [{{ id: 'l1', status: 'success', platform: 'comfly', outputs: [{{ url: 'http://a' }}], runMs: 1000, prompt: 'p' }}];
+try {{
+  api.renderCanvasLog();
+  out.renderRan = true;
+  out.listHtml = _logList._innerHTML;
+  out.containsLogItem = out.listHtml && out.listHtml.indexOf('log-item') !== -1;
+  out.containsStatusChip = out.listHtml && out.listHtml.indexOf('status-ok') !== -1;
+  out.containsPlatformChip = out.listHtml && out.listHtml.indexOf('comfly') !== -1;
+}} catch(e) {{ out.renderErr = String(e); }}
+
+// 6. renderCanvasLog with no logs → emits log-empty.
+canvasState.logs = [];
+try {{
+  api.renderCanvasLog();
+  out.emptyHtml = _logList._innerHTML;
+  out.containsEmpty = out.emptyHtml && out.emptyHtml.indexOf('log-empty') !== -1;
+}} catch(e) {{ out.emptyErr = String(e); }}
+
+console.log(JSON.stringify(out));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        actual = json.loads(result.stdout)
+        self.assertTrue(actual["hasAddGenerationLog"], msg="seam must expose addGenerationLog")
+        self.assertTrue(actual["hasRenderCanvasLog"], msg="seam must expose renderCanvasLog")
+        self.assertTrue(actual["frozen"], msg="seam handle must be frozen")
+        # addGenerationLog no-op when canvas is null
+        self.assertTrue(actual.get("noCanvasRan"), msg=f"addGenerationLog must no-op when canvas is null, got: {actual.get('noCanvasErr')}")
+        # addGenerationLog happy path
+        self.assertTrue(actual.get("entryWritten"), msg="addGenerationLog must prepend a new log entry")
+        self.assertTrue(actual.get("entryHasId"), msg="addGenerationLog must use uid('log') for the entry id")
+        self.assertTrue(actual.get("entryHasPlatform"), msg="addGenerationLog must capture runPlatformLabel(run) on the entry")
+        self.assertTrue(actual.get("entryHasRunMs"), msg="addGenerationLog must capture Number(runMs || 0) on the entry")
+        self.assertTrue(actual.get("soundPlayed"), msg="addGenerationLog must play completion sound when outputs are present")
+        # failed-status path
+        self.assertTrue(actual.get("failedStatus"), msg="addGenerationLog must set status='failed' when error is non-empty")
+        self.assertTrue(actual.get("errorString"), msg="addGenerationLog must capture String(error) on the entry")
+        self.assertTrue(actual.get("soundStillOne"), msg="addGenerationLog must NOT play completion sound when error is present")
+        # 500-entry cap
+        self.assertTrue(actual.get("capped"), msg=f"addGenerationLog must cap canvas.logs at 500 entries, got length={len(str(actual))}")
+        self.assertTrue(actual.get("prependsLatest"), msg="addGenerationLog must prepend the new entry (the original 'log-test' entry should be evicted by the cap)")
+        # renderCanvasLog happy path
+        self.assertTrue(actual.get("renderRan"), msg=f"renderCanvasLog must run on minimal mock host, got: {actual.get('renderErr')}")
+        self.assertTrue(actual.get("containsLogItem"), msg=f"renderCanvasLog must emit 'log-item' rows, got html: {actual.get('listHtml')}")
+        self.assertTrue(actual.get("containsStatusChip"), msg=f"renderCanvasLog must emit 'status-ok' chip for successful logs, got html: {actual.get('listHtml')}")
+        self.assertTrue(actual.get("containsPlatformChip"), msg=f"renderCanvasLog must emit platform chip, got html: {actual.get('listHtml')}")
+        # renderCanvasLog empty path
+        self.assertTrue(actual.get("containsEmpty"), msg=f"renderCanvasLog must emit 'log-empty' for empty logs, got html: {actual.get('emptyHtml')}")
+
+        # Required-ops count pin (seam must keep this synchronized with the test).
+        required_match = re.search(r"REQUIRED_OPS\s*=\s*\[([^\]]*)\]", seam_source, re.DOTALL)
+        self.assertIsNotNone(required_match, msg="seam module must declare REQUIRED_OPS array")
+        required = re.findall(r"'([A-Za-z_][A-Za-z0-9_]*)'", required_match.group(1))
+        self.assertEqual(len(required), 22,
+            msg="REQUIRED_OPS count pin: Wave 13 seam module declares 22 host ops; if you add/remove an op, update both the seam and this test")
+
+        # TypeError-on-missing-host: every one of the REQUIRED ops
+        # must be validated. Iterate each name in turn and confirm
+        # create() throws TypeError when it is removed.
+        for missing in required:
+            partial_script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}, document: {{createElement: () => ({{}}), getElementById: () => null}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(seam))}, 'utf8'), sandbox);
+const fullHost = {{
+    document: {{createElement: () => ({{}}), getElementById: () => null}}, tr: () => '',
+    getCanvas: () => null, escapeHtml: () => '', escapeAttr: () => '',
+    isMissingAssetUrl: () => false, mediaKindForOutputItem: () => 'image',
+    canvasVideoPreviewHtml: () => '', canvasPreviewImgHtml: () => '',
+    runPlatformLabel: () => '', runTaskLabel: () => '', logTaskLabel: () => '',
+    formatRunDuration: () => '', langIsEn: () => false, windowObj: {{}},
+    outputUrlValue: () => '', playGenerationCompleteSound: () => {{}},
+    copyTextToClipboard: async () => false, refreshIcons: () => {{}},
+    bindCanvasPreviewImageFallbacks: () => {{}}, openOutputLightbox: () => {{}},
+    uid: () => '',
+}};
+delete fullHost.{missing};
+try {{ sandbox.window.WorkbenchCanvasClassicGenerationLog.create(fullHost); console.log('no-throw'); }}
+catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
+"""
+            partial_result = subprocess.run(["node", "-e", partial_script], check=True, text=True, capture_output=True)
+            self.assertIn("TypeError", partial_result.stdout,
+                msg=f"missing host.{missing} should throw TypeError, got: {partial_result.stdout}")
+
+        # Source-contract: canvas.html loads the seam before canvas.js.
+        seam_href = "workbench/canvas/classic-generation-log.js"
+        editor_href = "static/js/canvas.js"
+        self.assertLess(html_source.index(seam_href), html_source.index(editor_href),
+            msg="classic-generation-log.js must load before canvas.js in canvas.html")
+        # The seam must also load after output-grid to maintain the
+        # documented Wave 5-13 load order.
+        grid_href = "workbench/canvas/classic-output-grid.js"
+        self.assertLess(html_source.index(grid_href), html_source.index(seam_href),
+            msg="classic-output-grid.js must load BEFORE classic-generation-log.js in canvas.html")
+
+        # Source-contract: canvas.js deleted the two local function
+        # definitions and the page-side wrappers + ensure host
+        # injection routes every kind through the seam via
+        # `ensureClassicGenerationLog()`.
+        self.assertNotIn("function addGenerationLog", editor_source.split("function ensureClassicGenerationLog")[0].split("function addGenerationLog(arg)")[0] if "function addGenerationLog(arg)" in editor_source else editor_source,
+            msg="canvas.js should no longer define the original addGenerationLog function body (the thin page-side wrapper is fine)")
+        # The simpler, more reliable assertion: the *original* function
+        # body (which had `canvas.logs = canvas.logs || [];` directly) is
+        # gone — only the thin wrapper `addGenerationLog(arg)` that
+        # delegates to the seam remains.
+        self.assertIn("function addGenerationLog(arg){", editor_source,
+            msg="canvas.js must keep addGenerationLog as a thin wrapper around the seam")
+        self.assertIn("ensureClassicGenerationLog().addGenerationLog(arg)", editor_source,
+            msg="canvas.js addGenerationLog wrapper must call ensureClassicGenerationLog().addGenerationLog(arg)")
+        self.assertIn("function renderCanvasLog(){", editor_source,
+            msg="canvas.js must keep renderCanvasLog as a thin wrapper around the seam")
+        self.assertIn("ensureClassicGenerationLog().renderCanvasLog()", editor_source,
+            msg="canvas.js renderCanvasLog wrapper must call ensureClassicGenerationLog().renderCanvasLog()")
+        self.assertIn("function ensureClassicGenerationLog", editor_source,
+            msg="canvas.js must declare ensureClassicGenerationLog next to ensureClassicOutputGrid")
+        # The original 90-LOC addGenerationLog + renderCanvasLog bodies
+        # must be gone (we can detect this by checking the original
+        # canvas.logs = canvas.logs || []; preamble is absent from the
+        # seam-call wrapper).
+        self.assertNotIn("playGenerationCompleteSound();\n            canvas.logs = canvas.logs || [];", editor_source,
+            msg="canvas.js should no longer host the original addGenerationLog function body — only the seam does")
+        # The seam must have the same pattern so we don't get a false negative.
+        self.assertIn("playGenerationCompleteSound();", seam_source,
+            msg="classic-generation-log.js must keep playGenerationCompleteSound invocation in addGenerationLog body")
+        self.assertIn("canvas.logs = canvas.logs || [];", seam_source,
+            msg="classic-generation-log.js must keep canvas.logs preamble in addGenerationLog body")
+
     def test_versioned_node_creation_is_default_on_loopback_with_an_explicit_rollback(self):
         client = ROOT / "static" / "js" / "workbench" / "canvas" / "node-creation-client.js"
         script = f"""
@@ -940,9 +3390,12 @@ vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
             editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
             self.assertLess(page_source.index("workbench/canvas/canvas-http-error.js"), page_source.index(editor))
-            self.assertIn("WorkbenchCanvasHttpError.message", editor_source)
-            self.assertIn("WorkbenchCanvasHttpError.responseMessage", editor_source)
-            self.assertNotIn("const detail = data.detail ?? data.error ?? data.message", editor_source)
+            # Wave 16a moved the transport bodies (with their error-formatting
+            # call sites) into classic-executor-runtime.js.
+            executor_source = (ROOT / "static" / "js" / "workbench" / "canvas" / "classic-executor-runtime.js").read_text(encoding="utf-8")
+            self.assertIn("WorkbenchCanvasHttpError.message", editor_source + executor_source)
+            self.assertIn("WorkbenchCanvasHttpError.responseMessage", editor_source + executor_source)
+            self.assertNotIn("const detail = data.detail ?? data.error ?? data.message", editor_source + executor_source)
 
     def test_persistence_client_saves_with_logical_revision_cas_on_the_canonical_transport(self):
         client = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-persistence-client.js"
@@ -982,13 +3435,14 @@ const persistence = sandbox.window.WorkbenchCanvasPersistence;
         self.assertEqual(payload["save2"]["canvas"]["updated_at"], 1002)
         self.assertEqual(payload["save3"]["revision"], 10)
         self.assertEqual(payload["save4"]["status"], 200)
-        # Canonical GET then three canonical CAS PUTs whose expected_revision follows
-        # load -> save -> conflict -> recovery, with transport fields stripped.
+        # Canonical GET then three canonical CAS PUTs. A 409 reports revision 9
+        # but does not advance the local CAS cursor: the rejected stale payload
+        # is not silently authorized against the newer server revision.
         self.assertEqual(payload["requests"][0]["path"], "/api/v1/canvases/c1")
         self.assertEqual(payload["requests"][1]["path"], "/api/v1/canvases/c1")
         self.assertEqual(json.loads(payload["requests"][1]["options"]["body"]), {"payload": {"title": "A"}, "expected_revision": 5, "client_id": "editor-1"})
         self.assertEqual(json.loads(payload["requests"][2]["options"]["body"])["expected_revision"], 6)
-        self.assertEqual(json.loads(payload["requests"][3]["options"]["body"])["expected_revision"], 9)
+        self.assertEqual(json.loads(payload["requests"][3]["options"]["body"])["expected_revision"], 6)
         # 503 falls back to the legacy transport with the full record body intact.
         self.assertEqual(payload["requests"][4]["path"], "/api/v1/canvases/c1")
         self.assertEqual(json.loads(payload["requests"][4]["options"]["body"])["expected_revision"], 10)
@@ -1564,7 +4018,52 @@ console.log(JSON.stringify({invalid}));
         self.assertNotIn("window.onmousemove = onNodeResize", resize_flow)
         # The controller singleton is the single wiring owner for these sessions.
         self.assertEqual(classic.count("WorkbenchInteractionController.create({windowRef: window})"), 1)
-        self.assertEqual(classic.count("ensureInteractionController().begin("), 3)
+        self.assertEqual(classic.count("ensureInteractionController().begin("), 7)
+
+    def test_classic_residual_pointer_sessions_are_cut_over_to_the_controller(self):
+        # R4-39 Wave 4 slice: the remaining page-owned window mouse-slot
+        # assignments (LLM pane resize, box selection, selection-link drag,
+        # knife drag) moved behind the same InteractionController session
+        # lifecycle, and the cleanup sites (finishSelection, endDrag, the
+        # blur guard) unwire through controller.end(). The page owns no
+        # window handler slot directly anymore.
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        self.assertNotIn("window.onmousemove =", classic)
+        self.assertNotIn("window.onmouseup =", classic)
+        for kind in ("llm-pane-resize", "box-selection", "selection-link", "knife-drag"):
+            with self.subTest(kind=kind):
+                self.assertIn(f"kind:'{kind}'", classic)
+        self.assertEqual(classic.count("ensureInteractionController().begin("), 7)
+        self.assertGreaterEqual(classic.count("ensureInteractionController().end()"), 3)
+
+        controller_module = ROOT / "static" / "js" / "workbench" / "canvas" / "interaction-controller.js"
+        script = """
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {window: {}};
+vm.runInNewContext(fs.readFileSync(__MODULE__, 'utf8'), sandbox);
+const controller = sandbox.window.WorkbenchInteractionController.create({windowRef: sandbox.window});
+const events = [];
+// Page pattern: the session's onEnd (finishSelection/endDrag shape) runs the
+// page cleanup and unwires via controller.end(); the controller has already
+// cleared the active session by then, so the slot degrades to a guarded
+// no-op instead of throwing or double-unwiring.
+controller.begin({kind: 'box-selection',
+  onMove: e => events.push('move:' + e.x),
+  onEnd: () => { events.push('end'); controller.end(); }});
+sandbox.window.onmousemove({x: 1});
+sandbox.window.onmouseup({});
+sandbox.window.onmousemove({x: 2});
+// Blur-guard shape: a session still active is unwired programmatically and
+// the slot is fully cleared.
+controller.begin({kind: 'knife-drag', onMove: () => {}, onEnd: () => events.push('knife-end')});
+const unwired = controller.end();
+console.log(JSON.stringify({events, slot: sandbox.window.onmousemove, unwired}));
+""".replace("__MODULE__", json.dumps(str(controller_module)))
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["events"], ["move:1", "end"])
+        self.assertIsNone(payload["slot"])
+        self.assertTrue(payload["unwired"])
 
     def test_selection_authority_store_is_set_compatible_with_change_tracking(self):
         controller_module = ROOT / "static" / "js" / "workbench" / "canvas" / "interaction-controller.js"
@@ -2224,9 +4723,16 @@ console.log(JSON.stringify({{calls, frozen, missingThrew, nonObjectThrew}}));
         for entry in manifest["entry_points"]:
             self.assertIn(entry["disposition"], allowed_dispositions)
             seen_dispositions.add(entry["disposition"])
-            self.assertIn(entry["function"], classic, f"{entry['function']} must exist in source")
+            # R4-38 Wave 14 moved the cascade implementation into the bounded
+            # compat seam module; affected entries declare `evidence_target`
+            # so grounding reads the owning module (same schema as the R4-31
+            # capability inventory). Entries without the field stay grounded
+            # in the manifest source (canvas.js).
+            target_rel = entry.get("evidence_target", manifest["source"])
+            target_source = (ROOT / target_rel).read_text(encoding="utf-8")
+            self.assertIn(entry["function"], target_source, f"{entry['function']} must exist in {target_rel}")
             for evidence in entry["evidence"]:
-                self.assertIn(evidence, classic, f"evidence {evidence} must exist in source")
+                self.assertIn(evidence, target_source, f"evidence {evidence} must exist in {target_rel}")
         # The classification is non-trivial: the cutover, seamed, and a deferred
         # host-candidate disposition must all be present.
         for required in ("host-cutover", "seamed", "host-candidate"):
@@ -2240,15 +4746,18 @@ console.log(JSON.stringify({{calls, frozen, missingThrew, nonObjectThrew}}));
         self.assertLess(page.index("workbench/canvas/classic-execution-host.js"), page.index("js/canvas.js"))
         # The page constructs the host handle and delegates runLLMNode's Canvas
         # lifecycle/state side-effects through it (no direct node writes).
+        # Wave 16a moved runLLMNode's body (with the host delegation) into
+        # classic-executor-runtime.js; the page keeps the factory + load order.
+        executor_source = (ROOT / "static" / "js" / "workbench" / "canvas" / "classic-executor-runtime.js").read_text(encoding="utf-8")
         self.assertIn("window.WorkbenchCanvasClassicExecutionHost.create({", classic)
-        self.assertIn("const executionHost = ensureClassicExecutionHost();", classic)
-        self.assertIn("executionHost.markRunning(node, true)", classic)
-        self.assertIn("executionHost.markRunning(node, false)", classic)
-        self.assertIn("executionHost.writeOutputText(node, outputText)", classic)
-        self.assertIn("executionHost.setRunStatus(node, 'done', '')", classic)
-        self.assertIn("executionHost.setRunStatus(node, 'failed', err.message || String(err))", classic)
-        self.assertIn("executionHost.save()", classic)
-        self.assertIn("executionHost.notifyError(err.message || 'LLM 运行失败')", classic)
+        self.assertIn("const executionHost = ensureClassicExecutionHost();", executor_source)
+        self.assertIn("executionHost.markRunning(node, true)", executor_source)
+        self.assertIn("executionHost.markRunning(node, false)", executor_source)
+        self.assertIn("executionHost.writeOutputText(node, outputText)", executor_source)
+        self.assertIn("executionHost.setRunStatus(node, 'done', '')", executor_source)
+        self.assertIn("executionHost.setRunStatus(node, 'failed', err.message || String(err))", executor_source)
+        self.assertIn("executionHost.save()", executor_source)
+        self.assertIn("executionHost.notifyError(err.message || 'LLM 运行失败')", executor_source)
         # The old direct Canvas writes in runLLMNode are gone.
         self.assertNotIn("node.outputText = await callCanvasLLM", classic)
         # The extracted host is product-neutral: no Classic adapter detail leaks in.
@@ -2645,6 +5154,49 @@ console.log(JSON.stringify({{classicA, classicB, classicC, smartA, smartB, smart
         self.assertTrue(payload["smartE"]["shouldConnect"])
         self.assertEqual(payload["smartE"]["appendInputNodeId"], "a")
 
+    def test_legacy_graph_compatibility_owns_classic_connect_admission(self):
+        module = ROOT / "static/js/workbench/canvas/legacy-graph-compatibility.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const c = sandbox.WorkbenchLegacyGraphCompatibility.canClassicConnect;
+const n = [
+  {{id:'image', type:'image'}}, {{id:'prompt', type:'prompt'}},
+  {{id:'loop', type:'loop', imageInput:true, showPrompt:true}},
+  {{id:'gen', type:'generator'}}, {{id:'gen2', type:'comfy'}},
+  {{id:'llm', type:'llm'}}, {{id:'out', type:'output'}}, {{id:'group', type:'group'}},
+];
+const edge = (from, to) => ({{id: from + '-' + to, from, to}});
+console.log(JSON.stringify({{
+  imageGenerator: c({{nodes:n, connections:[], fromId:'image', toId:'gen'}}),
+  generatorOutput: c({{nodes:n, connections:[], fromId:'gen', toId:'out'}}),
+  generatorCycle: c({{nodes:n, connections:[edge('gen2','gen')], fromId:'gen', toId:'gen2'}}),
+  llmGenerator: c({{nodes:n, connections:[], fromId:'llm', toId:'gen'}}),
+  imageGroup: c({{nodes:n, connections:[], fromId:'image', toId:'group'}}),
+  promptLoop: c({{nodes:n, connections:[], fromId:'prompt', toId:'loop'}}),
+  outputImage: c({{nodes:n, connections:[], fromId:'out', toId:'image'}}),
+  self: c({{nodes:n, connections:[], fromId:'gen', toId:'gen'}}),
+}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), {
+            "imageGenerator": True,
+            "generatorOutput": True,
+            "generatorCycle": False,
+            "llmGenerator": True,
+            "imageGroup": True,
+            "promptLoop": True,
+            "outputImage": False,
+            "self": False,
+        })
+
+    def test_classic_connect_admission_delegates_to_shared_policy(self):
+        classic = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        admission = classic[classic.index("function canConnect("):classic.index("function sanitizeConnections(")]
+        self.assertIn("WorkbenchLegacyGraphCompatibility.canClassicConnect", admission)
+        self.assertNotIn("wouldCreateGeneratorCycle", classic)
+
     def test_classic_connect_side_effects_apply_the_policy_projection(self):
         # R4-25 behavioral proof for the Classic half: drive the REAL
         # `applyClassicConnectionSideEffects` out of canvas.js together with
@@ -2720,6 +5272,319 @@ console.log(JSON.stringify({{
         self.assertEqual(payload["blockedItems"], [])
         self.assertEqual(payload["blockedOutputSyncs"], 1)
         self.assertEqual(payload["blockedGeneratorSyncs"], 1)
+
+    def test_group_membership_transition_algorithm_is_owned_by_the_shared_module(self):
+        # R4-39 Wave 4 slice 2: the move-driven membership transition
+        # (containment detection, membership add/remove, generator-edge
+        # handoff to the containing group) is owned by the shared
+        # GroupMembership module; the Classic page supplies only geometry,
+        # node lookup, eligibility/connect policy and side effects.
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "group-membership.js"
+        script = """
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {window: {}};
+vm.runInNewContext(fs.readFileSync(__MODULE__, 'utf8'), sandbox);
+const gm = sandbox.window.WorkbenchCanvasGroupMembership;
+const rect = (x, y, w, h) => ({x, y, w, h, cx: x + w / 2, cy: y + h / 2});
+const nodes = {
+  gA: {id: 'gA', type: 'group', items: ['p1'], rect: rect(200, 0, 100, 100)},
+  gB: {id: 'gB', type: 'group', items: [], rect: rect(0, 0, 100, 100)},
+  pg: {id: 'pg', type: 'promptGroup', items: [], rect: rect(0, 0, 100, 100)},
+  p1: {id: 'p1', type: 'prompt', rect: rect(10, 10, 40, 30)},
+  p2: {id: 'p2', type: 'prompt', rect: rect(20, 20, 40, 30)},
+  t1: {id: 't1', type: 'gen', rect: rect(0, 0, 0, 0)},
+  t2: {id: 't2', type: 'gen', rect: rect(0, 0, 0, 0)},
+};
+const byId = id => nodes[id];
+let edgeSeq = 0;
+const newEdgeId = () => 'e-new-' + (++edgeSeq);
+const edges1 = [{id: 'e1', from: 'p1', to: 't1'}, {id: 'e2', from: 'gB', to: 't2'}];
+const r1 = gm.resolveMembershipTransition({
+  groups: [nodes.gA, nodes.gB],
+  children: [nodes.p1],
+  rectOf: n => n.rect,
+  nodeById: byId,
+  handoffEligible: (g, c) => g.type === 'group' && ['image', 'prompt'].includes(c.type),
+  edges: edges1,
+  generatorTypes: ['gen'],
+  canConnect: () => true,
+  newEdgeId,
+});
+// canConnect veto case: a second child joins gB but its handoff edge is vetoed.
+const edges2 = [{id: 'e3', from: 'p2', to: 't2'}];
+let vetoed = 0;
+const r2 = gm.resolveMembershipTransition({
+  groups: [nodes.gB],
+  children: [nodes.p2],
+  rectOf: n => n.rect,
+  nodeById: byId,
+  handoffEligible: (g, c) => g.type === 'group' && ['image', 'prompt'].includes(c.type),
+  edges: edges2,
+  generatorTypes: ['gen'],
+  canConnect: (from, to) => { vetoed += 1; return false; },
+  newEdgeId,
+});
+// promptGroup containment must not hand off edges (eligibility gate).
+const edges3 = [{id: 'e4', from: 'p1', to: 't1'}];
+nodes.gB.items = ['p1'];
+const r3 = gm.resolveMembershipTransition({
+  groups: [nodes.pg],
+  children: [nodes.p1],
+  rectOf: n => n.rect,
+  nodeById: byId,
+  handoffEligible: (g, c) => g.type === 'group' && ['image', 'prompt'].includes(c.type),
+  edges: edges3,
+  generatorTypes: ['gen'],
+  canConnect: () => true,
+  newEdgeId,
+});
+// No-op: child already a member of the only group, no edges to hand off.
+nodes.pg.items = ['p1'];
+const r4 = gm.resolveMembershipTransition({
+  groups: [nodes.pg],
+  children: [nodes.p1],
+  rectOf: n => n.rect,
+  nodeById: byId,
+  handoffEligible: (g, c) => g.type === 'group' && ['image', 'prompt'].includes(c.type),
+  edges: [],
+  generatorTypes: ['gen'],
+  canConnect: () => true,
+  newEdgeId,
+});
+// rectOf contract.
+let threw = false;
+try { gm.resolveMembershipTransition({groups: [], children: []}); } catch (e) { threw = e.name === 'TypeError'; }
+console.log(JSON.stringify({
+  r1, r2, r3, r4, threw, vetoed,
+  gAItems: nodes.gA.items, gBItems: nodes.gB.items, pgItems: nodes.pg.items,
+  edges1, edges2, edges3,
+}));
+""".replace("__MODULE__", json.dumps(str(module)))
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        # p1 left gA, joined gB; its direct generator edge was re-parented to
+        # the group; the existing group edge to t2 was kept, not duplicated.
+        self.assertTrue(payload["r1"]["changed"])
+        self.assertEqual(payload["r1"]["membersAdded"], 1)
+        self.assertEqual(payload["r1"]["membersRemoved"], 1)
+        self.assertEqual(payload["r1"]["edgesRemoved"], 1)
+        self.assertEqual(payload["r1"]["edgesAdded"], 1)
+        self.assertEqual(payload["gAItems"], [])
+        self.assertEqual(payload["gBItems"], ["p1"])
+        self.assertEqual(payload["edges1"], [
+            {"id": "e2", "from": "gB", "to": "t2"},
+            {"id": "e-new-1", "from": "gB", "to": "t1"},
+        ])
+        # Vetoed connect: membership still added and the child's direct edge
+        # is still removed (removal is unconditional); only the group re-add
+        # is vetoed, so nothing replaces it.
+        self.assertTrue(payload["r2"]["changed"])
+        self.assertEqual(payload["r2"]["membersAdded"], 1)
+        self.assertEqual(payload["r2"]["edgesRemoved"], 1)
+        self.assertEqual(payload["r2"]["edgesAdded"], 0)
+        self.assertEqual(payload["vetoed"], 1)
+        self.assertEqual(payload["edges2"], [])
+        # promptGroup containment: the membership add still happens but the
+        # generator-edge handoff is suppressed by the eligibility gate.
+        self.assertEqual(payload["r3"], {"changed": True, "membersAdded": 1, "membersRemoved": 0, "edgesRemoved": 0, "edgesAdded": 0})
+        self.assertEqual(payload["pgItems"], ["p1"])
+        self.assertEqual(payload["edges3"], [{"id": "e4", "from": "p1", "to": "t1"}])
+        # Idempotent no-op with handoff-eligible group type but no edges.
+        self.assertFalse(payload["r4"]["changed"])
+        self.assertTrue(payload["threw"])
+
+    def test_group_input_handoff_algorithm_is_shared_by_group_creation(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "group-membership.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const gm = sandbox.window.WorkbenchCanvasGroupMembership;
+const group = {{id:'group', type:'group', items:[]}};
+const nodes = {{image:{{id:'image',type:'image'}}, prompt:{{id:'prompt',type:'prompt'}}, generator:{{id:'generator',type:'generator'}}, group}};
+const edges = [
+  {{id:'image-generator',from:'image',to:'generator'}},
+  {{id:'prompt-generator',from:'prompt',to:'generator'}},
+  {{id:'group-generator',from:'group',to:'generator'}},
+];
+let sequence = 0;
+const first = gm.handoffChildEdgesToGroup({{
+  group, children:[nodes.image,nodes.prompt], edges, nodeById:id=>nodes[id],
+  generatorTypes:['generator'], canConnect:()=>true, newEdgeId:()=> 'new-' + (++sequence),
+}});
+const second = gm.handoffChildEdgesToGroup({{
+  group, children:[nodes.image,nodes.prompt], edges, nodeById:id=>nodes[id],
+  generatorTypes:['generator'], canConnect:()=>true, newEdgeId:()=> 'new-' + (++sequence),
+}});
+let invalid = false;
+try {{ gm.handoffChildEdgesToGroup({{children:[]}}); }} catch (error) {{ invalid = error.name === 'TypeError'; }}
+console.log(JSON.stringify({{first, second, edges, invalid}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["first"], {"changed": True, "edgesRemoved": 2, "edgesAdded": 0})
+        self.assertEqual(payload["second"], {"changed": False, "edgesRemoved": 0, "edgesAdded": 0})
+        self.assertEqual(payload["edges"], [{"id": "group-generator", "from": "group", "to": "generator"}])
+        self.assertTrue(payload["invalid"])
+
+    def test_classic_page_delegates_group_membership_transition_to_the_shared_module(self):
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        flow = classic[classic.index("function updateGroupMembership(") : classic.index("function portPoint(")]
+        # The transition algorithm is delegated; the page keeps only the
+        # product policy inputs (type pairs, geometry, eligibility, connect
+        # policy) and the post-change side effects.
+        self.assertIn("WorkbenchCanvasGroupMembership.resolveMembershipTransition", flow)
+        self.assertIn("handoffEligible: (group, child) => group?.type === 'group' && ['image','prompt'].includes(child?.type)", flow)
+        self.assertNotIn("handoffGroupConnections", classic)
+        self.assertNotIn("connections.filter(c => !(c.from === child.id && c.to === target.id))", classic)
+        self.assertIn("WorkbenchCanvasGroupMembership.handoffChildEdgesToGroup", classic)
+        # The shared module loads before the editor.
+        page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
+        self.assertLess(page.index("workbench/canvas/group-membership.js"), page.index("js/canvas.js"))
+
+    def test_render_sweep_owns_rebuild_isolation_reuse_and_refresh_fallback(self):
+        # R4-39 Wave 4 render slice: the throwaway-render sweep algorithm is
+        # owned by the shared RenderSweep module — per-mode state capture,
+        # live-media DOM reuse + transplant, per-node error isolation (one
+        # failing node must not drop later nodes from the DOM), the refresh
+        # fast-path, and the missing-DOM full-sweep fallback that drops the
+        # outer captured state (characterized page behavior).
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "render-sweep.js"
+        script = """
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {window: {}, console: {error: () => {}}, CSS: {escape: s => s}};
+vm.runInNewContext(fs.readFileSync(__MODULE__, 'utf8'), sandbox);
+const events = [];
+function makeEl(id) {
+  const el = {
+    dataset: id ? {id} : {}, removed: false,
+    remove() { this.removed = true; this.parent.children = this.parent.children.filter(c => c !== this); },
+    replaceWith(next) {
+      const siblings = this.parent.children;
+      siblings[siblings.indexOf(this)] = next;
+      next.parent = this.parent;
+    },
+  };
+  return el;
+}
+function makeContainer(initial) {
+  const container = {children: []};
+  container.querySelectorAll = sel => sel === '.node' ? container.children.slice() : [];
+  container.querySelector = sel => container.children.find(c => c.dataset.id === sel.match(/data-id="(.*)"/)[1]) || null;
+  container.appendChild = el => { el.parent = container; container.children.push(el); return el; };
+  (initial || []).forEach(el => container.appendChild(el));
+  return container;
+}
+const nodes = [{id: 'bad'}, {id: 'good'}, {id: 'media'}];
+const container = makeContainer([makeEl('media'), makeEl('stale')]);
+const sweep = sandbox.window.WorkbenchCanvasRenderSweep.create({
+  container,
+  getNodes: () => nodes,
+  renderNode: node => {
+    events.push('render:' + node.id);
+    if (node.id === 'bad') throw new Error('boom');
+    return makeEl(node.id);
+  },
+  isLiveMedia: node => Boolean(node && node.id === 'media'),
+  transplantMedia: oldEl => events.push('transplant:' + oldEl.dataset.id),
+  applyViewport: () => events.push('viewport'),
+  captureState: mode => { events.push('capture:' + mode); return mode; },
+  restoreState: mode => events.push('restore:' + mode),
+  afterRender: mode => events.push('after:' + mode),
+});
+sweep.run();
+const afterRun = {children: container.children.map(c => c.dataset.id)};
+// refresh: fast-path output node, in-place replace for a present node,
+// full-sweep fallback for a missing node.
+const nodes2 = [{id: 'out', type: 'output'}, {id: 'gone'}, {id: 'kept'}];
+const container2 = makeContainer([makeEl('kept')]);
+let captures = 0;
+const sweep2 = sandbox.window.WorkbenchCanvasRenderSweep.create({
+  container: container2,
+  getNodes: () => nodes2,
+  renderNode: node => { events.push('render2:' + node.id); return makeEl(node.id); },
+  isLiveMedia: () => false,
+  transplantMedia: () => {},
+  applyViewport: () => {},
+  captureState: mode => { captures += 1; events.push('capture2:' + mode); return mode; },
+  restoreState: mode => events.push('restore2:' + mode),
+  afterRender: mode => events.push('after2:' + mode),
+  refreshFastPath: node => {
+    if (node.type === 'output') { events.push('fast'); return true; }
+    return false;
+  },
+});
+const refreshStart = events.length;
+sweep2.refresh(['out', 'kept', 'kept']);
+const refreshEvents = events.slice(refreshStart);
+const afterRefresh = {children: container2.children.map(c => c.dataset.id)};
+const emptyStart = events.length;
+sweep2.refresh([]);
+const emptyCaptures = captures;
+const emptyEvents = events.slice(emptyStart);
+const fallbackStart = events.length;
+sweep2.refresh(['gone']);
+const fallbackEvents = events.slice(fallbackStart);
+const afterFallback = {children: container2.children.map(c => c.dataset.id)};
+let threw = false;
+try { sandbox.window.WorkbenchCanvasRenderSweep.create({}); } catch (e) { threw = e.name === 'TypeError'; }
+console.log(JSON.stringify({afterRun, afterRefresh, afterFallback, emptyCaptures, threw, events, refreshEvents, emptyEvents, fallbackEvents}));
+""".replace("__MODULE__", json.dumps(str(module)))
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        payload = json.loads(result.stdout)
+        events = payload["events"]
+        # Capture -> viewport -> per-node rebuild (the throwing node is
+        # isolated; later nodes still append) -> transplant of the live-media
+        # element -> restore -> after; the stale non-media child is removed.
+        self.assertEqual(events[:6], [
+            "capture:render", "viewport", "render:bad", "render:good", "render:media", "transplant:media",
+        ])
+        self.assertLess(events.index("transplant:media"), events.index("restore:render"))
+        self.assertIn("after:render", events)
+        # Append order follows the nodes array: the failing node leaves no
+        # DOM, 'good' appends, then a fresh 'media' appends and the old
+        # reusable element is transplanted into it and removed. The stale
+        # non-media child was removed by the sweep.
+        self.assertEqual(payload["afterRun"]["children"], ["good", "media"])
+        # refresh: fast path handled the output node without renderNode; the
+        # present node was replaced in place.
+        self.assertEqual(payload["refreshEvents"], [
+            "capture2:refresh", "fast", "render2:kept",
+            "restore2:refresh", "after2:refresh",
+        ])
+        self.assertEqual(payload["afterRefresh"]["children"], ["kept"])
+        # Empty ids capture nothing (no-op contract).
+        self.assertEqual(payload["emptyCaptures"], 1)
+        self.assertEqual(payload["emptyEvents"], [])
+        # Missing DOM falls back to the full sweep and drops the outer
+        # captured refresh state. This full sweep includes the output node;
+        # the refresh fast-path applies only to the preceding partial refresh.
+        self.assertEqual(payload["fallbackEvents"], [
+            "capture2:refresh", "capture2:render", "render2:out",
+            "render2:gone", "render2:kept", "restore2:render", "after2:render",
+        ])
+        self.assertEqual(payload["afterFallback"]["children"], ["out", "gone", "kept"])
+        self.assertTrue(payload["threw"])
+
+    def test_classic_page_delegates_the_render_sweep_to_the_shared_module(self):
+        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        render_flow = classic[classic.index("let canvasRenderSweep = null;") : classic.index("function refreshRunNodes(")]
+        # The sweep algorithm is delegated; the page keeps only the product
+        # projections (builder, live-media test, per-mode capture/restore,
+        # post-passes and the output-grid fast-path).
+        self.assertIn("WorkbenchCanvasRenderSweep.create", render_flow)
+        self.assertIn("return ensureCanvasRenderSweep().run();", render_flow)
+        self.assertIn("return ensureCanvasRenderSweep().refresh(ids);", render_flow)
+        self.assertIn(
+            "refreshFastPath: node => node.type === 'output' && ensureClassicOutputGrid().refreshOutputNodeContent({node})",
+            render_flow,
+        )
+        # The inline sweep implementation is gone.
+        self.assertNotIn("const reusableMediaNodes = new Map();", classic)
+        self.assertNotIn("[...nodesEl.children].forEach(child => {", classic)
+        # The shared module loads before the editor.
+        page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
+        self.assertLess(page.index("workbench/canvas/render-sweep.js"), page.index("js/canvas.js"))
 
     def test_minimap_projection_scaling_stays_linear_at_100_and_300_nodes(self):
         # DoD: minimap performance remains acceptable at 100/300 nodes — the
@@ -2820,7 +5685,7 @@ console.log(JSON.stringify({
 
     def test_opening_a_classic_canvas_does_not_issue_a_touch_write(self):
         classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        opening = classic[classic.index("async function openCanvas(id){") : classic.index("function applyRemoteCanvasData(remote){")]
+        opening = classic[classic.index("async function openCanvas(id){") : classic.index("async function applyCanvasSessionRecord", classic.index("async function openCanvas(id){"))]
         self.assertNotIn("touchCanvasOpened", classic)
         self.assertNotIn("/touch", opening)
 
@@ -3391,7 +6256,7 @@ console.log(JSON.stringify({{
         self.assertIn("node.type !== 'image' || node.url", delete_block)
         self.assertIn("Array.isArray(candidate.items) && candidate.items.includes(node.id)", delete_block)
         self.assertIn("await window.WorkbenchNodeClient.remove(canvas.id, node.id", delete_block)
-        self.assertIn("expected_revision:Number(lastCanvasUpdatedAt || canvas.updated_at || 0)", delete_block)
+        self.assertIn("expected_revision:currentCanvasRevision()", delete_block)
         self.assertIn("if(await deleteVersionedBlankImageNode(id)) return;", delete_block)
         self.assertNotIn("scheduleSave();", delete_block)
 
@@ -3766,7 +6631,8 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         self.assertIn("ports:canvasLegacyNodeShellPorts(node)", classic)
         self.assertIn("WorkbenchUnifiedRenderHost.cardShellView({selected:selected.has(node.id), onIntent:handleCanvasNodeShellIntent, ports:canvasLegacyNodeShellPorts(node)})", classic)
         self.assertIn("portVisibility.input !== false", (ROOT / "static" / "js" / "workbench" / "canvas" / "node-shell.js").read_text(encoding="utf-8"))
-        self.assertIn("if(to.type === 'group') return ['image','prompt'].includes(from.type)", classic)
+        self.assertIn("function canConnect(fromId, toId){", classic)
+        self.assertIn("WorkbenchLegacyGraphCompatibility.canClassicConnect", classic)
         # Group membership is applied from the compatibility-policy
         # projection (card R4-25) instead of an inline push.
         self.assertIn("projection.addedNodeIds.forEach", classic)
@@ -3800,7 +6666,7 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         self.assertIn("command-registry.js?v=2026.09.06.6", page)
         self.assertIn("creation-catalog.js?v=2026.09.04.1", page)
         self.assertIn("generation-intent.js?v=2026.09.04.1", page)
-        self.assertIn("canvas.js?v=2026.09.06.15", page)
+        self.assertIn("canvas.js?v=2026.09.08.5", page)
         self.assertIn("WorkbenchUnifiedRenderHost.cardShellView({selected:selected.has(node.id), onIntent:handleCanvasNodeShellIntent})", classic)
         self.assertIn("const canvasNodeShellIntentAdapter = window.WorkbenchUnifiedRenderHost.createIntentAdapter({", classic)
         self.assertIn("delete:intent => deleteNodeFromButton(intent.nodeId)", classic)

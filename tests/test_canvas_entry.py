@@ -86,7 +86,7 @@ console.log(JSON.stringify({{
         # freshly created Smart-kind record to canvas.html via the shared
         # normalCanvasUrl helper. The editor is the single entry.
         source = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        opening = source[source.index("async function openCanvas(id){") : source.index("function applyRemoteCanvasData", source.index("async function openCanvas(id){"))]
+        opening = source[source.index("async function openCanvas(id){") : source.index("async function applyCanvasSessionRecord", source.index("async function openCanvas(id){"))]
         self.assertNotIn("requiresLegacySmartHandoff", opening)
         self.assertNotIn("openSmartCanvasPage", opening)
         self.assertNotIn("smart-canvas.html", source)
@@ -109,6 +109,6 @@ console.log(JSON.stringify({{
         # R4-34: the editor no longer branches on kind. Every record — Classic
         # or Smart — falls through to the unified render/save/selection path.
         source = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
-        opening = source[source.index("async function openCanvas(id){") : source.index("function applyRemoteCanvasData", source.index("async function openCanvas(id){"))]
+        opening = source[source.index("async function openCanvas(id){") : source.index("async function applyCanvasSessionRecord", source.index("async function openCanvas(id){"))]
         self.assertNotIn("requiresLegacySmartHandoff", opening)
         self.assertNotIn("(canvas.kind || 'classic') === 'smart'", opening)
