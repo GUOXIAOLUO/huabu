@@ -28,6 +28,8 @@ GROUP_MEMBERSHIP = ROOT / "static" / "js" / "workbench" / "canvas" / "group-memb
 VIEWPORT_RECOVERY = ROOT / "static" / "js" / "workbench" / "canvas" / "viewport-recovery.js"
 CANVAS_RECORDS = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-app-records.js"
 REMOTE_SYNC = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-remote-sync.js"
+SAVE_SCHEDULER = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-save-scheduler.js"
+PERSISTENCE = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-persistence-client.js"
 
 
 def run_runtime(script: str):
@@ -44,6 +46,33 @@ const Runtime = sandbox.window.WorkbenchCanvasRuntime;
 
 
 class CanvasRuntimeStateTests(unittest.TestCase):
+    def test_scheduler_drain_waits_until_quiescent_and_cancel_clears_retry(self):
+        script = f"""
+const fs=require('fs'),vm=require('vm'); const sandbox={{window:{{}},setTimeout,clearTimeout}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(SAVE_SCHEDULER))}, 'utf8'), sandbox);
+(async()=>{{ let release, runs=0; let onRetry=0;
+  const scheduler=sandbox.window.WorkbenchCanvasSaveScheduler.create({{run:async()=>{{ runs++; if(runs===1) await new Promise(resolve=>release=resolve); }}, onRetry:()=>onRetry++}});
+  scheduler.schedule(1); await new Promise(resolve=>setTimeout(resolve,5)); scheduler.schedule(1);
+  const draining=scheduler.drain(); await new Promise(resolve=>setTimeout(resolve,5));
+  if(runs!==1) throw Error('drain did not wait for in-flight save'); release(); await draining;
+  if(runs!==2 || scheduler.hasScheduled() || scheduler.hasPendingAgain() || scheduler.isInFlight()) throw Error('scheduler not quiescent');
+  scheduler.schedule(100); scheduler.cancel();
+  console.log(JSON.stringify({{runs,onRetry,scheduled:scheduler.hasScheduled(),again:scheduler.hasPendingAgain()}}));
+}})().catch(error=>{{console.error(error);process.exit(1);}});
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), {"runs": 2, "onRetry": 1, "scheduled": False, "again": False})
+
+    def test_adopt_revision_does_not_change_updated_at_or_session_timestamp(self):
+        script = f"""
+const fs=require('fs'),vm=require('vm'); const sandbox={{window:{{}},fetch:async()=>({{ok:true,status:200,json:async()=>({{}})}})}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(PERSISTENCE))}, 'utf8'), sandbox);
+const canvas={{id:'c1',updated_at:1234}}; const adopted=sandbox.window.WorkbenchCanvasPersistence.adoptRevision(canvas,9,99);
+console.log(JSON.stringify({{canvas,adopted,cursor:sandbox.window.WorkbenchCanvasPersistence.revisionOf('c1')}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), {"canvas": {"id": "c1", "updated_at": 1234}, "adopted": 9, "cursor": 9})
+
     def test_canvas_metadata_edits_use_the_metadata_boundary_without_graph_put(self):
         source = CANVAS_RECORDS.read_text(encoding="utf-8")
         icon_block = source[source.index("async function setCanvasIcon"):source.index("function startTitleEdit")]

@@ -138,7 +138,7 @@
             setStatus('Opening...');
             remoteSync.stop();
             remoteApply.cancel();
-            saveScheduler.cancel();
+            await saveScheduler.drain();
             const result = await persistence.load(canvasId);
             if (!result.ok || !result.canvas) throw new Error('Canvas open failed');
             dirty = false;
@@ -190,8 +190,6 @@
                 currentRevision: persistence.revisionOf(record?.id),
             });
             if (!update) return false;
-            saveScheduler.cancel();
-            dirty = false;
             remoteApply.schedule(saveScheduler.isInFlight() ? 700 : 120);
             setStatus('Syncing...');
             return true;
@@ -199,15 +197,13 @@
 
         function adoptRevision(revision, missingFallback) {
             if (!record) return Number(revision) || Number(missingFallback) || 0;
-            updatedAt = persistence.adoptRevision(record, revision, missingFallback);
-            return updatedAt;
+            return persistence.adoptRevision(record, revision, missingFallback);
         }
 
         async function close() {
-            saveScheduler.cancel();
-            if (record && dirty) await saveScheduler.flush();
             remoteApply.cancel();
             remoteSync.stop();
+            await saveScheduler.drain();
             record = null;
             updatedAt = 0;
             dirty = false;

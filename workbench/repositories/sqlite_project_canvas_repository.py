@@ -61,6 +61,12 @@ class LegacyIdentityResolution:
 
 
 @dataclass(frozen=True)
+class CanvasPayloadSnapshot:
+    payload: dict[str, Any]
+    revision: int
+
+
+@dataclass(frozen=True)
 class LegacyImportReport:
     imported_canvas_ids: tuple[str, ...]
     skipped_canvas_ids: tuple[str, ...]
@@ -192,6 +198,15 @@ class SqliteProjectCanvasRepository:
     def load_canvas_payload(self, canvas_id: str) -> dict[str, Any]:
         row = self._canvas_row(canvas_id)
         return json.loads(row["payload_json"])
+
+    def load_canvas_snapshot(self, canvas_id: str) -> CanvasPayloadSnapshot:
+        """Load the compatibility payload and CAS revision from one SQLite snapshot."""
+        self.migrate()
+        with self._connection() as connection:
+            row = connection.execute("SELECT payload_json, revision FROM canvases WHERE id=?", (canvas_id,)).fetchone()
+        if not row:
+            raise CanonicalNotFoundError("canvas not found")
+        return CanvasPayloadSnapshot(payload=json.loads(row["payload_json"]), revision=int(row["revision"]))
 
     def list_canvas_payloads(self, *, include_deleted: bool = False) -> list[dict[str, Any]]:
         self.migrate()

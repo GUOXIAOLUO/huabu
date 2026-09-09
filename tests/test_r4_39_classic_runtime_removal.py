@@ -206,6 +206,7 @@ sandbox.window.WorkbenchCanvasSaveScheduler = {
   create: options => ({
     schedule(){ scheduled += 1; },
     flush(){ return options.run(); },
+    drain(){ return Promise.resolve(false); },
     cancel(){ cancelled += 1; },
     markAgain(){ markedAgain += 1; },
     hasPendingAgain: () => false,
@@ -250,13 +251,16 @@ vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8'), sandbox);
   const afterConflict = session.snapshot();
   const adopted = session.adoptRevision(9, 99);
   const handled = session.handleUpdate({accept:true, canvas_id:'c1'});
+  const afterHandle = session.snapshot();
+  session.scheduleSave();
+  await session.flush();
   await session.sync();
   const afterRemote = session.snapshot();
   await session.close();
   console.log(JSON.stringify({
     frozen:Object.isFrozen(session), methods:Object.keys(session).sort(), events, saves,
     scheduled, cancelled, markedAgain, remoteStarted, remoteStopped,
-    remoteApplyDelay, adopted, handled, afterSave, afterConflict, afterRemote,
+    remoteApplyDelay, adopted, handled, afterSave, afterConflict, afterHandle, afterRemote,
   }));
 })().catch(error => { console.error(error); process.exit(1); });
 """
@@ -272,7 +276,7 @@ vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8'), sandbox);
             "adoptRevision", "close", "flush", "handleUpdate", "open",
             "scheduleSave", "snapshot", "sync",
         ])
-        self.assertEqual(actual["scheduled"], 2)
+        self.assertEqual(actual["scheduled"], 3)
         self.assertEqual(actual["remoteStarted"], 1)
         self.assertEqual(actual["remoteStopped"], 1)
         self.assertEqual(actual["remoteApplyDelay"], 120)
@@ -285,6 +289,7 @@ vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8'), sandbox);
         self.assertFalse(actual["afterSave"]["dirty"])
         self.assertEqual(actual["afterConflict"]["revision"], 5)
         self.assertTrue(actual["afterConflict"]["dirty"])
+        self.assertTrue(actual["afterHandle"]["dirty"])
         self.assertEqual(actual["markedAgain"], 0)
         self.assertEqual(actual["afterRemote"]["updatedAt"], 30)
         self.assertIn("open:loaded", actual["events"])

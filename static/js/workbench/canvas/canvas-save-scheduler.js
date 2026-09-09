@@ -17,8 +17,10 @@
         const allowOverlap = settings.allowOverlap === true;
         const onRetry = typeof settings.onRetry === 'function' ? settings.onRetry : () => {};
         let timer = null;
+        let retryTimer = null;
         let inFlightCount = 0;
         let again = false;
+        const activeRuns = new Set();
 
         function schedule(delayMs) {
             if (inFlightCount > 0 && !allowOverlap) {
@@ -41,22 +43,61 @@
             }
             inFlightCount += 1;
             again = false;
-            try {
-                await settings.run();
-            } finally {
-                inFlightCount -= 1;
-                if (inFlightCount === 0 && again) {
-                    again = false;
-                    onRetry();
-                    setTimeout(() => { flush(); }, 0);
+            const run = (async () => {
+                try {
+                    await settings.run();
+                } finally {
+                    inFlightCount -= 1;
+                    if (inFlightCount === 0 && again) {
+                        again = false;
+                        onRetry();
+                        retryTimer = setTimeout(() => {
+                            retryTimer = null;
+                            flush();
+                        }, 0);
+                    }
                 }
+                return true;
+            })();
+            activeRuns.add(run);
+            try {
+                return await run;
+            } finally {
+                activeRuns.delete(run);
             }
-            return true;
         }
 
         function cancel() {
             clearTimeout(timer);
             timer = null;
+            clearTimeout(retryTimer);
+            retryTimer = null;
+            again = false;
+        }
+
+        async function drain() {
+            if (timer !== null) {
+                clearTimeout(timer);
+                timer = null;
+                again = true;
+            }
+            if (retryTimer !== null) {
+                clearTimeout(retryTimer);
+                retryTimer = null;
+                again = true;
+            }
+            while (activeRuns.size > 0 || again) {
+                if (activeRuns.size > 0) {
+                    await Promise.all(Array.from(activeRuns));
+                } else if (again) {
+                    await flush();
+                }
+                if (retryTimer !== null) {
+                    clearTimeout(retryTimer);
+                    retryTimer = null;
+                    again = true;
+                }
+            }
         }
 
         function markAgain() {
@@ -66,6 +107,7 @@
         return Object.freeze({
             schedule,
             flush,
+            drain,
             cancel,
             markAgain,
             isInFlight: () => inFlightCount > 0,

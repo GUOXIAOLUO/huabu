@@ -56,6 +56,61 @@ class SqliteCanvasCompatibilityRepositoryTests(unittest.TestCase):
             self.repository.load("canvas-1")
         self.assertEqual(self.repository.load("canvas-1", include_deleted=True)["id"], "canvas-1")
 
+    def test_compat_save_if_current_rejects_interleaved_write(self):
+        self.repository.save(self.canvas())
+        other = SqliteCanvasCompatibilityRepository(self.canonical, actor_id=LOCAL_WORKSPACE_ACTOR_ID, clock_ms=lambda: 600)
+        original_load_snapshot = self.canonical.load_canvas_snapshot
+        interleaved = False
+
+        def load_snapshot_with_interleaved_write(canvas_id):
+            nonlocal interleaved
+            snapshot = original_load_snapshot(canvas_id)
+            if not interleaved:
+                interleaved = True
+                self.canonical.mutate_canvas(
+                    actor_id=LOCAL_WORKSPACE_ACTOR_ID,
+                    canvas_id=canvas_id,
+                    expected_revision=snapshot.revision,
+                    mutation=lambda payload: payload.update({"title": "B writer"}),
+                )
+            return snapshot
+
+        self.canonical.load_canvas_snapshot = load_snapshot_with_interleaved_write
+        with self.assertRaises(StaleCanvasRevisionError):
+            self.repository.save_if_current(self.canvas(title="A writer"), expected_updated_at=500)
+        self.assertEqual(other.load("canvas-1")["title"], "B writer")
+
+    def test_compat_mutate_if_current_rejects_interleaved_write(self):
+        self.repository.save(self.canvas())
+        original_load_snapshot = self.canonical.load_canvas_snapshot
+        interleaved = False
+
+        def load_snapshot_with_interleaved_write(canvas_id):
+            nonlocal interleaved
+            snapshot = original_load_snapshot(canvas_id)
+            if not interleaved:
+                interleaved = True
+                self.canonical.mutate_canvas(
+                    actor_id=LOCAL_WORKSPACE_ACTOR_ID,
+                    canvas_id=canvas_id,
+                    expected_revision=snapshot.revision,
+                    mutation=lambda payload: payload.update({"title": "B writer"}),
+                )
+            return snapshot
+
+        self.canonical.load_canvas_snapshot = load_snapshot_with_interleaved_write
+        with self.assertRaises(StaleCanvasRevisionError):
+            self.repository.mutate_if_current(
+                "canvas-1", expected_updated_at=500, mutation=lambda payload: payload.update({"title": "A writer"})
+            )
+        self.assertEqual(self.repository.load("canvas-1")["title"], "B writer")
+
+    def test_future_expected_updated_at_is_rejected(self):
+        self.repository.save(self.canvas())
+        with self.assertRaises(StaleCanvasRevisionError):
+            self.repository.save_if_current(self.canvas(title="A writer"), expected_updated_at=501)
+        self.assertEqual(self.repository.load("canvas-1")["title"], "Fixture")
+
     def test_purge_is_idempotent_and_audited(self):
         self.repository.save(self.canvas())
         self.assertTrue(self.repository.purge("canvas-1"))

@@ -60,7 +60,6 @@
         const value = Number(revision) || 0;
         const current = Number(canvas && canvas.updated_at) || 0;
         const adopted = value > 0 ? value : (current > 0 ? current : Number(missingFallback) || 0);
-        if (canvas) canvas.updated_at = adopted;
         if (value > 0) rememberRevision(canvas && canvas.id, value);
         return adopted;
     }
