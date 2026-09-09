@@ -16,5 +16,45 @@
         }[current];
         return Object.freeze({mode: current, preview: false, icon: values[0], labelKey: values[1], titleKey: values[2], subKey: values[3]});
     }
-    global.WorkbenchCanvasMediaEditorState = Object.freeze({MODES, normalize, presentation});
+    function applyAction(mode) {
+        return {
+            outpaint: 'applyImageOutpaint',
+            mask: 'applyImageMask',
+            brush: 'applyImageBrush',
+            resize: 'applyImageResize',
+            grid: 'applyImageGridSplit',
+            crop: 'applyImageCrop',
+            preview: 'applyImageCrop',
+        }[normalize(mode)];
+    }
+    function uiProjection(mode, previousMode = '') {
+        const current = normalize(mode);
+        const details = presentation(current);
+        const preview = current === 'preview';
+        return Object.freeze({
+            mode: current,
+            preview,
+            activeModes: Object.freeze({
+                crop: current === 'crop', mask: current === 'mask', brush: current === 'brush',
+                resize: current === 'resize', grid: current === 'grid', outpaint: current === 'outpaint',
+            }),
+            applyVisible: !preview,
+            icon: details.icon,
+            titleKey: preview ? 'canvas.previewImage' : details.titleKey,
+            subKey: preview ? 'canvas.previewHint' : details.subKey,
+            clearDrawing: preview || current === 'crop' || current === 'resize' || normalize(previousMode) === 'grid',
+            refreshGrid: current === 'grid',
+            resetOutpaint: current === 'outpaint',
+        });
+    }
+    function brushToolProjection(tool, mode = 'brush') {
+        const tools = ['free', 'rect', 'ellipse', 'label', 'text'];
+        const current = tools.includes(tool) ? tool : 'free';
+        return Object.freeze({tool: current, textMode: normalize(mode) === 'brush' && current === 'text'});
+    }
+    function dispatch(mode, handlers = {}) {
+        const action = applyAction(mode);
+        return typeof handlers[action] === 'function' ? handlers[action]() : undefined;
+    }
+    global.WorkbenchCanvasMediaEditorState = Object.freeze({MODES, normalize, presentation, uiProjection, brushToolProjection, applyAction, dispatch});
 }(window));

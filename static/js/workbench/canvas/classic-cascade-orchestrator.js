@@ -64,6 +64,8 @@
         'getNodes', 'getConnections',
         // Graph effect (mutates node state and re-renders)
         'refreshNodes',
+        // Execution-state seam; cascade cleanup must not write node status directly.
+        'setNodeRunStatus',
         // Legacy executor primitives (type-dispatched from cascade orchestrator)
         'runGenerator', 'runMidjourneyNode', 'runMsGenNode',
         'runComfyNode', 'runLTXDirectorNode', 'runLLMNode',
@@ -101,8 +103,9 @@
         var escapeAttr = host.escapeAttr;
         var loopCount = host.loopCount;
         var getNodes = host.getNodes;
-        var getConnections = host.getConnections;
+                        var getConnections = host.getConnections;
         var refreshNodes = host.refreshNodes;
+        var setNodeRunStatus = host.setNodeRunStatus;
         var runGenerator = host.runGenerator;
         var runMidjourneyNode = host.runMidjourneyNode;
         var runMsGenNode = host.runMsGenNode;
@@ -190,10 +193,10 @@
             var options = (arg && arg.options) || {};
             if (!node) return;
             var keepError = Boolean(options.keepError);
-            if (node.runStatus) node.runStatus = '';
+            if (node.runStatus || node.runError) setNodeRunStatus(node, '', '');
             if (node._cascadeIdx) node._cascadeIdx = '';
             if (!keepError) {
-                node.runError = '';
+                if (node.runStatus || node.runError) setNodeRunStatus(node, '', '');
                 node._cascadeFailed = false;
             }
         }
@@ -546,7 +549,7 @@
             var nodes = getNodes();
             order.forEach(function (id) {
                 var n = nodes.find(function (x) { return x.id === id; });
-                if (n) { n.runStatus = 'queued'; n.runError = ''; n._cascadeFailed = false; n._cascadeIdx = ''; }
+                if (n) { setNodeRunStatus(n, 'queued', ''); n._cascadeFailed = false; n._cascadeIdx = ''; }
             });
             refreshNodes(order);
             var series = Promise.resolve();
@@ -560,15 +563,14 @@
                         if (!node) return;
                         var ctx = cascadeContextFor(targetId);
                         if (ctx) ctx.currentNodeId = id;
-                        node.runStatus = 'running';
+                        setNodeRunStatus(node, 'running', '');
                         refreshNodes([id]);
                         return runCascadeNodeByType({ node: node, options: { cascade: true, cascadeTargetId: targetId } }).then(function () {
                             if (targetId) ensureCascadeActive({ targetId: targetId });
-                            node.runStatus = 'done';
+                            setNodeRunStatus(node, 'done', '');
                             refreshNodes([id]);
                         }).catch(function (err) {
-                            node.runStatus = 'failed';
-                            node.runError = err.message || String(err);
+                            setNodeRunStatus(node, 'failed', err.message || String(err));
                             node._cascadeFailed = true;
                             throw err;
                         });
@@ -632,7 +634,7 @@
             if (loop && loop.mode === 'parallel' && totalRounds > 1) {
                 order.forEach(function (id) {
                     var n = mapNodes().find(function (x) { return x.id === id; });
-                    if (n) { n.runStatus = 'queued'; n.runError = ''; n._cascadeFailed = false; n._cascadeIdx = '0/' + totalRounds; }
+                    if (n) { setNodeRunStatus(n, 'queued', ''); n._cascadeFailed = false; n._cascadeIdx = '0/' + totalRounds; }
                 });
                 refreshNodes(cascadeUiNodeIds({ targetId: nodeId, order: order }));
                 var done = 0;
@@ -652,12 +654,12 @@
                             if (!node) continue;
                             ctx.currentNodeId = id;
                             ctx.currentRoundLabel = index + '/' + endIdx;
-                            node.runStatus = 'running';
+                            setNodeRunStatus(node, 'running', '');
                             node._cascadeIdx = (order.indexOf(id) + 1) + '/' + order.length + ' · ' + index + '/' + endIdx;
                             refreshNodes([id]);
                             runCascadeNodeWithLoopContext({ node: node, ctx: loopCtx, opts: { cascadeTargetId: nodeId } });
                             ensureCascadeActive({ targetId: nodeId, reason: ctx.message });
-                            node.runStatus = 'done';
+                            setNodeRunStatus(node, 'done', '');
                             refreshNodes([id]);
                         }
                         done += 1;
@@ -677,8 +679,7 @@
                             return;
                         }
                         var node = mapNodes().find(function (n) { return n.id === ctx.currentNodeId; }) || mapNodes().find(function (n) { return n.id === nodeId; }) || target;
-                        node.runStatus = 'failed';
-                        node.runError = err.message || String(err);
+                        setNodeRunStatus(node, 'failed', err.message || String(err));
                         node._cascadeFailed = true;
                         finalizeCascade({ targetId: nodeId, state: 'failed', options: { order: order } });
                         return;
@@ -698,8 +699,7 @@
                         order.forEach(function (id) {
                             var n = nodesNow.find(function (x) { return x.id === id; });
                             if (n) {
-                                n.runStatus = 'queued';
-                                n.runError = '';
+                                setNodeRunStatus(n, 'queued', '');
                                 n._cascadeFailed = false;
                                 n._cascadeIdx = (order.indexOf(id) + 1) + '/' + order.length + (totalRounds > 1 ? ' · ' + loopIndex + '/' + endIdx : '');
                             }
@@ -714,11 +714,11 @@
                                     if (!node) return;
                                     ctx.currentNodeId = id;
                                     ctx.currentRoundLabel = totalRounds > 1 ? loopIndex + '/' + endIdx : '';
-                                    node.runStatus = 'running';
+                                    setNodeRunStatus(node, 'running', '');
                                     refreshNodes([id]);
                                     return runCascadeNodeWithLoopContext({ node: node, ctx: loopContext, opts: { cascadeTargetId: nodeId } }).then(function () {
                                         ensureCascadeActive({ targetId: nodeId, reason: ctx.message });
-                                        node.runStatus = 'done';
+                                        setNodeRunStatus(node, 'done', '');
                                         refreshNodes([id]);
                                     }).catch(function (err) {
                                         loopContext = null;
@@ -726,12 +726,11 @@
                                             finalizeCascade({ targetId: nodeId, state: 'stopped', options: { order: order } });
                                             return;
                                         }
-                                        node.runStatus = 'failed';
-                                        node.runError = (totalRounds > 1 ? tr('canvas.loopRound') + ' ' + roundNum + '/' + totalRounds + ': ' : '') + (err.message || String(err));
+                                        setNodeRunStatus(node, 'failed', (totalRounds > 1 ? tr('canvas.loopRound') + ' ' + roundNum + '/' + totalRounds + ': ' : '') + (err.message || String(err)));
                                         node._cascadeFailed = true;
                                         for (var j = idx + 1; j < order.length; j++) {
                                             var n2 = mapNodes().find(function (x) { return x.id === order[j]; });
-                                            if (n2) { n2.runStatus = ''; n2._cascadeIdx = ''; }
+                                            if (n2) { setNodeRunStatus(n2, '', ''); n2._cascadeIdx = ''; }
                                         }
                                         finalizeCascade({ targetId: nodeId, state: 'failed', options: { order: order } });
                                     });

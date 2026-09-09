@@ -15,10 +15,11 @@ import re
 import unittest
 from pathlib import Path
 
+from tests.canvas_app_source import canvas_app_paths, read_canvas_app_source
+
 
 ROOT = Path(__file__).resolve().parents[1]
 INVENTORY = ROOT / "docs" / "plans" / "R4_CLASSIC_CAPABILITY_INVENTORY.md"
-CLASSIC_SOURCE = ROOT / "static" / "js" / "canvas.js"
 
 ALLOWED_DISPOSITIONS = {"KEEP", "MIGRATE", "MIGRATED", "COMPAT", "REMOVE", "DEFER-R8"}
 
@@ -67,11 +68,11 @@ class ClassicCapabilityInventoryTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.manifest = _manifest()
-        cls.source = CLASSIC_SOURCE.read_text(encoding="utf-8")
+        cls.source = read_canvas_app_source(ROOT)
 
     def test_manifest_points_at_the_real_classic_source(self):
-        self.assertEqual(self.manifest.get("source"), "static/js/canvas.js")
-        self.assertTrue(CLASSIC_SOURCE.exists(), "inventory source file must exist")
+        self.assertEqual(tuple(self.manifest.get("sources", [])), tuple(str(path.relative_to(ROOT)) for path in canvas_app_paths(ROOT)))
+        self.assertTrue(all(path.exists() for path in canvas_app_paths(ROOT)), "Canvas app module must exist")
 
     def test_every_capability_has_a_valid_disposition_and_owner(self):
         capabilities = self.manifest.get("capabilities", [])
@@ -90,7 +91,7 @@ class ClassicCapabilityInventoryTests(unittest.TestCase):
         # MIGRATE / COMPAT / DEFER-R8 entries that still live on the
         # page-side don't need to migrate the manifest schema.
         for capability in capabilities:
-            target_rel = capability.get("evidence_target", "static/js/canvas.js")
+            target_rel = capability.get("evidence_target", self.manifest["sources"][0])
             target_path = ROOT / target_rel
             self.assertTrue(target_path.exists(),
                 f"evidence_target file does not exist for capability {capability['id']!r}: {target_rel}")
@@ -139,7 +140,7 @@ class ClassicCapabilityInventoryTests(unittest.TestCase):
         # only dispatch, wiring, state access and bootstrap sequencing.
         capabilities = self.manifest.get("capabilities", [])
         actual_owners = {
-            capability["id"]: capability.get("evidence_target", "static/js/canvas.js")
+            capability["id"]: capability.get("evidence_target", self.manifest["sources"][0])
             for capability in capabilities
         }
         self.assertEqual(
@@ -148,11 +149,11 @@ class ClassicCapabilityInventoryTests(unittest.TestCase):
             "R4-38 ownership is a pinned source contract, not a freely movable manifest pointer",
         )
         for capability in capabilities:
-            target = capability.get("evidence_target", "static/js/canvas.js")
+            target = capability.get("evidence_target", self.manifest["sources"][0])
             with self.subTest(capability=capability.get("id"), target=target):
-                self.assertNotEqual(
-                    target, "static/js/canvas.js",
-                    f"capability {capability['id']!r} still grounds its body in the monolith; "
+                self.assertNotIn(
+                    target, self.manifest["sources"],
+                    f"capability {capability['id']!r} still grounds its body in a page adapter; "
                     "move it behind a bounded compat seam before R4-38 can stay closed")
                 self.assertTrue(
                     (ROOT / target).exists(),

@@ -6,10 +6,12 @@ import subprocess
 import unittest
 from pathlib import Path
 
+from tests.canvas_app_source import canvas_app_paths, read_canvas_app_source
+
 
 ROOT = Path(__file__).resolve().parents[1]
 PLAN = ROOT / "docs" / "plans" / "R4_39_CLASSIC_RUNTIME_REMOVAL.md"
-CARD = ROOT / "docs" / "tasks" / "active" / "R4-39-remove-classic-runtime.md"
+CARD = ROOT / "docs" / "tasks" / "done" / "R4-39-remove-classic-runtime.md"
 CLASSIC_RUNTIME = ROOT / "static" / "js" / "canvas.js"
 
 
@@ -22,10 +24,34 @@ def _manifest() -> dict:
 
 
 class R439ClassicRuntimeRemovalTests(unittest.TestCase):
+    def test_canvas_app_modules_are_natively_loaded_in_order(self):
+        page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
+        expected = [f"/{path.relative_to(ROOT)}" for path in canvas_app_paths(ROOT)]
+        actual = re.findall(
+            r'<script src="(/static/js/workbench/canvas/canvas-app-[^"]+)\?v=[^"]+"></script>',
+            page,
+        )
+        self.assertEqual(actual, expected)
+        self.assertNotIn("canvas-app-loader.js", page)
+        for path in canvas_app_paths(ROOT):
+            with self.subTest(path=path.name):
+                source = path.read_text(encoding="utf-8")
+                self.assertNotIn("eval(", source)
+                self.assertNotIn("new Function(", source)
+
+    def test_canvas_inline_handlers_are_exported_by_the_small_bootstrap(self):
+        page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
+        bootstrap = canvas_app_paths(ROOT)[-1].read_text(encoding="utf-8")
+        handlers = set(re.findall(r'onclick="([A-Za-z_$][A-Za-z0-9_$]*)', page)) - {"event"}
+        export_block = bootstrap[bootstrap.index("Object.assign(window, {"):bootstrap.index("const startCanvasApp")]
+        for handler in handlers:
+            with self.subTest(handler=handler):
+                self.assertIn(f"    {handler},", export_block)
+
     def test_residual_clusters_are_grounded_while_runtime_exists(self):
         manifest = _manifest()
-        self.assertEqual(manifest["schema"], "workbench.r4-39-classic-runtime-removal/1")
-        self.assertEqual(manifest["source"], "static/js/canvas.js")
+        self.assertEqual(manifest["schema"], "workbench.r4-39-classic-runtime-removal/2")
+        self.assertEqual(tuple(manifest["sources"]), tuple(str(path.relative_to(ROOT)) for path in canvas_app_paths(ROOT)))
         clusters = manifest["clusters"]
         self.assertEqual(len(clusters), 8)
         self.assertEqual(len({item["id"] for item in clusters}), len(clusters))
@@ -36,32 +62,25 @@ class R439ClassicRuntimeRemovalTests(unittest.TestCase):
                 self.assertTrue(cluster["evidence"])
 
         for cluster in clusters:
-            target_rel = cluster.get("evidence_target", manifest["source"])
+            target_rel = cluster["evidence_target"]
             target = ROOT / target_rel
             self.assertTrue(target.exists(), f"missing evidence target for {cluster['id']}: {target_rel}")
             source = target.read_text(encoding="utf-8")
-            if cluster["status"] == "MIGRATED":
-                self.assertNotEqual(target_rel, manifest["source"])
-            if CLASSIC_RUNTIME.exists() or cluster["status"] == "MIGRATED":
-                for evidence in cluster["evidence"]:
-                    with self.subTest(cluster=cluster["id"], evidence=evidence):
-                        self.assertIn(evidence, source)
+            for evidence in cluster["evidence"]:
+                with self.subTest(cluster=cluster["id"], evidence=evidence):
+                    self.assertIn(evidence, source)
 
-    def test_card_cannot_close_while_classic_runtime_exists(self):
+    def test_card_closes_only_after_classic_runtime_is_removed(self):
         card_text = CARD.read_text(encoding="utf-8")
         status = re.search(r"^- Status:\s*(\S+)", card_text, flags=re.MULTILINE)
         self.assertIsNotNone(status)
-        if CLASSIC_RUNTIME.exists():
-            self.assertEqual(
-                status.group(1),
-                "IN_PROGRESS",
-                "R4-39 cannot be marked DONE while static/js/canvas.js still exists",
-            )
+        self.assertFalse(CLASSIC_RUNTIME.exists())
+        self.assertEqual(status.group(1), "DONE")
 
     def test_neutral_bootstrap_owns_startup_order_and_routing(self):
         module = ROOT / "static" / "js" / "workbench" / "canvas" / "app-bootstrap.js"
         page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
-        editor = CLASSIC_RUNTIME.read_text(encoding="utf-8")
+        editor = read_canvas_app_source(ROOT)
         script = r"""
 const fs = require('fs');
 const vm = require('vm');
@@ -129,16 +148,17 @@ const host = {
         self.assertEqual(actual["listResult"], {"destination": "list", "url": "/static/canvas-list.html?project=p1"})
         self.assertEqual(actual["navigated"], "/static/canvas-list.html?project=p1")
 
-        self.assertLess(page.index("workbench/canvas/app-bootstrap.js"), page.index("js/canvas.js"))
-        self.assertIn("canvas.js?v=2026.09.08.5", page)
+        self.assertLess(page.index("workbench/canvas/app-bootstrap.js"), page.index("workbench/canvas/canvas-app-bootstrap.js"))
+        self.assertNotIn("/static/js/canvas.js", page)
+        self.assertIn("canvas-app-bootstrap.js?v=2026.09.09.2", page)
         self.assertIn("WorkbenchCanvasAppBootstrap.create", editor)
-        self.assertIn("window.onload = () => canvasAppBootstrap.start", editor)
+        self.assertIn("const startCanvasApp = () => canvasAppBootstrap.start", editor)
         self.assertNotIn("window.onload = async () =>", editor)
 
     def test_canvas_session_owns_record_save_and_remote_sync_lifecycle(self):
         module = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-session.js"
         page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
-        editor = CLASSIC_RUNTIME.read_text(encoding="utf-8")
+        editor = read_canvas_app_source(ROOT)
         script = r"""
 const fs = require('fs');
 const vm = require('vm');
@@ -271,7 +291,7 @@ vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8'), sandbox);
         self.assertIn("saved:server", actual["events"])
         self.assertIn("status:Save conflict", actual["events"])
         self.assertIn("remote:remote", actual["events"])
-        self.assertLess(page.index("workbench/canvas/canvas-session.js"), page.index("js/canvas.js"))
+        self.assertLess(page.index("workbench/canvas/canvas-session.js"), page.index("workbench/canvas/canvas-app-bootstrap.js"))
         self.assertIn("WorkbenchCanvasSession.create", editor)
         self.assertNotIn("let localCanvasDirty", editor)
         self.assertNotIn("let applyingRemoteCanvas", editor)

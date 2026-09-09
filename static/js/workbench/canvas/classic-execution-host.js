@@ -10,36 +10,19 @@
 (function exposeWorkbenchCanvasClassicExecutionHost(global) {
     'use strict';
 
-    const REQUIRED_OPERATIONS = ['markRunning', 'writeOutputText', 'setRunStatus', 'render', 'save', 'notifyError'];
-
     function create(host) {
-        const h = host && typeof host === 'object' ? host : {};
-        for (const op of REQUIRED_OPERATIONS) {
-            if (typeof h[op] !== 'function') {
-                throw new TypeError(`WorkbenchCanvasClassicExecutionHost requires a '${op}' function`);
-            }
+        if (!global.WorkbenchCanvasExecutionHost || typeof global.WorkbenchCanvasExecutionHost.createClassic !== 'function') {
+            throw new Error('WorkbenchCanvasClassicExecutionHost requires WorkbenchCanvasExecutionHost');
         }
-        return Object.freeze({
-            markRunning(node, running) {
-                h.markRunning(node, Boolean(running));
-            },
-            writeOutputText(node, text) {
-                h.writeOutputText(node, text);
-            },
-            setRunStatus(node, status, error) {
-                h.setRunStatus(node, status, error);
-            },
-            render(node) {
-                h.render(node);
-            },
-            save() {
-                h.save();
-            },
-            notifyError(message) {
-                h.notifyError(message);
-            },
-        });
+        return global.WorkbenchCanvasExecutionHost.createClassic(host);
     }
 
-    global.WorkbenchCanvasClassicExecutionHost = Object.freeze({ create });
+    function createChat(host) {
+        if (!global.WorkbenchCanvasExecutionHost || typeof global.WorkbenchCanvasExecutionHost.createClassicChat !== 'function') {
+            throw new Error('WorkbenchCanvasClassicExecutionHost requires WorkbenchCanvasExecutionHost');
+        }
+        return global.WorkbenchCanvasExecutionHost.createClassicChat(host);
+    }
+
+    global.WorkbenchCanvasClassicExecutionHost = Object.freeze({ create, createChat });
 }(window));

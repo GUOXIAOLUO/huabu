@@ -62,7 +62,6 @@ class RepositoryIndependenceTests(unittest.TestCase):
             ROOT / "static" / "index.html",
             ROOT / "static" / "canvas.html",
             ROOT / "static" / "js" / "canvas-list.js",
-            ROOT / "static" / "js" / "canvas.js",
             *(ROOT / "static" / "js" / "workbench" / "canvas").rglob("*.js"),
         ]
         for path in paths:

@@ -30,17 +30,22 @@
     }
 
     function normalizeImported(data) {
-        if (Array.isArray(data)) return {nodes: data, connections: []};
+        const records = (nodes, connections) => ({nodes:(Array.isArray(nodes) ? nodes : []).filter(Boolean), connections:(Array.isArray(connections) ? connections : []).filter(Boolean)});
+        if (Array.isArray(data)) return records(data, []);
         if (Array.isArray(data?.nodes)) {
-            return {nodes: data.nodes, connections: Array.isArray(data.connections) ? data.connections : []};
+            return records(data.nodes, data.connections);
         }
         if (Array.isArray(data?.workflow?.nodes)) {
-            return {
-                nodes: data.workflow.nodes,
-                connections: Array.isArray(data.workflow.connections) ? data.workflow.connections : [],
-            };
+            return records(data.workflow.nodes, data.workflow.connections);
         }
-        return {nodes: [], connections: []};
+        return records([], []);
+    }
+    function exportPayload(subgraph, exportedAt = Date.now()) {
+        return {
+            format: 'infinite-canvas-workflow', version: 1, exported_at: exportedAt,
+            nodes: (Array.isArray(subgraph?.nodes) ? subgraph.nodes : []).filter(Boolean),
+            connections: (Array.isArray(subgraph?.connections) ? subgraph.connections : []).filter(Boolean),
+        };
     }
 
     function jsonExportBlob(payload) {
@@ -51,6 +56,9 @@
         const safeTitle = String(title || 'canvas-workflow').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 48) || 'canvas-workflow';
         const stamp = new Date(timestamp == null ? Date.now() : timestamp).toISOString().replace(/[-:]/g, '').slice(0, 15);
         return `${safeTitle}-${stamp}.${String(extension || 'json').replace(/^\./, '')}`;
+    }
+    function exportProjection(subgraph, title, extension, timestamp) {
+        return {payload:exportPayload(subgraph, timestamp), filename:filenameForExport(title, extension, timestamp)};
     }
 
     function downloadBlob(blob, filename, options = {}) {
@@ -68,8 +76,10 @@
         exportArchive,
         importArchive,
         normalizeImported,
+        exportPayload,
         jsonExportBlob,
         filenameForExport,
+        exportProjection,
         downloadBlob,
         errorMessage,
     });

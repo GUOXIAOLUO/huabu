@@ -3,6 +3,8 @@ import subprocess
 import unittest
 from pathlib import Path
 
+from tests.canvas_app_source import read_canvas_app_source
+
 
 ROOT = Path(__file__).resolve().parents[1]
 ENTRY_COMPATIBILITY = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-entry-compatibility.js"
@@ -85,7 +87,7 @@ console.log(JSON.stringify({{
         # openSmartCanvasPage is dead code; the new-canvas gate navigates a
         # freshly created Smart-kind record to canvas.html via the shared
         # normalCanvasUrl helper. The editor is the single entry.
-        source = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        source = read_canvas_app_source(ROOT)
         opening = source[source.index("async function openCanvas(id){") : source.index("async function applyCanvasSessionRecord", source.index("async function openCanvas(id){"))]
         self.assertNotIn("requiresLegacySmartHandoff", opening)
         self.assertNotIn("openSmartCanvasPage", opening)
@@ -101,14 +103,19 @@ console.log(JSON.stringify({{
         # R4-36 retired the smart-canvas.html product page itself, so it
         # is no longer a routable target — the URL is absent from every
         # remaining JS file.
-        for name in ("canvas-entry-compatibility.js", "canvas-list.js", "asset-manager.js", "canvas.js"):
-            source = (ROOT / "static" / "js" / "workbench" / "canvas" / name).read_text(encoding="utf-8") if name == "canvas-entry-compatibility.js" else (ROOT / "static" / "js" / name).read_text(encoding="utf-8")
-            self.assertNotIn("/static/smart-canvas.html", source, f"{name} must not construct a smart-canvas.html URL (R4-35)")
+        sources = [
+            (ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-entry-compatibility.js").read_text(encoding="utf-8"),
+            (ROOT / "static" / "js" / "canvas-list.js").read_text(encoding="utf-8"),
+            (ROOT / "static" / "js" / "asset-manager.js").read_text(encoding="utf-8"),
+            read_canvas_app_source(ROOT),
+        ]
+        for index, source in enumerate(sources):
+            self.assertNotIn("/static/smart-canvas.html", source, f"source {index} must not construct a smart-canvas.html URL (R4-35)")
 
     def test_canvas_editor_routes_every_record_through_the_unified_open_path(self):
         # R4-34: the editor no longer branches on kind. Every record — Classic
         # or Smart — falls through to the unified render/save/selection path.
-        source = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        source = read_canvas_app_source(ROOT)
         opening = source[source.index("async function openCanvas(id){") : source.index("async function applyCanvasSessionRecord", source.index("async function openCanvas(id){"))]
         self.assertNotIn("requiresLegacySmartHandoff", opening)
         self.assertNotIn("(canvas.kind || 'classic') === 'smart'", opening)

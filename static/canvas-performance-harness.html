@@ -29,11 +29,8 @@
       const canvasId = params.get('id') || '';
       const expectedNodes = Number(params.get('expected') || 0);
       const measureInteractions = params.get('interactions') === '1';
+      const memoryCycles = Math.min(10, Math.max(0, Math.floor(Number(params.get('memory_cycles') || 0))));
       const visibleTarget = params.get('visible') === '1';
-      const rendererFlags = [
-        'node_shell', 'legacy_renderer', 'media_renderer', 'semantic_zoom',
-        'screen_space_controls', 'unified_canvas',
-      ].filter(name => params.get(name) === '1');
       const status = document.getElementById('status');
       const frame = document.getElementById('canvas-frame');
       document.body.classList.toggle('visible-target', visibleTarget);
@@ -51,9 +48,8 @@
       frame.addEventListener('load', () => {
         if (frameLoadMs === null) frameLoadMs = performance.now() - startedAt;
       });
-      const rendererQuery = rendererFlags.map(name => `&${encodeURIComponent(name)}=1`).join('');
       const benchmarkNonce = Date.now();
-      frame.src = `/static/canvas.html?id=${encodeURIComponent(canvasId)}&benchmark=1&benchmark_nonce=${benchmarkNonce}${rendererQuery}`;
+      frame.src = `/static/canvas.html?id=${encodeURIComponent(canvasId)}&benchmark=1&benchmark_nonce=${benchmarkNonce}`;
 
       const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
       const nextPaint = async () => { await nextFrame(); await nextFrame(); };
@@ -80,15 +76,20 @@
         const centerY = rect.top + rect.height / 2;
         const beforeZoom = world.style.transform;
         const zoomMs = await timeUntil(
-          () => board.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, clientX: centerX, clientY: centerY, deltaY: -100 })),
+          () => {
+            const event = new targetWindow.WheelEvent('wheel', { bubbles: true, cancelable: true, clientX: centerX, clientY: centerY, deltaY: -100 });
+            if (typeof board.onwheel === 'function') board.onwheel(event);
+            else board.dispatchEvent(event);
+          },
           () => world.style.transform !== beforeZoom && minimapContent.querySelector('#minimapViewport')
         );
         const beforePan = world.style.transform;
         const panMs = await timeUntil(
           () => {
-            board.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, clientX: centerX, clientY: centerY }));
-            targetWindow.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, cancelable: true, button: 0, clientX: centerX + 80, clientY: centerY + 50 }));
-            targetWindow.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, button: 0, clientX: centerX + 80, clientY: centerY + 50 }));
+            const event = new targetWindow.MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, clientX: centerX, clientY: centerY });
+            board.dispatchEvent(event);
+            targetWindow.dispatchEvent(new targetWindow.MouseEvent('mousemove', { bubbles: true, cancelable: true, button: 0, clientX: centerX + 80, clientY: centerY + 50 }));
+            targetWindow.dispatchEvent(new targetWindow.MouseEvent('mouseup', { bubbles: true, cancelable: true, button: 0, clientX: centerX + 80, clientY: centerY + 50 }));
           },
           () => world.style.transform !== beforePan && minimapContent.querySelector('#minimapViewport')
         );
@@ -97,8 +98,9 @@
         const mapRect = minimapContent.getBoundingClientRect();
         const minimapMs = await timeUntil(
           () => {
-            minimapContent.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, clientX: mapRect.left + mapRect.width * 0.75, clientY: mapRect.top + mapRect.height * 0.75 }));
-            targetWindow.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, button: 0, clientX: mapRect.left + mapRect.width * 0.75, clientY: mapRect.top + mapRect.height * 0.75 }));
+            minimapContent.dispatchEvent(new targetWindow.MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, clientX: mapRect.left + mapRect.width * 0.75, clientY: mapRect.top + mapRect.height * 0.75 }));
+            minimapContent.dispatchEvent(new targetWindow.MouseEvent('mousemove', { bubbles: true, cancelable: true, button: 0, clientX: mapRect.left + mapRect.width * 0.75, clientY: mapRect.top + mapRect.height * 0.75 }));
+            minimapContent.dispatchEvent(new targetWindow.MouseEvent('mouseup', { bubbles: true, cancelable: true, button: 0, clientX: mapRect.left + mapRect.width * 0.75, clientY: mapRect.top + mapRect.height * 0.75 }));
           },
           () => {
             const nextViewport = minimapContent.querySelector('#minimapViewport');
@@ -106,6 +108,33 @@
           }
         );
         return { zoomMs, panMs, minimapMs };
+      };
+      const runMemoryInspection = async () => {
+        if (!memoryCycles) return null;
+        const targetWindow = frame.contentWindow;
+        const memory = targetWindow?.performance?.memory;
+        const render = targetWindow?.render;
+        if (!memory || !Number.isFinite(memory.usedJSHeapSize)) return { supported: false, reason: 'heap-metric-unavailable' };
+        if (typeof render !== 'function') return { supported: false, reason: 'render-unavailable' };
+        const beforeBytes = memory.usedJSHeapSize;
+        for (let cycle = 0; cycle < memoryCycles; cycle += 1) {
+          render();
+          await nextPaint();
+        }
+        const afterBytes = memory.usedJSHeapSize;
+        return { supported: true, renderPasses: memoryCycles, beforeBytes, afterBytes, deltaBytes: afterBytes - beforeBytes };
+      };
+      const memoryLines = (result) => {
+        if (!result) return [];
+        if (!result.supported) return ['memory_result=UNSUPPORTED', `memory_reason=${result.reason}`];
+        return [
+          'memory_result=OBSERVED',
+          `memory_cycles=${memoryCycles}`,
+          `memory_render_passes=${result.renderPasses}`,
+          `memory_before_bytes=${result.beforeBytes}`,
+          `memory_after_bytes=${result.afterBytes}`,
+          `memory_delta_bytes=${result.deltaBytes}`,
+        ];
       };
 
       const observe = () => {
@@ -127,31 +156,37 @@
             'RESULT: PASS',
             `expected_nodes=${expectedNodes}`,
             `rendered_nodes=${renderedNodes}`,
-            `renderer_flags=${rendererFlags.length ? rendererFlags.join(',') : 'none'}`,
+            'renderer_flags=stable',
             `target_visibility=${visibleTarget ? 'visible' : 'offscreen'}`,
             `iframe_load_ms=${frameLoadMs === null ? 'unavailable' : frameLoadMs.toFixed(3)}`,
             `render_ready_ms=${elapsedMs.toFixed(3)}`,
             `target_dom_elements=${targetDomElements}`,
           ];
-          if (measureInteractions && targetDocument) {
-            report([...lines, 'interaction_measurement=running']);
+          runMemoryInspection().then(memoryResult => {
+            const linesWithMemory = [...lines, ...memoryLines(memoryResult)];
+            if (!measureInteractions || !targetDocument) {
+              report(linesWithMemory);
+              return;
+            }
+            report([...linesWithMemory, 'interaction_measurement=running']);
             runInteractionMeasurements(targetDocument).then(result => {
               if (result.error) {
-                report([...lines, 'interaction_result=ERROR', `interaction_error=${result.error}`]);
+                report([...linesWithMemory, 'interaction_result=ERROR', `interaction_error=${result.error}`]);
                 return;
               }
               const format = value => value === null ? 'timeout' : value.toFixed(3);
+              const interactionResult = [result.zoomMs, result.panMs, result.minimapMs].some(value => value === null)
+                ? 'TIMEOUT'
+                : 'PASS';
               report([
-                ...lines,
-                'interaction_result=PASS',
+                ...linesWithMemory,
+                `interaction_result=${interactionResult}`,
                 `zoom_visual_update_ms=${format(result.zoomMs)}`,
                 `pan_visual_update_ms=${format(result.panMs)}`,
                 `minimap_refresh_ms=${format(result.minimapMs)}`,
               ]);
-            }).catch(error => report([...lines, 'interaction_result=ERROR', `interaction_error=${error.message}`]));
-            return;
-          }
-          report(lines);
+            }).catch(error => report([...linesWithMemory, 'interaction_result=ERROR', `interaction_error=${error.message}`]));
+          }).catch(error => report([...lines, 'memory_result=ERROR', `memory_error=${error.message}`]));
           return;
         }
         if (elapsedMs >= timeoutMs) {

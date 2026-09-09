@@ -107,7 +107,17 @@ Machine-readable; anchored by `tests/test_classic_capability_inventory.py`.
 
 ```json
 {
-  "source": "static/js/canvas.js",
+  "sources": [
+    "static/js/workbench/canvas/canvas-app-state.js",
+    "static/js/workbench/canvas/canvas-app-records.js",
+    "static/js/workbench/canvas/canvas-app-media-editor.js",
+    "static/js/workbench/canvas/canvas-app-compat-host.js",
+    "static/js/workbench/canvas/canvas-app-provider-ui.js",
+    "static/js/workbench/canvas/canvas-app-execution.js",
+    "static/js/workbench/canvas/canvas-app-output-ui.js",
+    "static/js/workbench/canvas/canvas-app-interaction.js",
+    "static/js/workbench/canvas/canvas-app-bootstrap.js"
+  ],
   "categories": [
     "Provider cards",
     "Comfy",

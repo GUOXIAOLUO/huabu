@@ -94,7 +94,7 @@ are retained unchanged.
 
 ```json
 {
-  "source": "static/js/canvas.js",
+  "source": "static/js/workbench/canvas/canvas-app-compat-host.js",
   "entry_points": [
     {"id": "canvas-generate", "function": "runCanvasGenerate", "disposition": "seamed", "evidence_target": "static/js/workbench/canvas/classic-cascade-orchestrator.js", "evidence": ["runCanvasGenerateLegacy"]},
     {"id": "canvas-generate-legacy", "function": "runCanvasGenerateLegacy", "disposition": "host-candidate", "evidence_target": "static/js/workbench/canvas/classic-cascade-orchestrator.js", "evidence": ["runCascadeNodeByType"]},

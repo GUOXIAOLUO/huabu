@@ -470,7 +470,7 @@ function openCanvas(c){
     // compatibility handoff for historical Smart records after it loads them.
     const entryUrl = window.WorkbenchCanvasEntryCompatibility?.normalCanvasUrl(c.id, projectId)
         || `/static/canvas.html?id=${enc}&project=${project}`;
-    window.location.href = `${entryUrl}&v=2026.09.04.1`;
+    window.location.href = `${entryUrl}&v=2026.09.09.3`;
 }
 
 /* ===== Card create flow ===== */

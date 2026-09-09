@@ -21,11 +21,11 @@ REMOVE       = 可删除/待删除
 
 | Responsibility | Classic | Smart | Unified | Status | Final owner | Required action | Evidence |
 |---|---|---|---|---|---|---|---|
-| Canvas entry | `canvas.js` host adapter only | retired | `canvas.html` + `WorkbenchCanvasAppBootstrap` startup/routing owner | PARTIAL | Unified | Move the remaining host operations out of `canvas.js`, then delete the adapter. | `app-bootstrap.js`; R4-39 Wave 2 startup-order/routing behavior test and default/all-zero browser acceptance |
+| Canvas entry | retired | retired | `canvas.html` native ordered responsibility scripts + `WorkbenchCanvasAppBootstrap` startup/routing owner | UNIFIED | Unified | Keep the native ordered-module contract and one visible Canvas page. | `app-bootstrap.js`; R4-39 deletion-gate and default/all-zero browser acceptance |
 | Canvas persistence | serialization/projection adapter only | retired | `WorkbenchCanvasSession` + SQLite `CanvasRecord` | UNIFIED | Unified | Keep Legacy JSON only as import/rollback; repository selection goes only through the explicit authority policy seam. | `canvas-session.js`; session/CAS behavior test; status R3/R4 acceptance; R4-03 split-brain guard |
 | revision/CAS | none | none | API/application service; canonical transport + browser save client read/increment/409 logical revision | UNIFIED | Unified | Keep conflict coverage; migrate remote-sync/polling callers onto the revision (R4-07). | `tests/test_canvas_nodes_runtime.py`; `tests/test_canonical_canvas_api.py`; `tests/test_frontend_workbench_modules.py` |
 | remote/version polling | visibility and record-projection adapter only | retired | `WorkbenchCanvasSession` owns polling lifecycle, dirty/in-flight deferral and revision ordering | UNIFIED | Unified | Keep page projection free of persistence state-machine ownership. | `canvas-session.js`; `canvas-remote-sync.js`; session lifecycle behavior test; default/all-zero browser polling acceptance |
-| viewport state | page load/swap adopt through one seam; interaction commits and mirror read from runtime | page load/swap adopt through one seam; interaction commits and mirror read from runtime | `CanvasRuntime` viewport authority with adapter adopt/reset seam | PARTIAL | Unified | Migrate remaining pan/zoom/minimap DOM and persistence lifecycle on top of the authoritative state. | `canvas.js`, `smart-canvas.js`, `runtime-state.js`; canvas-state-swap contract |
+| viewport state | retired; native app state/interaction modules provide the compatibility projection | retired; native app state/interaction modules provide the compatibility projection | `CanvasRuntime` viewport authority with adapter adopt/reset seam | PARTIAL | Unified | Migrate remaining pan/zoom/minimap DOM and persistence lifecycle on top of the authoritative state. | `canvas-app-state.js`, `canvas-app-interaction.js`, `runtime-state.js`; canvas-state-swap contract |
 | pan | board-pan pointer session wired via InteractionController; dispatch through the viewport controller (R4-16) | page DOM/save shell; shared viewport pan session on default path | CanvasRuntime command plus shared pan session | PARTIAL | Unified | Migrate Smart pan wiring. | `interaction-controller.js`; pan-session contract |
 | zoom | wheel zoom via `canvasViewportController.zoomAt`; fit/restore/handoff/centering via `set`/`centerOn` (R4-16) | page preview/minimap shell; shared wheel-scale, centering and default preview-exit commits | CanvasRuntime command plus shared viewport policy | PARTIAL | Unified | Migrate Smart zoom wiring. | `interaction-controller.js`; viewport interaction contracts |
 | semantic zoom | adapter enablement/iteration; shared DOM application on default path | adapter enablement/iteration; shared DOM application on default path | shared policy plus `WorkbenchSemanticZoomApply` indicator/presentation apply+reset owner | PARTIAL | Unified | Move remaining enablement/call timing with renderer ownership. | `semantic-zoom.js`; `semantic-zoom-apply.js` |
@@ -33,7 +33,7 @@ REMOVE       = 可删除/待删除
 | multi-selection | page state machine | page state machine | runtime command primitive | PARTIAL | Unified | Migrate selection lifecycle. | same |
 | drag | adapter collection/product semantics; pointer-session wiring via InteractionController (R4-14, Classic); session creation via controller factory (R4-18); shared drag session on default path | adapter collection/product semantics; session creation via controller factory (R4-18); shared drag session on default path | NodeShell intent plus `createNodeDragSession` position projection | PARTIAL | Unified | Migrate Smart dispatcher and remaining drag commit/DOM lifecycle. | `runtime-state.js`; `interaction-controller.js`; drag-session contract |
 | resize | adapter clamps/product branches; shared resize proposal on default path | adapter clamps/product branches; shared resize proposal on default path | NodeShell intent plus `createNodeResizeSession` size proposal | PARTIAL | Unified | Migrate remaining resize commit/size-mutation lifecycle. | `runtime-state.js`; NodeShell intent adapters; resize-session contract |
-| window pointer-session slots | every Classic session begins/ends through InteractionController (R4-14-R4-20; R4-39 Wave 4 slice 1 covers LLM pane resize, box selection, selection-link, knife); zero direct `window.onmousemove`/`window.onmouseup` assignments remain | retired with the Smart page | InteractionController session lifecycle (begin/end/activeKind) | UNIFIED | Unified | Keep the zero-direct-slot contract pinned while `canvas.js` survives. | `interaction-controller.js`; residual-pointer-session cutover contract |
+| window pointer-session slots | retired; native app interaction module delegates every session through InteractionController | retired with the Smart page | InteractionController session lifecycle (begin/end/activeKind) | UNIFIED | Unified | Keep the zero-direct-slot contract pinned. | `interaction-controller.js`; residual-pointer-session cutover contract |
 | keyboard handling | page handlers | page handlers | editable-target helper | PARTIAL | Unified | Migrate key command lifecycle. | `interaction-targets.js` |
 | connection start | Classic `startLink` and Smart port drag via the connection gesture controller (R4-20) | Smart port drag via the connection gesture controller (R4-20) | shared command/geometry | PARTIAL | Unified | Migrate remaining connect commit into the service path. | `interaction-controller.js`; `graph-interaction.js` |
 | connection hover | page hover logic | page hover logic | compatibility helper | PARTIAL | Unified | Migrate hover lifecycle. | status U2 |
@@ -68,7 +68,7 @@ REMOVE       = 可删除/待删除
 | normal navigation | retained entry adapter | retained entry adapter | normal URL resolver | PARTIAL | Unified | canvas.html opens every record (Classic + Smart) natively (R4-34); remove the Smart entry branch when the handoff module is retired. | `canvas-entry-compatibility.js` |
 | Smart handoff | initiates retained handoff | destination runtime | compatibility module | COMPAT_ONLY | REMOVE | R4-35: handoff helpers retired from `WorkbenchCanvasEntryCompatibility`. R4-36: smart-canvas.html / smart-canvas.js / smart-canvas.css / i18n/smart-canvas.js deleted; canvas.html is the sole Canvas page. | status U6/U7 |
 | Canvas page surface | full page | n/a | one page | n/a | Unified | R4-36: one visible Canvas page (`canvas.html`); the Smart product page is retired. | `canvas.html` |
-| Classic product runtime | full adapter | n/a | partial shared seams | CLASSIC | REMOVE | Migrate remaining interaction, graph, prompt/workflow and media-editing lifecycle. | `canvas.js`; R4-39 Wave 4 slice 3 render lifecycle contract |
+| Classic product runtime | retired | n/a | ordered Canvas app responsibility modules plus bounded compatibility seams | REMOVED | REMOVE | Keep `static/js/canvas.js` absent; do not recreate a page monolith. | R4-39 final loader-order/deletion gate; 637-test full verification; default/all-zero browser acceptance |
 | Smart product runtime | n/a | full adapter | partial shared seams | SMART | REMOVE | R4-36: smart-canvas.js retired. Composer, group/media lifecycle, interaction and creation migrated to the unified runtime in R4-28/29/30/32/33/34. | (retired) |
 
 ---
@@ -116,12 +116,12 @@ target owner, and source-line evidence, anchored by
 | Flag | Introduced | Purpose | Current default | Removal gate | Status |
 |---|---|---|---|---|---|
 | versioned_nodes | R3/R4 | canonical normal blank creation rollback | on | R4 PASS | `versioned_nodes=0` retains adapter constructors during U7 |
-| unified_canvas | R2/R4 | bounded U7 rollback | on | R4 PASS | retain until one runtime evidence |
-| node_shell | R3/R4 | bounded U7 rollback | on | R4 PASS | retain until one renderer evidence |
-| legacy_renderer | R3/R4 | bounded Legacy payload renderer rollback | on | R4 PASS | retain until migrated card parity |
-| media_renderer | R3/R4 | bounded media renderer rollback | on | R4 PASS | retain until lifecycle parity |
-| semantic_zoom | R3/R4 | bounded semantic zoom rollback | on | R4 PASS | retain until renderer ownership |
-| screen_space_controls | R3/R4 | bounded Smart controls rollback | on | R4 PASS | retain until renderer ownership |
+| unified_canvas | R2/R4 | retired | removed | R4-40 PASS | no query flag can select a second product runtime |
+| node_shell | R3/R4 | retired | removed | R4-40 PASS | NodeShell is the stable Canvas shell path |
+| legacy_renderer | R3/R4 | retired | removed | R4-40 PASS | Legacy payload rendering is no longer a selectable product rollback |
+| media_renderer | R3/R4 | retired | removed | R4-40 PASS | media rendering follows the stable renderer path |
+| semantic_zoom | R3/R4 | retired | removed | R4-40 PASS | semantic zoom follows the stable renderer path |
+| screen_space_controls | R3/R4 | retired | removed | R4-40 PASS | screen-space controls follow the stable interaction path |
 
 ---
 

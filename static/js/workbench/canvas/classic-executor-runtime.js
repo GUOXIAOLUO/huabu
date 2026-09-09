@@ -88,6 +88,7 @@ async function responseErrorMessage(response, fallback='请求失败'){
 async function runLTXDirectorNode(nodeId, opts={}){
     const node = getNodes().find(n => n.id === nodeId);
     if(!node || node.type !== 'ltxDirector') return;
+    const executionHost = ensureClassicExecutionHost();
     const cascadeTargetId = cascadeTargetIdFromOptions(opts);
     clearStuckGeneratorRunning(node);
     if(node.running && !opts.cascade) return;
@@ -118,11 +119,11 @@ async function runLTXDirectorNode(nodeId, opts={}){
     run.taskLabel = tr('canvas.ltxDirector');
     if(out) out._pending = [...(out._pending || []), makePendingForRun(pendingId, run, node, {refs, cascadeTargetId})];
     if(!opts.cascade){
-        node.running = true;
-        refreshRunNodes(node, out);
+        executionHost.markRunning(node, true);
+        executionHost.render(node, out);
         setStatus(tr('canvas.ltxRunning'));
     } else {
-        refreshRunNodes(node, out);
+        executionHost.render(node, out);
     }
     try {
         const directorInputs = await ltxDirectorBuildTimelinePayload(node, globalPrompt);
@@ -146,10 +147,9 @@ async function runLTXDirectorNode(nodeId, opts={}){
         appendOutputImages(out, outputs, refs[0], [meta]);
         mergeGeneratedOutputs(node, outputs, Boolean(opts.cascade));
         addGenerationLog({run, outputs, runMs:meta.runMs || 0});
-        node.runStatus = 'done';
-        node.runError = '';
-        refreshRunNodes(node, out);
-        scheduleSave();
+        executionHost.setRunStatus(node, 'done', '');
+        executionHost.render(node, out);
+        executionHost.save();
     } catch(err) {
         const meta = collectRunMeta(out, pendingId);
         if(out) out._pending = (out._pending || []).filter(p => p.id !== pendingId);
@@ -158,15 +158,14 @@ async function runLTXDirectorNode(nodeId, opts={}){
             if(opts.cascade) throw err;
             return;
         }
-        node.runStatus = 'failed';
-        node.runError = err.message || String(err);
-        refreshRunNodes(node, out);
+        executionHost.setRunStatus(node, 'failed', err.message || String(err));
+        executionHost.render(node, out);
         if(opts.cascade) throw err;
         showErrorModal(err.message || tr('canvas.ltxFailed'), tr('canvas.ltxFailed'));
     } finally {
         if(!opts.cascade){
-            node.running = false;
-            refreshRunNodes(node, out);
+            executionHost.markRunning(node, false);
+            executionHost.render(node, out);
         }
     }
 }
@@ -178,6 +177,7 @@ function rhUseWallet(node){
 async function runRhNode(nodeId, opts={}){
     const node = getNodes().find(n => n.id === nodeId);
     if(!node || (node.running && !opts.cascade)) return;
+    const executionHost = ensureClassicExecutionHost();
     const cascadeTargetId = cascadeTargetIdFromOptions(opts);
     ensureRhNodeSelection(node);
     const mode = rhCurrentKind(node);
@@ -201,8 +201,8 @@ async function runRhNode(nodeId, opts={}){
     const run = runSnapshot(node, media.prompt || 'RunningHub', media.refs);
     run.taskLabel = 'RunningHub';
     if(out) out._pending = [...(out._pending || []), makePendingForRun(pendingId, run, node, {refs:media.refs, cascadeTargetId})];
-    if(!opts.cascade) node.running = true;
-    refreshRunNodes(node, out);
+    if(!opts.cascade) executionHost.markRunning(node, true);
+    executionHost.render(node, out);
     try {
         const nodeInfoList = await rhBuildNodeInfoList(node, media);
         const workflowExtras = mode === 'workflow' ? await rhBuildWorkflowRequestExtras(node, media, nodeInfoList) : {};
@@ -246,10 +246,9 @@ async function runRhNode(nodeId, opts={}){
         appendOutputImages(out, outputs, media.refs[0], [meta]);
         mergeGeneratedOutputs(node, outputs, Boolean(opts.cascade));
         addGenerationLog({run, outputs, runMs:meta.runMs || 0});
-        node.runStatus = 'done';
-        node.runError = '';
-        refreshRunNodes(node, out);
-        scheduleSave();
+        executionHost.setRunStatus(node, 'done', '');
+        executionHost.render(node, out);
+        executionHost.save();
     } catch(err) {
         const meta = collectRunMeta(out, pendingId);
         addGenerationLog({run, outputs:[], runMs:meta.runMs || 0, error:err.message || String(err)});
@@ -258,19 +257,19 @@ async function runRhNode(nodeId, opts={}){
             if(opts.cascade) throw err;
             return;
         }
-        node.runStatus = 'failed';
-        node.runError = err.message || String(err);
-        refreshRunNodes(node, out);
+        executionHost.setRunStatus(node, 'failed', err.message || String(err));
+        executionHost.render(node, out);
         if(opts.cascade) throw err;
         alert(err.message || tr('canvas.rhFailed'));
     } finally {
-        node.running = false;
-        refreshRunNodes(node, out);
+        executionHost.markRunning(node, false);
+        executionHost.render(node, out);
     }
 }
 
 async function runRhModelNode(node, opts={}){
     if(!node || (node.running && !opts.cascade)) return;
+    const executionHost = ensureClassicExecutionHost();
     const cascadeTargetId = cascadeTargetIdFromOptions(opts);
     const selectedRef = rhSelectedEntryRef(node);
     const model = selectedRef?.id || node.rhModel || node.model || '';
@@ -301,9 +300,9 @@ async function runRhModelNode(node, opts={}){
     let pendingIds = [];
     const startedAt = nowMs();
     if(!opts.cascade){
-        node.running = true;
-        refreshRunNodes(node, out);
-        setTimeout(() => { node.running = false; refreshRunNodes(node, out); }, 2000);
+        executionHost.markRunning(node, true);
+        executionHost.render(node, out);
+        setTimeout(() => { executionHost.markRunning(node, false); executionHost.render(node, out); }, 2000);
     }
     try {
         const taskInfos = await Promise.all(Array.from({length:count}, () => createCanvasImageTask(payload, {cascadeTargetId})));
@@ -317,11 +316,10 @@ async function runRhModelNode(node, opts={}){
             if(!outputs.length) throw new Error(tr('canvas.generationFailed'));
             mergeGeneratedOutputs(node, outputs, Boolean(opts.cascade));
             addGenerationLog({run, outputs, runMs:nowMs() - startedAt});
-            node.runStatus = 'done';
-            node.runError = '';
-            node.running = false;
-            refreshRunNodes(node, out);
-            scheduleSave();
+            executionHost.setRunStatus(node, 'done', '');
+            executionHost.markRunning(node, false);
+            executionHost.render(node, out);
+            executionHost.save();
             return;
         }
         pendingIds = taskInfos.map(() => uid('p'));
@@ -335,8 +333,8 @@ async function runRhModelNode(node, opts={}){
                 appendGenerated:Boolean(opts.cascade)
             }))
         ];
-        refreshRunNodes(node, out);
-        scheduleSave();
+        executionHost.render(node, out);
+        executionHost.save();
         await saveCanvas();
         const statuses = await Promise.all(taskInfos.map(task => pollCanvasImageTask(task.task_id, {cascadeTargetId})));
         if(statuses.includes('aborted')) throw cascadeAbortError(cascadeStopMessage());
@@ -350,17 +348,16 @@ async function runRhModelNode(node, opts={}){
             if(out) out._pending = (out._pending || []).filter(p => !removableIds.includes(p.id));
         }
         if(isCascadeAbortError(err)){
-            node.running = false;
-            refreshRunNodes(node, out);
-            scheduleSave();
+            executionHost.markRunning(node, false);
+            executionHost.render(node, out);
+            executionHost.save();
             if(opts.cascade) throw err;
             return;
         }
-        node.runStatus = 'failed';
-        node.runError = err.message || String(err);
-        node.running = false;
-        refreshRunNodes(node, out);
-        scheduleSave();
+        executionHost.setRunStatus(node, 'failed', err.message || String(err));
+        executionHost.markRunning(node, false);
+        executionHost.render(node, out);
+        executionHost.save();
         if(remainingPending.some(p => p.failed && p.recoverTaskId) && !removableIds.length) return;
         if(opts.cascade) throw err;
         showErrorModal(err.message || tr('canvas.generationFailed'), tr('canvas.apiFailed'));
@@ -370,6 +367,7 @@ async function runRhModelNode(node, opts={}){
 async function runGenerator(genId, opts={}){
     const gen = getNodes().find(n => n.id === genId);
     if(!gen || (gen.running && !opts.cascade)) return;
+    const executionHost = ensureClassicExecutionHost();
     const cascadeTargetId = cascadeTargetIdFromOptions(opts);
     const sources = orderedSources(gen, generatorSources(gen));
     const prompt = sources.map(s => s.prompt).filter(Boolean).join('\n\n');
@@ -390,10 +388,10 @@ async function runGenerator(genId, opts={}){
     let pendingIds = [];
     const startedAt = nowMs();
     if(!opts.cascade){
-        gen.running = true;
-        refreshRunNodes(gen, out);
+        executionHost.markRunning(gen, true);
+        executionHost.render(gen, out);
         // API 支持并发：2s 后即可再次点击，任务仍由 pending 卡片继续追踪
-        setTimeout(() => { gen.running = false; refreshRunNodes(gen, out); }, 2000);
+        setTimeout(() => { executionHost.markRunning(gen, false); executionHost.render(gen, out); }, 2000);
     }
     try {
         const taskInfos = await Promise.all(Array.from({length:count}, () => createCanvasImageTask(payload, {cascadeTargetId})));
@@ -407,11 +405,10 @@ async function runGenerator(genId, opts={}){
             if(!outputs.length) throw new Error(tr('canvas.generationFailed'));
             mergeGeneratedOutputs(gen, outputs, Boolean(opts.cascade));
             addGenerationLog({run, outputs, runMs:nowMs() - startedAt});
-            gen.runStatus = 'done';
-            gen.runError = '';
-            gen.running = false;
-            refreshRunNodes(gen, out);
-            scheduleSave();
+            executionHost.setRunStatus(gen, 'done', '');
+            executionHost.markRunning(gen, false);
+            executionHost.render(gen, out);
+            executionHost.save();
             return;
         }
         pendingIds = taskInfos.map(() => uid('p'));
@@ -425,8 +422,8 @@ async function runGenerator(genId, opts={}){
                 appendGenerated:Boolean(opts.cascade)
             }))
         ];
-        refreshRunNodes(gen, out);
-        scheduleSave();
+        executionHost.render(gen, out);
+        executionHost.save();
         await saveCanvas();
         const statuses = await Promise.all(taskInfos.map(task => pollCanvasImageTask(task.task_id, {cascadeTargetId})));
         if(statuses.includes('aborted')) throw cascadeAbortError(cascadeStopMessage());
@@ -440,15 +437,15 @@ async function runGenerator(genId, opts={}){
             if(out) out._pending = (out._pending||[]).filter(p => !removableIds.includes(p.id));
         }
         if(isCascadeAbortError(err)){
-            gen.running = false;
-            refreshRunNodes(gen, out);
-            scheduleSave();
+            executionHost.markRunning(gen, false);
+            executionHost.render(gen, out);
+            executionHost.save();
             throw err;
         }
-        gen.runStatus = 'failed'; gen.runError = err.message || String(err);
-        gen.running = false;
-        refreshRunNodes(gen, out);
-        scheduleSave();
+        executionHost.setRunStatus(gen, 'failed', err.message || String(err));
+        executionHost.markRunning(gen, false);
+        executionHost.render(gen, out);
+        executionHost.save();
         if(remainingPending.some(p => p.failed && p.recoverTaskId) && !removableIds.length) return;
         if(opts.cascade) throw err;
         showErrorModal(err.message || tr('canvas.generationFailed'), tr('canvas.apiFailed'));
@@ -458,6 +455,7 @@ async function runGenerator(genId, opts={}){
 async function runGeneratorLegacy(genId, opts={}){
     const gen = getNodes().find(n => n.id === genId);
     if(!gen || (gen.running && !opts.cascade)) return;
+    const executionHost = ensureClassicExecutionHost();
     const sources = orderedSources(gen, generatorSources(gen));
     const prompt = sources.map(s => s.prompt).filter(Boolean).join('\n\n');
     const refs = imageRefsOnly(sources.flatMap(s => s.refs || []));
@@ -469,11 +467,11 @@ async function runGeneratorLegacy(genId, opts={}){
     const requestSize = await generatorSizeForRun(gen, refs);
     if(out) out._pending = [...(out._pending||[]), ...pendingIds.map(id => makePendingForRun(id, run, gen, {refs, requestSize}))];
     if(!opts.cascade){
-        gen.running = true;
-        refreshRunNodes(gen, out);
-        setTimeout(() => { gen.running = false; refreshRunNodes(gen, out); }, 2000);
+        executionHost.markRunning(gen, true);
+        executionHost.render(gen, out);
+        setTimeout(() => { executionHost.markRunning(gen, false); executionHost.render(gen, out); }, 2000);
     }
-    else refreshRunNodes(gen, out);
+    else executionHost.render(gen, out);
     try {
         const payload = {
             prompt: prompt || 'Edit the reference images.',
@@ -498,15 +496,17 @@ async function runGeneratorLegacy(genId, opts={}){
         appendOutputImages(out, images, refs[0], metas);
         mergeGeneratedOutputs(gen, images, Boolean(opts.cascade));
         addGenerationLog({run, outputs:images, runMs:Math.max(...metas.map(m => m.runMs || 0), 0)});
-        gen.runStatus = 'done'; gen.runError = '';
-        refreshRunNodes(gen, out);
-        scheduleSave();
+        executionHost.setRunStatus(gen, 'done', '');
+        executionHost.render(gen, out);
+        executionHost.save();
     } catch(err) {
         const metas = collectRunMetas(out, pendingIds);
         addGenerationLog({run, outputs:[], runMs:Math.max(...metas.map(m => m.runMs || 0), 0), error:err.message || String(err)});
         if(out) out._pending = (out._pending||[]).filter(p => !pendingIds.includes(p.id));
-        gen.runStatus = 'failed'; gen.runError = err.message || String(err);
-        refreshRunNodes(gen, out);
+        executionHost.setRunStatus(gen, 'failed', err.message || String(err));
+        executionHost.markRunning(gen, false);
+        executionHost.render(gen, out);
+        executionHost.save();
         if(opts.cascade) throw err;
         showErrorModal(err.message || tr('canvas.generationFailed'), tr('canvas.apiFailed'));
     }
@@ -533,6 +533,7 @@ async function waitMidjourneyTask(providerId, taskId, options={}){
 async function runMidjourneyNode(nodeId, opts={}){
     const node = getNodes().find(item => item.id === nodeId);
     if(!node || (node.running && !opts.cascade)) return;
+    const executionHost = ensureClassicExecutionHost();
     const providerId = resolveMidjourneyProviderId(node.apiProvider || '');
     if(!providerId){ showErrorModal('请先在 API 设置中添加 APIMart 平台。', 'Midjourney'); return; }
     const sources = orderedSources(node, generatorSources(node));
@@ -550,10 +551,9 @@ async function runMidjourneyNode(nodeId, opts={}){
     run.taskLabel = mode === 'blend' ? 'Midjourney 多图融合' : mode === 'edit' ? 'Midjourney 图片编辑' : `Midjourney v${node.version || '6.1'}`;
     run.startedAt = nowMs();
     node.lastPrompt = prompt;
-    node.running = true;
-    node.runStatus = 'running';
-    node.runError = '';
-    refreshRunNodes(node, out);
+    executionHost.markRunning(node, true);
+    executionHost.setRunStatus(node, 'running', '');
+    executionHost.render(node, out);
     try {
         const submitted = await midjourneyRequest('/api/midjourney/submit', {
             method:'POST', headers:{'Content-Type':'application/json'}, cascadeTargetId:cascadeTargetIdFromOptions(opts),
@@ -562,17 +562,16 @@ async function runMidjourneyNode(nodeId, opts={}){
         node.lastTaskId = submitted.task_id;
         node.lastAction = mode;
         node.lastTaskStatus = submitted.status || 'queued';
-        scheduleSave();
+        executionHost.save();
         const result = await waitMidjourneyTask(providerId, submitted.task_id, opts);
         await completeMidjourneyRun(node, out, run, result, Boolean(opts.cascade));
     } catch(error) {
-        node.running = false;
-        node.runStatus = 'failed';
-        node.runError = error.message || String(error);
+        executionHost.markRunning(node, false);
+        executionHost.setRunStatus(node, 'failed', error.message || String(error));
         node.lastTaskStatus = 'FAILED';
         addGenerationLog({run, outputs:[], runMs:nowMs() - run.startedAt, error:node.runError});
-        refreshRunNodes(node, out);
-        scheduleSave();
+        executionHost.render(node, out);
+        executionHost.save();
         if(opts.cascade) throw error;
         showErrorModal(node.runError, 'Midjourney');
     }
@@ -581,6 +580,7 @@ async function runMidjourneyNode(nodeId, opts={}){
 async function runMidjourneyAction(nodeId, action, index=0, extra={}){
     const node = getNodes().find(item => item.id === nodeId);
     if(!node?.lastTaskId || node.running) return;
+    const executionHost = ensureClassicExecutionHost();
     const providerId = resolveMidjourneyProviderId(node.apiProvider || '');
     if(!providerId){ showErrorModal('请先在 API 设置中添加 APIMart 平台。', 'Midjourney'); return; }
     const out = outputForNode(node, 460);
@@ -588,9 +588,9 @@ async function runMidjourneyAction(nodeId, action, index=0, extra={}){
     const actionLabels = {upscale:`U${index}`, variation:`V${index}`, low_variation:'弱变体', high_variation:'强变体', remix_subtle:`轻微重塑 ${index}`, remix_strong:`强烈重塑 ${index}`, zoom:`扩图 ${extra.zoomRatio || 2}x`, pan:`平移 ${extra.direction || ''}`, inpaint:'局部重绘', reroll:'Reroll'};
     run.taskLabel = `Midjourney ${actionLabels[action] || action}`;
     run.startedAt = nowMs();
-    node.running = true;
-    node.runStatus = 'running';
-    refreshRunNodes(node, out);
+    executionHost.markRunning(node, true);
+    executionHost.setRunStatus(node, 'running', '');
+    executionHost.render(node, out);
     try {
         const submitted = await midjourneyRequest('/api/midjourney/actions', {
             method:'POST', headers:{'Content-Type':'application/json'},
@@ -599,26 +599,25 @@ async function runMidjourneyAction(nodeId, action, index=0, extra={}){
         node.lastTaskId = submitted.task_id;
         node.lastAction = action;
         node.lastTaskStatus = submitted.status || 'queued';
-        scheduleSave();
+        executionHost.save();
         if(action === 'inpaint'){
             node.mjModalTaskId = submitted.task_id;
             node.mjModalPrompt = node.mjModalPrompt || node.lastPrompt || '';
-            node.running = false;
-            node.runStatus = '';
-            refreshRunNodes(node, out);
-            scheduleSave();
+            executionHost.markRunning(node, false);
+            executionHost.setRunStatus(node, '', '');
+            executionHost.render(node, out);
+            executionHost.save();
             return;
         }
         const result = await waitMidjourneyTask(providerId, submitted.task_id);
         await completeMidjourneyRun(node, out, run, result, true);
     } catch(error) {
-        node.running = false;
-        node.runStatus = 'failed';
-        node.runError = error.message || String(error);
+        executionHost.markRunning(node, false);
+        executionHost.setRunStatus(node, 'failed', error.message || String(error));
         node.lastTaskStatus = 'FAILED';
         addGenerationLog({run, outputs:[], runMs:nowMs() - run.startedAt, error:node.runError});
-        refreshRunNodes(node, out);
-        scheduleSave();
+        executionHost.render(node, out);
+        executionHost.save();
         showErrorModal(node.runError, 'Midjourney');
     }
 }
@@ -626,6 +625,7 @@ async function runMidjourneyAction(nodeId, action, index=0, extra={}){
 async function runMidjourneyModal(nodeId, maskRef){
     const node = getNodes().find(item => item.id === nodeId);
     if(!node?.mjModalTaskId || !maskRef?.url || node.running) return;
+    const executionHost = ensureClassicExecutionHost();
     const providerId = resolveMidjourneyProviderId(node.apiProvider || '');
     if(!providerId){ showErrorModal('请先在 API 设置中添加 APIMart 平台。', 'Midjourney'); return; }
     const out = outputForNode(node, 460);
@@ -633,9 +633,9 @@ async function runMidjourneyModal(nodeId, maskRef){
     const run = runSnapshot(node, prompt, [maskRef]);
     run.taskLabel = 'Midjourney 局部重绘';
     run.startedAt = nowMs();
-    node.running = true;
-    node.runStatus = 'running';
-    refreshRunNodes(node, out);
+    executionHost.markRunning(node, true);
+    executionHost.setRunStatus(node, 'running', '');
+    executionHost.render(node, out);
     try {
         const submitted = await midjourneyRequest('/api/midjourney/modal', {
             method:'POST', headers:{'Content-Type':'application/json'},
@@ -645,16 +645,15 @@ async function runMidjourneyModal(nodeId, maskRef){
         node.lastAction = 'inpaint';
         node.lastTaskStatus = submitted.status || 'submitted';
         node.mjModalTaskId = '';
-        scheduleSave();
+        executionHost.save();
         const result = await waitMidjourneyTask(providerId, submitted.task_id);
         await completeMidjourneyRun(node, out, run, result, true);
     } catch(error) {
-        node.running = false;
-        node.runStatus = 'failed';
-        node.runError = error.message || String(error);
+        executionHost.markRunning(node, false);
+        executionHost.setRunStatus(node, 'failed', error.message || String(error));
         addGenerationLog({run, outputs:[], runMs:nowMs() - run.startedAt, error:node.runError});
-        refreshRunNodes(node, out);
-        scheduleSave();
+        executionHost.render(node, out);
+        executionHost.save();
         showErrorModal(node.runError, 'Midjourney');
     }
 }
@@ -662,6 +661,7 @@ async function runMidjourneyModal(nodeId, maskRef){
 async function runVideoNode(nodeId, opts={}){
     const node = getNodes().find(n => n.id === nodeId);
     if(!node || (node.running && !opts.cascade)) return;
+    const executionHost = ensureClassicExecutionHost();
     const cascadeTargetId = cascadeTargetIdFromOptions(opts);
     const sources = orderedSources(node, generatorSources(node));
     const prompt = sources.map(s => s.prompt).filter(Boolean).join('\n\n');
@@ -677,8 +677,8 @@ async function runVideoNode(nodeId, opts={}){
     const pendingId = uid('p');
     const run = runSnapshot(node, prompt, refs);
     if(out) out._pending = [...(out._pending || []), makePendingForRun(pendingId, run, node, {refs, cascadeTargetId})];
-    if(!opts.cascade){ node.running = true; refreshRunNodes(node, out); }
-    else refreshRunNodes(node, out);
+    if(!opts.cascade) executionHost.markRunning(node, true);
+    executionHost.render(node, out);
     try {
         const result = await cascadeFetch('/api/canvas-video', {
             method:'POST',
@@ -714,9 +714,9 @@ async function runVideoNode(nodeId, opts={}){
         appendOutputImages(out, outputUrls, refs[0], [{...meta, kind:'video'}]);
         mergeGeneratedOutputs(node, outputUrls, Boolean(opts.cascade));
         addGenerationLog({run, outputs:outputUrls, runMs:meta.runMs || 0});
-        node.runStatus = 'done'; node.runError = '';
-        refreshRunNodes(node, out);
-        scheduleSave();
+        executionHost.setRunStatus(node, 'done', '');
+        executionHost.render(node, out);
+        executionHost.save();
     } catch(err) {
         const meta = collectRunMeta(out, pendingId);
         addGenerationLog({run, outputs:[], runMs:meta.runMs || 0, error:err.message || String(err)});
@@ -725,13 +725,13 @@ async function runVideoNode(nodeId, opts={}){
             if(opts.cascade) throw err;
             return;
         }
-        node.runStatus = 'failed'; node.runError = err.message || String(err);
-        refreshRunNodes(node, out);
+        executionHost.setRunStatus(node, 'failed', err.message || String(err));
+        executionHost.render(node, out);
         if(opts.cascade) throw err;
         alert(err.message || tr('canvas.videoFailed'));
     } finally {
-        node.running = false;
-        refreshRunNodes(node, out);
+        executionHost.markRunning(node, false);
+        executionHost.render(node, out);
     }
 }
 
@@ -779,6 +779,7 @@ async function runMiniMaxRunningHub(node, media, options={}){
 async function runMiniMaxNode(nodeId, opts={}){
     const node = getNodes().find(n => n.id === nodeId);
     if(!node || (node.running && !opts.cascade)) return;
+    const executionHost = ensureClassicExecutionHost();
     const cascadeTargetId = cascadeTargetIdFromOptions(opts);
     const sourceData = miniMaxRefsForNode(node);
     const seg = miniMaxSelectedSegment(node);
@@ -804,8 +805,8 @@ async function runMiniMaxNode(nodeId, opts={}){
     const run = runSnapshot(node, media.prompt, media.refs);
     run.taskLabel = engine === 'runninghub' ? 'MiniMax RunningHub' : 'MiniMax ComfyUI';
     if(out) out._pending = [...(out._pending || []), makePendingForRun(pendingId, run, node, {refs:media.refs, cascadeTargetId})];
-    if(!opts.cascade) node.running = true;
-    refreshRunNodes(node, out);
+    if(!opts.cascade) executionHost.markRunning(node, true);
+    executionHost.render(node, out);
     try {
         let outputs = [];
         if(engine === 'runninghub'){
@@ -837,10 +838,9 @@ async function runMiniMaxNode(nodeId, opts={}){
         if(seg) normalized.forEach(item => miniMaxSetSegmentResult(node, seg, item));
         mergeGeneratedOutputs(node, normalized, Boolean(opts.cascade));
         addGenerationLog({run, outputs:normalized, runMs:meta.runMs || 0});
-        node.runStatus = 'done';
-        node.runError = '';
-        refreshRunNodes(node, out);
-        scheduleSave();
+        executionHost.setRunStatus(node, 'done', '');
+        executionHost.render(node, out);
+        executionHost.save();
     } catch(err) {
         const meta = collectRunMeta(out, pendingId);
         const readable = miniMaxReadableError(err, engine);
@@ -850,14 +850,13 @@ async function runMiniMaxNode(nodeId, opts={}){
             if(opts.cascade) throw err;
             return;
         }
-        node.runStatus = 'failed';
-        node.runError = readable;
-        refreshRunNodes(node, out);
+        executionHost.setRunStatus(node, 'failed', readable);
+        executionHost.render(node, out);
         if(opts.cascade) throw err;
         showErrorModal(readable, 'MiniMax H3');
     } finally {
-        node.running = false;
-        refreshRunNodes(node, out);
+        executionHost.markRunning(node, false);
+        executionHost.render(node, out);
     }
 }
 
@@ -896,6 +895,7 @@ async function runComfyUpscale(imageUrl, resolution, options={}){
 async function runComfyNode(nodeId, opts={}){
     const node = getNodes().find(n => n.id === nodeId);
     if(!node || (node.running && !opts.cascade)) return;
+    const executionHost = ensureClassicExecutionHost();
     const cascadeTargetId = cascadeTargetIdFromOptions(opts);
     const sources = orderedSources(node, generatorSources(node));
     const prompt = sources.map(s => s.prompt).filter(Boolean).join('\n\n');
@@ -917,11 +917,11 @@ async function runComfyNode(nodeId, opts={}){
     const requestSize = mode === 'text' ? {width:Number(node.width || 1024), height:Number(node.height || 1024)} : null;
     if(out) out._pending = [...(out._pending||[]), makePendingForRun(pendingId, run, node, {refs, requestSize, cascadeTargetId})];
     if(!opts.cascade){
-        node.running = true;
-        refreshRunNodes(node, out);
-        setTimeout(() => { node.running = false; refreshRunNodes(node, out); }, 2000);
+        executionHost.markRunning(node, true);
+        executionHost.render(node, out);
+        setTimeout(() => { executionHost.markRunning(node, false); executionHost.render(node, out); }, 2000);
     }
-    else refreshRunNodes(node, out);
+    else executionHost.render(node, out);
     try {
         let images = [];
         if(mode === 'text'){
@@ -1035,20 +1035,20 @@ async function runComfyNode(nodeId, opts={}){
         appendOutputImages(out, images, refs[0], [meta]);
         mergeGeneratedOutputs(node, images, Boolean(opts.cascade));
         addGenerationLog({run, outputs:images, runMs:meta.runMs || 0});
-        node.runStatus = 'done'; node.runError = '';
-        refreshRunNodes(node, out);
-        scheduleSave();
+        executionHost.setRunStatus(node, 'done', '');
+        executionHost.render(node, out);
+        executionHost.save();
     } catch(err) {
         const meta = collectRunMeta(out, pendingId);
         addGenerationLog({run, outputs:[], runMs:meta.runMs || 0, error:err.message || String(err)});
         if(out) out._pending = (out._pending||[]).filter(p => p.id !== pendingId);
         if(isCascadeAbortError(err)){
-            refreshRunNodes(node, out);
+            executionHost.render(node, out);
             if(opts.cascade) throw err;
             return;
         }
-        node.runStatus = 'failed'; node.runError = err.message || String(err);
-        refreshRunNodes(node, out);
+        executionHost.setRunStatus(node, 'failed', err.message || String(err));
+        executionHost.render(node, out);
         if(opts.cascade) throw err;
         alert(err.message || actionFailed('canvas.comfyGenerate'));
     }
@@ -1123,25 +1123,26 @@ async function runLLMNode(nodeId, opts={}){
 async function runLLMChat(nodeId){
     const node = getNodes().find(n => n.id === nodeId);
     if(!node || node.running) return;
+    const executionHost = ensureClassicChatExecutionHost();
     const message = (node.chatInput || '').trim();
     if(!message) return;
     node.messages = node.messages || [];
     const history = node.messages.slice();
-    node.messages.push({role:'user', content:message});
-    node.chatInput = '';
-    node.running = true;
-    refreshNodes([node.id]);
+    executionHost.appendMessage(node, {role:'user', content:message});
+    executionHost.clearChatInput(node);
+    executionHost.markRunning(node, true);
+    executionHost.render(node);
     try {
         const text = await callCanvasLLM(node, message, history);
-        node.messages.push({role:'assistant', content:text});
-        node.outputText = text;
-        node.running = false;
-        refreshNodes([node.id]);
-        scheduleSave();
+        executionHost.appendMessage(node, {role:'assistant', content:text});
+        executionHost.writeOutputText(node, text);
+        executionHost.markRunning(node, false);
+        executionHost.render(node);
+        executionHost.save();
     } catch(err) {
-        node.running = false;
-        refreshNodes([node.id]);
-        alert(err.message || 'LLM 运行失败');
+        executionHost.markRunning(node, false);
+        executionHost.render(node);
+        executionHost.notifyError(err.message || 'LLM 运行失败');
     }
 }
 
@@ -1286,6 +1287,7 @@ function failCanvasImageTask(taskId, message, taskData={}){
     const runMs = nowMs() - Number(pending.startedAt || nowMs());
     const recoverTaskId = taskData?.upstream_task_id || taskData?.task_id || extractUpstreamTaskId(message);
     const gen = getNodes().find(n => n.id === run?.node?.id);
+    const executionHost = gen ? ensureClassicExecutionHost() : null;
     if(recoverTaskId){
         pending.failed = true;
         pending.querying = false;
@@ -1294,26 +1296,24 @@ function failCanvasImageTask(taskId, message, taskData={}){
         pending.providerId = taskData?.provider_id || pending.providerId || providerIdForPending(pending);
         pending.canvasTaskStatus = 'failed';
         if(gen){
-            gen.runStatus = 'failed';
-            gen.runError = pending.error;
+            executionHost.setRunStatus(gen, 'failed', pending.error);
             if(pending?.cascadeTargetId) gen._cascadeFailed = true;
-            gen.running = false;
+            executionHost.markRunning(gen, false);
         }
         addGenerationLog({run, outputs:[], runMs, error:pending.error});
-        refreshRunNodes(gen, out);
-        scheduleSave();
+        if(gen) executionHost.render(gen, out);
+        if(gen) executionHost.save();
         return;
     }
     out._pending = (out._pending || []).filter(p => p.id !== pending.id);
     if(gen){
-        gen.runStatus = 'failed';
-        gen.runError = message || tr('canvas.generationFailed');
+        executionHost.setRunStatus(gen, 'failed', message || tr('canvas.generationFailed'));
         if(pending?.cascadeTargetId) gen._cascadeFailed = true;
-        gen.running = false;
+        executionHost.markRunning(gen, false);
     }
     addGenerationLog({run, outputs:[], runMs, error:message || tr('canvas.generationFailed')});
-    refreshRunNodes(gen, out);
-    scheduleSave();
+    if(gen) executionHost.render(gen, out);
+    if(gen) executionHost.save();
 }
 
 function outputForNode(node, dx=460){

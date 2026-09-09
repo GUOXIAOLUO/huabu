@@ -5,6 +5,8 @@ import time
 import unittest
 from pathlib import Path
 
+from tests.canvas_app_source import canvas_app_paths, read_canvas_app_source
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -43,9 +45,9 @@ console.log(JSON.stringify({{classic, smart}}));
             "classic": [{"url": "/one.png", "kind": "", "name": "one"}, "/two.png"],
             "smart": [{"url": "/root.png", "kind": "", "name": "", "width": 640}, {"url": "/nested.mp4", "kind": "", "name": "", "height": 360}],
         })
-        for page, editor in (("canvas.html", "canvas.js"),):
+        for page, editor in (("canvas.html", "workbench/canvas/canvas-app-bootstrap.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
-            editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
+            editor_source = read_canvas_app_source(ROOT)
             self.assertLess(page_source.index("workbench/canvas/media-result-normalizer.js"), page_source.index(editor))
             # Wave 16a moved the executor bodies (with their extract call
             # sites) into classic-executor-runtime.js; page keeps load order.
@@ -53,7 +55,7 @@ console.log(JSON.stringify({{classic, smart}}));
             self.assertIn("WorkbenchCanvasMediaResultNormalizer.extract", editor_source + executor_source)
 
     def test_classic_editor_inlines_execution_result_extraction_through_the_shared_seam(self):
-        editor_source = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        editor_source = read_canvas_app_source(ROOT)
         executor_source = (ROOT / "static" / "js" / "workbench" / "canvas" / "classic-executor-runtime.js").read_text(encoding="utf-8")
         self.assertNotIn("function comfyResultOutputs", editor_source)
         self.assertNotIn("function resultMediaUrls", editor_source)
@@ -128,12 +130,12 @@ catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
         # Source-contract: canvas.html loads the seam before canvas.js.
         page_source = (ROOT / "static/canvas.html").read_text(encoding="utf-8")
         seam_href = "workbench/canvas/classic-node-factories.js"
-        editor_href = "static/js/canvas.js"
+        editor_href = "static/js/workbench/canvas/canvas-app-bootstrap.js"
         self.assertLess(page_source.index(seam_href), page_source.index(editor_href),
             msg="classic-node-factories.js must load before canvas.js in canvas.html")
         # Source-contract: canvas.js deleted the local factory function
         # definitions and now uses the seam-call dispatcher instead.
-        editor_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        editor_source = read_canvas_app_source(ROOT)
         self.assertNotIn("function addGeneratorNode", editor_source)
         self.assertNotIn("function addMidjourneyNode", editor_source)
         self.assertNotIn("function addMsGenNode", editor_source)
@@ -182,7 +184,7 @@ console.log(JSON.stringify({{
         })
         # Source-contract: canvas.js no longer has the local factory
         # definition and the dispatcher routes 'video' through the seam.
-        editor_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        editor_source = read_canvas_app_source(ROOT)
         self.assertNotIn("function addVideoNode", editor_source,
             msg="canvas.js should no longer define function addVideoNode")
         self.assertIn("ensureClassicNodeFactories().addVideo({point})", editor_source,
@@ -229,7 +231,7 @@ console.log(JSON.stringify({{
         })
         # Source-contract: canvas.js no longer has the local factory
         # definition and the dispatcher routes 'output' through the seam.
-        editor_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        editor_source = read_canvas_app_source(ROOT)
         self.assertNotIn("function addOutputNode", editor_source,
             msg="canvas.js should no longer define function addOutputNode")
         self.assertIn("ensureClassicNodeFactories().addOutput({point})", editor_source,
@@ -426,13 +428,13 @@ catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
         # Source-contract: canvas.html loads the seam before canvas.js.
         page_source = (ROOT / "static/canvas.html").read_text(encoding="utf-8")
         seam_href = "workbench/canvas/classic-card-body-renderer.js"
-        editor_href = "static/js/canvas.js"
+        editor_href = "static/js/workbench/canvas/canvas-app-bootstrap.js"
         self.assertLess(page_source.index(seam_href), page_source.index(editor_href),
             msg="classic-card-body-renderer.js must load before canvas.js in canvas.html")
         # Source-contract: canvas.js deleted the four local body function
         # definitions and the dispatcher routes every kind through the
         # seam's render methods via `ensureClassicCardBodyRenderer()`.
-        editor_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        editor_source = read_canvas_app_source(ROOT)
         self.assertNotIn("function renderLLMBody", editor_source,
             msg="canvas.js should no longer define function renderLLMBody")
         self.assertNotIn("function renderGeneratorBody", editor_source,
@@ -618,12 +620,12 @@ catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
         # Source-contract: canvas.html loads the seam before canvas.js.
         page_source = (ROOT / "static/canvas.html").read_text(encoding="utf-8")
         seam_href = "workbench/canvas/classic-comfy-controls.js"
-        editor_href = "static/js/canvas.js"
+        editor_href = "static/js/workbench/canvas/canvas-app-bootstrap.js"
         self.assertLess(page_source.index(seam_href), page_source.index(editor_href),
             msg="classic-comfy-controls.js must load before canvas.js in canvas.html")
         # Source-contract: canvas.js deleted the five local Comfy function
         # definitions and the dispatcher routes 'comfy' through the seam.
-        editor_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        editor_source = read_canvas_app_source(ROOT)
         self.assertNotIn("function addComfyNode", editor_source,
             msg="canvas.js should no longer define function addComfyNode")
         self.assertNotIn("function comfyWorkflowOptions", editor_source,
@@ -877,13 +879,13 @@ catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
         # Source-contract: canvas.html loads the seam before canvas.js.
         page_source = (ROOT / "static/canvas.html").read_text(encoding="utf-8")
         seam_href = "workbench/canvas/classic-runninghub-controls.js"
-        editor_href = "static/js/canvas.js"
+        editor_href = "static/js/workbench/canvas/canvas-app-bootstrap.js"
         self.assertLess(page_source.index(seam_href), page_source.index(editor_href),
             msg="classic-runninghub-controls.js must load before canvas.js in canvas.html")
         # Source-contract: canvas.js deleted the six local function
         # definitions and the dispatcher routes every kind through the
         # seam's render methods via `ensureClassicRunningHubControls()`.
-        editor_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        editor_source = read_canvas_app_source(ROOT)
         self.assertNotIn("function addRhNode", editor_source,
             msg="canvas.js should no longer define function addRhNode")
         self.assertNotIn("function renderRhBody", editor_source,
@@ -1111,13 +1113,13 @@ catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
         # Source-contract: canvas.html loads the seam before canvas.js.
         page_source = (ROOT / "static/canvas.html").read_text(encoding="utf-8")
         seam_href = "workbench/canvas/classic-minimax-controls.js"
-        editor_href = "static/js/canvas.js"
+        editor_href = "static/js/workbench/canvas/canvas-app-bootstrap.js"
         self.assertLess(page_source.index(seam_href), page_source.index(editor_href),
             msg="classic-minimax-controls.js must load before canvas.js in canvas.html")
         # Source-contract: canvas.js deleted the six local function
         # definitions and the dispatcher routes every kind through the
         # seam via `ensureClassicMiniMaxControls()`.
-        editor_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        editor_source = read_canvas_app_source(ROOT)
         self.assertNotIn("function addMiniMaxNode", editor_source,
             msg="canvas.js should no longer define function addMiniMaxNode")
         self.assertNotIn("function renderMiniMaxBody", editor_source,
@@ -1333,13 +1335,13 @@ catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
         # Source-contract: canvas.html loads the seam before canvas.js.
         page_source = (ROOT / "static/canvas.html").read_text(encoding="utf-8")
         seam_href = "workbench/canvas/classic-ltx-controls.js"
-        editor_href = "static/js/canvas.js"
+        editor_href = "static/js/workbench/canvas/canvas-app-bootstrap.js"
         self.assertLess(page_source.index(seam_href), page_source.index(editor_href),
             msg="classic-ltx-controls.js must load before canvas.js in canvas.html")
         # Source-contract: canvas.js deleted the six local function
         # definitions and the dispatcher routes every kind through the
         # seam via `ensureClassicLtxControls()`.
-        editor_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        editor_source = read_canvas_app_source(ROOT)
         self.assertNotIn("function addLTXDirectorNode", editor_source,
             msg="canvas.js should no longer define function addLTXDirectorNode")
         self.assertNotIn("function renderLTXDirectorBody", editor_source,
@@ -1370,12 +1372,12 @@ catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
         # already moved to the unified `classic-node-factories.js`
         # host seam in Wave 3; Wave 10 closes the COMPAT body half.
         seam = ROOT / "static/js/workbench/canvas/classic-video-card-body.js"
-        editor = ROOT / "static/js/canvas.js"
+        editor = canvas_app_paths(ROOT)[0]
         canvas_html = ROOT / "static/canvas.html"
         self.assertTrue(seam.exists(), msg="classic-video-card-body.js seam module must exist for Wave 10")
         self.assertTrue(editor.exists(), msg="canvas.js editor must exist")
         seam_source = seam.read_text(encoding="utf-8")
-        editor_source = editor.read_text(encoding="utf-8")
+        editor_source = read_canvas_app_source(ROOT)
         html_source = canvas_html.read_text(encoding="utf-8")
 
         # The seam must expose the host factory with the documented single method.
@@ -1505,7 +1507,7 @@ catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
 
         # Source-contract: canvas.html loads the seam before canvas.js.
         seam_href = "workbench/canvas/classic-video-card-body.js"
-        editor_href = "static/js/canvas.js"
+        editor_href = "static/js/workbench/canvas/canvas-app-bootstrap.js"
         self.assertLess(html_source.index(seam_href), html_source.index(editor_href),
             msg="classic-video-card-body.js must load before canvas.js in canvas.html")
         # The seam must also load after ltx-controls to maintain the
@@ -1537,8 +1539,8 @@ catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
         class of breakage fails here instead of at runtime.
         """
         import re as _re
-        editor = ROOT / "static/js/canvas.js"
-        editor_source = editor.read_text(encoding="utf-8")
+        editor = canvas_app_paths(ROOT)[0]
+        editor_source = read_canvas_app_source(ROOT)
 
         declared = set(_re.findall(r"^(?:async\s+)?function\s+([A-Za-z_][A-Za-z0-9_]*)",
                                    editor_source, _re.MULTILINE))
@@ -1602,7 +1604,7 @@ catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
         vm-sandbox seam tests, so pin it statically here.
         """
         import re as _re
-        editor_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        editor_source = read_canvas_app_source(ROOT)
         bad = [line.strip() for line in editor_source.splitlines()
                if _re.search(r"\.ensureClassic[A-Z][A-Za-z]*\(\)\s*\.\s*ensureClassic", line)]
         self.assertEqual(bad, [],
@@ -1622,7 +1624,7 @@ catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
         first video-node body render. Pin the object form.
         """
         import re as _re
-        editor_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        editor_source = read_canvas_app_source(ROOT)
         self.assertRegex(editor_source, r"const vpp = \{",
             msg="canvas.js must declare `const vpp = {` as an object handle, not a function")
         self.assertNotRegex(editor_source, r"function vpp\s*\(",
@@ -1636,12 +1638,12 @@ catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
 
     def test_classic_editor_routes_cascade_orchestrator_through_classic_cascade_orchestrator_seam(self):
         seam = ROOT / "static/js/workbench/canvas/classic-cascade-orchestrator.js"
-        editor = ROOT / "static/js/canvas.js"
+        editor = canvas_app_paths(ROOT)[0]
         canvas_html = ROOT / "static/canvas.html"
         self.assertTrue(seam.exists(), msg="classic-cascade-orchestrator.js seam module must exist for Wave 14")
         self.assertTrue(editor.exists(), msg="canvas.js editor must exist")
         seam_source = seam.read_text(encoding="utf-8")
-        editor_source = editor.read_text(encoding="utf-8")
+        editor_source = read_canvas_app_source(ROOT)
         html_source = canvas_html.read_text(encoding="utf-8")
 
         # The seam must expose the host factory.
@@ -1675,6 +1677,7 @@ const host = {
     getNodes: () => nodes,
     getConnections: () => connections,
     refreshNodes: (ids) => { calls.refresh += 1; },
+    setNodeRunStatus: (node, status, error) => { if (node) { node.runStatus = status; node.runError = error; } },
     runGenerator: () => Promise.resolve(), runMidjourneyNode: () => Promise.resolve(),
     runMsGenNode: () => Promise.resolve(), runComfyNode: () => Promise.resolve(),
     runLTXDirectorNode: () => Promise.resolve(), runLLMNode: () => Promise.resolve(),
@@ -1845,15 +1848,15 @@ console.log(JSON.stringify(out));
         self.assertTrue(actual.get("afterResetActive"), msg="resetCascadeRuntimeState must clear cascadeRunningIds")
 
         # Required-ops count pin.
-        self.assertEqual(actual.get("requiredOpsCount"), 25,
-            msg="REQUIRED_OPS count pin: Wave 14 seam module declares 25 host ops; if you add/remove an op, update both the seam and this test")
+        self.assertEqual(actual.get("requiredOpsCount"), 26,
+                         msg="REQUIRED_OPS count pin: Wave 14 seam module declares 26 host ops; if you add/remove an op, update both the seam and this test")
 
         # canvas.html must load the seam before canvas.js.
         self.assertIn('classic-cascade-orchestrator.js', html_source,
             msg="canvas.html must load classic-cascade-orchestrator.js")
         seam_pos = html_source.index('classic-cascade-orchestrator.js')
         comfy_pos = html_source.index('classic-comfy-controls.js')
-        canvas_pos = html_source.index('canvas.js')
+        canvas_pos = html_source.index('canvas-app-bootstrap.js')
         self.assertLess(comfy_pos, seam_pos,
             msg="canvas.html must load classic-comfy-controls.js BEFORE classic-cascade-orchestrator.js")
         self.assertLess(seam_pos, canvas_pos,
@@ -1926,7 +1929,7 @@ catch(e) { console.log('TYPE_ERROR:' + e.message); }
         # render / execution path). The repaired wiring must exist, route
         # through the owning seam handle with the seam's object-arg shapes,
         # and leave no bare call to a deleted seam-owned helper.
-        editor_source = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        editor_source = read_canvas_app_source(ROOT)
         # Cascade: five page-side adapter wrappers restored for live transports.
         self.assertIn("function cascadeBackendRestartMessage(){ return ensureClassicCascadeOrchestrator().cascadeBackendRestartMessage(); }", editor_source)
         self.assertIn("function normalizeCanvasTaskError(err, fallback){ return ensureClassicCascadeOrchestrator().normalizeCanvasTaskError({err, fallback: fallback || ''}); }", editor_source)
@@ -1975,10 +1978,10 @@ catch(e) { console.log('TYPE_ERROR:' + e.message); }
         # the seam consumes page-locals via 90 required host ops (nodes /
         # connections / comfyWorkflows become getters).
         seam = ROOT / "static/js/workbench/canvas/classic-executor-runtime.js"
-        editor = ROOT / "static/js/canvas.js"
+        editor = canvas_app_paths(ROOT)[0]
         page = (ROOT / "static/canvas.html").read_text(encoding="utf-8")
         seam_source = seam.read_text(encoding="utf-8")
-        editor_source = editor.read_text(encoding="utf-8")
+        editor_source = read_canvas_app_source(ROOT)
         self.assertTrue(seam.exists(), msg="classic-executor-runtime.js seam module must exist for Wave 16a")
 
         seam_path_json = json.dumps(str(seam))
@@ -2155,8 +2158,8 @@ console.log(JSON.stringify(out));
         self.assertIn("getConnections()", seam_source)
         self.assertIn("getComfyWorkflows()", seam_source)
         # canvas.html loads the seam before canvas.js and the version was bumped.
-        self.assertLess(page.index("workbench/canvas/classic-executor-runtime.js"), page.index("js/canvas.js"))
-        self.assertIn("canvas.js?v=2026.09.08.5", page)
+        self.assertLess(page.index("workbench/canvas/classic-executor-runtime.js"), page.index("workbench/canvas/canvas-app-bootstrap.js"))
+        self.assertIn("canvas-app-bootstrap.js?v=2026.09.09.2", page)
 
     def test_classic_editor_routes_asset_upload_drop_surface_through_classic_asset_runtime_seam(self):
         # Wave 16b: the Classic asset / upload / drop / manager surface (the
@@ -2166,10 +2169,10 @@ console.log(JSON.stringify(out));
         # page-owned behind getters, and the seven lets this surface writes
         # are bridged with setter host ops.
         seam = ROOT / "static/js/workbench/canvas/classic-asset-runtime.js"
-        editor = ROOT / "static/js/canvas.js"
+        editor = canvas_app_paths(ROOT)[0]
         page = (ROOT / "static/canvas.html").read_text(encoding="utf-8")
         seam_source = seam.read_text(encoding="utf-8")
-        editor_source = editor.read_text(encoding="utf-8")
+        editor_source = read_canvas_app_source(ROOT)
         self.assertTrue(seam.exists(), msg="classic-asset-runtime.js seam module must exist for Wave 16b")
 
         # The seam factory reads page-owned `const`/`let` bindings.  Its first
@@ -2187,7 +2190,7 @@ console.log(JSON.stringify(out));
             "    revealAssetControls: revealCanvasAssetControls,", bootstrap_pos
         )
         load_pos = editor_source.index(
-            "window.onload = () => canvasAppBootstrap.start({search: window.location.search});"
+            "const startCanvasApp = () => canvasAppBootstrap.start({search: window.location.search});"
         )
         self.assertLess(wrapper_pos, bootstrap_pos)
         self.assertLess(bootstrap_pos, reveal_adapter_pos)
@@ -2355,9 +2358,9 @@ console.log(JSON.stringify(out));
         self.assertNotIn("getCanvasAssetLibrary.libraries", seam_source)
         self.assertIn("getCanvasAssetLibrary().libraries", seam_source)
         # canvas.html loads the seam before canvas.js and the version was bumped.
-        self.assertLess(page.index("workbench/canvas/classic-asset-runtime.js"), page.index("js/canvas.js"))
+        self.assertLess(page.index("workbench/canvas/classic-asset-runtime.js"), page.index("workbench/canvas/canvas-app-bootstrap.js"))
         self.assertIn("classic-asset-runtime.js?v=2026.09.08.1", page)
-        self.assertIn("canvas.js?v=2026.09.08.5", page)
+        self.assertIn("canvas-app-bootstrap.js?v=2026.09.09.2", page)
 
     def test_classic_editor_routes_video_provider_params_through_classic_video_provider_params_seam(self):
         # Wave 11: video-provider/params COMPAT seam. Four page-side
@@ -2365,12 +2368,12 @@ console.log(JSON.stringify(out));
         # resolveVideoProviderId, providerVideoModels,
         # renderVideoImageInputs) move behind a bounded compat seam.
         seam = ROOT / "static/js/workbench/canvas/classic-video-provider-params.js"
-        editor = ROOT / "static/js/canvas.js"
+        editor = canvas_app_paths(ROOT)[0]
         canvas_html = ROOT / "static/canvas.html"
         self.assertTrue(seam.exists(), msg="classic-video-provider-params.js seam module must exist for Wave 11")
         self.assertTrue(editor.exists(), msg="canvas.js editor must exist")
         seam_source = seam.read_text(encoding="utf-8")
-        editor_source = editor.read_text(encoding="utf-8")
+        editor_source = read_canvas_app_source(ROOT)
         html_source = canvas_html.read_text(encoding="utf-8")
 
         # The seam must expose the host factory with the documented four methods.
@@ -2530,7 +2533,7 @@ catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
 
         # Source-contract: canvas.html loads the seam before canvas.js.
         seam_href = "workbench/canvas/classic-video-provider-params.js"
-        editor_href = "static/js/canvas.js"
+        editor_href = "static/js/workbench/canvas/canvas-app-bootstrap.js"
         self.assertLess(html_source.index(seam_href), html_source.index(editor_href),
             msg="classic-video-provider-params.js must load before canvas.js in canvas.html")
         # The seam must also load after video-card-body to maintain the
@@ -2580,12 +2583,12 @@ catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
         # refreshOutputNodeContent, renderOutputGrid) move behind a
         # bounded compat seam.
         seam = ROOT / "static/js/workbench/canvas/classic-output-grid.js"
-        editor = ROOT / "static/js/canvas.js"
+        editor = canvas_app_paths(ROOT)[0]
         canvas_html = ROOT / "static/canvas.html"
         self.assertTrue(seam.exists(), msg="classic-output-grid.js seam module must exist for Wave 12")
         self.assertTrue(editor.exists(), msg="canvas.js editor must exist")
         seam_source = seam.read_text(encoding="utf-8")
-        editor_source = editor.read_text(encoding="utf-8")
+        editor_source = read_canvas_app_source(ROOT)
         html_source = canvas_html.read_text(encoding="utf-8")
 
         # The seam must expose the host factory with the documented three methods.
@@ -2798,7 +2801,7 @@ catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
 
         # Source-contract: canvas.html loads the seam before canvas.js.
         seam_href = "workbench/canvas/classic-output-grid.js"
-        editor_href = "static/js/canvas.js"
+        editor_href = "static/js/workbench/canvas/canvas-app-bootstrap.js"
         self.assertLess(html_source.index(seam_href), html_source.index(editor_href),
             msg="classic-output-grid.js must load before canvas.js in canvas.html")
         # The seam must also load after video-provider-params to maintain the
@@ -2836,12 +2839,12 @@ catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
         # the page-side addGenerationLog function — the wrapper now
         # delegates to the seam.
         seam = ROOT / "static/js/workbench/canvas/classic-generation-log.js"
-        editor = ROOT / "static/js/canvas.js"
+        editor = canvas_app_paths(ROOT)[0]
         canvas_html = ROOT / "static/canvas.html"
         self.assertTrue(seam.exists(), msg="classic-generation-log.js seam module must exist for Wave 13")
         self.assertTrue(editor.exists(), msg="canvas.js editor must exist")
         seam_source = seam.read_text(encoding="utf-8")
-        editor_source = editor.read_text(encoding="utf-8")
+        editor_source = read_canvas_app_source(ROOT)
         html_source = canvas_html.read_text(encoding="utf-8")
 
         # The seam must expose the host factory with the documented two methods.
@@ -3044,7 +3047,7 @@ catch (e) {{ console.log(e.constructor.name + ':' + e.message); }}
 
         # Source-contract: canvas.html loads the seam before canvas.js.
         seam_href = "workbench/canvas/classic-generation-log.js"
-        editor_href = "static/js/canvas.js"
+        editor_href = "static/js/workbench/canvas/canvas-app-bootstrap.js"
         self.assertLess(html_source.index(seam_href), html_source.index(editor_href),
             msg="classic-generation-log.js must load before canvas.js in canvas.html")
         # The seam must also load after output-grid to maintain the
@@ -3110,17 +3113,19 @@ console.log(JSON.stringify({{
   video:api.kindForUrl('/output/one.mp4'), audio:api.kindForUrl('/output/one.flac'), text:api.kindForUrl('/output/one.md'),
   workflow:api.kindForItem({{name:'workflow.zip'}}, {{allowWorkflow:true}}), file:api.kindForItem({{kind:'file', url:'/output/x.png'}}),
   classicFlv:api.kindForUrl('/output/one.flv', {{includeFlv:true}}), smartFlv:api.kindForUrl('/output/one.flv'),
+  nodeVideo:api.kindForNode({{mediaKind:'', url:'/output/node.mp4'}}, {{includeFlv:true}}),
+  nodeExplicit:api.kindForNode({{mediaKind:'audio', url:'/output/node.mp4'}}, {{includeFlv:true}}),
   mime:api.kindForFile({{type:'video/mp4', name:'ignored'}}), fallback:api.kindForFile({{type:'', name:'unknown.bin'}}),
 }}));
 """
         result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
         self.assertEqual(json.loads(result.stdout), {
             "video": "video", "audio": "audio", "text": "text", "workflow": "workflow", "file": "file",
-            "classicFlv": "video", "smartFlv": "image", "mime": "video", "fallback": "image",
+            "classicFlv": "video", "smartFlv": "image", "nodeVideo": "video", "nodeExplicit": "audio", "mime": "video", "fallback": "image",
         })
-        for page, editor in (("canvas.html", "canvas.js"),):
+        for page, editor in (("canvas.html", "workbench/canvas/canvas-app-bootstrap.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
-            editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
+            editor_source = read_canvas_app_source(ROOT)
             self.assertLess(page_source.index("workbench/canvas/media-kind.js"), page_source.index(editor))
             self.assertIn("WorkbenchCanvasMediaKind", editor_source)
     def test_editor_adapters_share_pure_media_url_normalization(self):
@@ -3147,9 +3152,9 @@ console.log(JSON.stringify({{
             "inline": "data:image/png;base64,AA",
             "unsupported": "/output/one.txt",
         })
-        for page, editor in (("canvas.html", "canvas.js"),):
+        for page, editor in (("canvas.html", "workbench/canvas/canvas-app-bootstrap.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
-            editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
+            editor_source = read_canvas_app_source(ROOT)
             self.assertLess(page_source.index("workbench/canvas/media-url.js"), page_source.index(editor))
             self.assertIn("WorkbenchCanvasMediaUrl.originalUrl", editor_source)
             self.assertIn("WorkbenchCanvasMediaUrl.previewUrl", editor_source)
@@ -3190,9 +3195,9 @@ console.log(JSON.stringify({{bound, second, marker:video.dataset.adapterBound, p
             "stopped": 1,
             "eventCount": 12,
         })
-        for page, editor in (("canvas.html", "canvas.js"),):
+        for page, editor in (("canvas.html", "workbench/canvas/canvas-app-bootstrap.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
-            editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
+            editor_source = read_canvas_app_source(ROOT)
             self.assertLess(page_source.index("workbench/canvas/media-preview-controls.js"), page_source.index(editor))
             self.assertIn("WorkbenchCanvasMediaPreviewControls.bindVideoOverlay", editor_source)
 
@@ -3225,9 +3230,9 @@ console.log(JSON.stringify({{signature:api.signature(oldMedia), size:states.size
             "restored": {"time": 18.4, "rate": 1.25, "muted": True, "volume": 0.4},
             "delayed": {"time": 7, "rate": 2, "volume": 0.8, "once": True},
         })
-        for page, editor in (("canvas.html", "canvas.js"),):
+        for page, editor in (("canvas.html", "workbench/canvas/canvas-app-bootstrap.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
-            editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
+            editor_source = read_canvas_app_source(ROOT)
             self.assertLess(page_source.index("workbench/canvas/media-playback-state.js"), page_source.index(editor))
             self.assertIn("WorkbenchCanvasMediaPlaybackState.captureAll", editor_source)
             self.assertIn("WorkbenchCanvasMediaPlaybackState.restoreAll", editor_source)
@@ -3252,9 +3257,9 @@ console.log(JSON.stringify({{
             "images": ["/one.png"], "videos": ["/two.mp4", "https://example.test/three.mp4"], "audios": ["/four.mp3"],
             "remote": [True, True, False], "imageUrls": [True, False, True],
         })
-        for page, editor in (("canvas.html", "canvas.js"),):
+        for page, editor in (("canvas.html", "workbench/canvas/canvas-app-bootstrap.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
-            editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
+            editor_source = read_canvas_app_source(ROOT)
             self.assertLess(page_source.index("workbench/canvas/media-references.js"), page_source.index(editor))
             self.assertIn("WorkbenchCanvasMediaReferences.refsOfKind", editor_source)
             self.assertIn("WorkbenchCanvasMediaReferences.isRemoteVideoReferenceUrl", editor_source)
@@ -3275,9 +3280,9 @@ console.log(JSON.stringify({{saved, restored:api.rememberedCanvasListProject({{s
             "saved": "project / one", "restored": "project / one", "fallback": "default",
             "url": "/static/canvas-list.html?project=project%20%2F%20two", "stored": "project / two",
         })
-        for page, editor in (("canvas.html", "canvas.js"),):
+        for page, editor in (("canvas.html", "workbench/canvas/canvas-app-bootstrap.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
-            editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
+            editor_source = read_canvas_app_source(ROOT)
             self.assertLess(page_source.index("workbench/canvas/canvas-entry-compatibility.js"), page_source.index(editor))
             self.assertIn("WorkbenchCanvasEntryCompatibility.canvasListUrl", editor_source)
             self.assertIn("WorkbenchCanvasEntryCompatibility.rememberCanvasListProject", editor_source)
@@ -3298,9 +3303,9 @@ vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
             "empty": False,
             "api": ["copyText", "copyWithCopyEvent", "copyWithTextarea", "matchesText"],
         })
-        for page, editor in (("canvas.html", "canvas.js"),):
+        for page, editor in (("canvas.html", "workbench/canvas/canvas-app-bootstrap.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
-            editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
+            editor_source = read_canvas_app_source(ROOT)
             self.assertLess(page_source.index("workbench/canvas/canvas-clipboard.js"), page_source.index(editor))
             self.assertIn("WorkbenchCanvasClipboard.copyText", editor_source)
             self.assertIn("WorkbenchCanvasClipboard.copyWithCopyEvent", editor_source)
@@ -3330,9 +3335,9 @@ console.log(JSON.stringify([
 """
         result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
         self.assertEqual(json.loads(result.stdout), ["1536x864", "1536x1072", "2480x3840", "111x222", "auto", "1024x1024"])
-        for page, editor in (("canvas.html", "canvas.js"),):
+        for page, editor in (("canvas.html", "workbench/canvas/canvas-app-bootstrap.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
-            editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
+            editor_source = read_canvas_app_source(ROOT)
             self.assertLess(page_source.index("workbench/canvas/image-size.js"), page_source.index(editor))
             self.assertIn("WorkbenchCanvasImageSize.apiImageSize", editor_source)
             self.assertNotIn("const rawWidth = parsed >= 1", editor_source)
@@ -3355,9 +3360,9 @@ console.log(JSON.stringify([
 """
         result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
         self.assertEqual(json.loads(result.stdout), [True, True, True, True, False])
-        for page, editor in (("canvas.html", "canvas.js"),):
+        for page, editor in (("canvas.html", "workbench/canvas/canvas-app-bootstrap.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
-            editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
+            editor_source = read_canvas_app_source(ROOT)
             self.assertLess(page_source.index("workbench/canvas/interaction-targets.js"), page_source.index(editor))
             self.assertIn("WorkbenchCanvasInteractionTargets.isEditableTarget", editor_source)
 
@@ -3386,9 +3391,9 @@ vm.runInNewContext(fs.readFileSync({json.dumps(str(client))}, 'utf8'), sandbox);
             "parsed": "title: required",
             "text": "plain failure",
         })
-        for page, editor in (("canvas.html", "canvas.js"),):
+        for page, editor in (("canvas.html", "workbench/canvas/canvas-app-bootstrap.js"),):
             page_source = (ROOT / "static" / page).read_text(encoding="utf-8")
-            editor_source = (ROOT / "static" / "js" / editor).read_text(encoding="utf-8")
+            editor_source = read_canvas_app_source(ROOT)
             self.assertLess(page_source.index("workbench/canvas/canvas-http-error.js"), page_source.index(editor))
             # Wave 16a moved the transport bodies (with their error-formatting
             # call sites) into classic-executor-runtime.js.
@@ -4007,8 +4012,8 @@ console.log(JSON.stringify({invalid}));
     def test_classic_node_drag_and_resize_sessions_are_cut_over_to_the_controller(self):
         controller_page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
         self.assertLess(controller_page.index("workbench/canvas/render-runtime.js"), controller_page.index("workbench/canvas/interaction-controller.js"))
-        self.assertLess(controller_page.index("workbench/canvas/interaction-controller.js"), controller_page.index("js/canvas.js"))
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        self.assertLess(controller_page.index("workbench/canvas/interaction-controller.js"), controller_page.index("workbench/canvas/canvas-app-bootstrap.js"))
+        classic = read_canvas_app_source(ROOT)
         drag_flow = classic[classic.index("function startNodeDrag(") : classic.index("function onNodeDrag(")]
         resize_flow = classic[classic.index("function startNodeResize(") : classic.index("function onNodeResize(")]
         self.assertIn("ensureInteractionController().begin({kind:'node-drag', onMove:onNodeDrag, onEnd:endDrag})", drag_flow)
@@ -4027,7 +4032,7 @@ console.log(JSON.stringify({invalid}));
         # lifecycle, and the cleanup sites (finishSelection, endDrag, the
         # blur guard) unwire through controller.end(). The page owns no
         # window handler slot directly anymore.
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         self.assertNotIn("window.onmousemove =", classic)
         self.assertNotIn("window.onmouseup =", classic)
         for kind in ("llm-pane-resize", "box-selection", "selection-link", "knife-drag"):
@@ -4102,14 +4107,14 @@ console.log(JSON.stringify({has, size, spread, deleted, deletedAgain, replaced, 
         self.assertEqual(payload["changes"], [["n1"], ["n1", "42"], ["n1", "42", "n2"], ["n1", "42"], ["a", "b"], []])
 
     def test_classic_selection_is_cut_over_to_the_single_authority(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         self.assertIn("const selected = window.WorkbenchInteractionController.createSelectionStore();", classic)
         self.assertNotIn("selected = new Set(", classic)
         self.assertIn("selected.replace(runtime.snapshot().selectedIds);", classic)
         self.assertIn("if(!applyCanvasRuntimeSelection(selectedIds)) selected.replace(selectedIds);", classic)
         # The authority module loads on the Classic page before the adapter.
         page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
-        self.assertLess(page.index("workbench/canvas/interaction-controller.js"), page.index("js/canvas.js"))
+        self.assertLess(page.index("workbench/canvas/interaction-controller.js"), page.index("workbench/canvas/canvas-app-bootstrap.js"))
 
     def test_viewport_controller_dispatches_through_the_kernel_with_page_shell_callbacks(self):
         controller_module = ROOT / "static" / "js" / "workbench" / "canvas" / "interaction-controller.js"
@@ -4159,14 +4164,17 @@ console.log(JSON.stringify({
         self.assertIsNone(payload["noKernelSet"])
 
     def test_classic_viewport_flows_are_cut_over_to_the_viewport_controller(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         self.assertIn("function ensureCanvasViewportController(){", classic)
         self.assertEqual(classic.count("WorkbenchInteractionController.createViewportController"), 1)
         # Board pan: the pointer session is wired through the controller, not the window slot.
         self.assertIn("ensureInteractionController().begin({kind:'board-pan'", classic)
         self.assertIn("ensureInteractionController().begin({kind:'board-pan'", classic)
         # Zoom and the set flows go through the controller.
-        self.assertIn("canvasViewportController.zoomAt(", classic)
+        self.assertIn("ensureCanvasViewportController().zoomAt(", classic)
+        self.assertIn("ensureCanvasViewportController().set(nextViewport)", classic)
+        self.assertNotIn("canvasViewportController.zoomAt(", classic)
+        self.assertNotIn("canvasViewportController.set(nextViewport)", classic)
         self.assertIn("ensureCanvasViewportController().set(fitted)", classic)
         self.assertIn("ensureCanvasViewportController().set(restoredViewport)", classic)
         self.assertIn("ensureCanvasViewportController().set(targetViewport)", classic)
@@ -4229,7 +4237,7 @@ console.log(JSON.stringify({applied: events.applied, sessions: events.sessions, 
         self.assertEqual(len(payload["applied"]), 2)
 
     def test_classic_minimap_is_cut_over_to_the_minimap_controller(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         self.assertIn("function ensureMinimapController(){", classic)
         self.assertEqual(classic.count("WorkbenchInteractionController.createMinimapController"), 1)
         self.assertIn("ensureMinimapController();", classic)
@@ -4543,6 +4551,558 @@ console.log(JSON.stringify(out));
         self.assertEqual(out["fitSquare"], {"x": 50, "y": 0, "w": 200, "h": 200})
         self.assertEqual(out["fitClamp"], {"x": 60, "y": 70, "w": 300, "h": 200})
 
+    def test_media_tools_module_owns_node_media_reference_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+const nodes = [{{id:'img', type:'image', url:'/a.png', name:'A'}}, {{id:'child', type:'image', url:'/b.png'}}, {{id:'out', type:'output', images:[{{url:'/c.png', kind:'image'}}]}}];
+const opts = {{nodes, mediaKindForNode: n => n.mediaKind || 'image', mediaKindForOutputItem: i => i.kind || 'image', outputUrlValue: i => i.url, outputImageName: u => u.split('/').pop(), mediaOutputTypes:['generator'], generatedImageRefs: n => [{{url:'/generated.png', kind:'image'}}]}};
+console.log(JSON.stringify({{image:api.mediaRefsFromNode(nodes[0], opts), group:api.mediaRefsFromNode({{type:'group', items:['child']}}, opts), output:api.mediaRefsFromNode(nodes[2], opts), generated:api.mediaRefsFromNode({{type:'generator'}}, opts)}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["image"][0]["name"], "A")
+        self.assertEqual(out["group"][0]["url"], "/b.png")
+        self.assertEqual(out["output"][0]["outputIndex"], 0)
+        self.assertEqual(out["generated"][0]["url"], "/generated.png")
+
+    def test_media_tools_module_owns_latest_output_reference_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+const node = {{id:'out', type:'output', images:[{{url:''}}, {{url:'/latest.png', kind:'image'}}, {{url:''}}]}};
+console.log(JSON.stringify({{latest:api.latestOutputReference(node, {{outputUrlValue:i => i.url, mediaKindForOutputItem:i => i.kind || 'image'}}), empty:api.latestOutputReference({{type:'output', images:[{{url:''}}]}})}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["latest"]["preview"], "/latest.png")
+        self.assertEqual(out["latest"]["refs"][0]["outputIndex"], 1)
+        self.assertIsNone(out["empty"])
+
+    def test_media_tools_module_owns_generated_media_source_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+console.log(JSON.stringify({{sources:api.generatedMediaSources({{id:'gen'}}, [{{url:'/a.png'}}, {{url:'/b.png'}}]), empty:api.generatedMediaSources({{id:'gen'}}, [])}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["sources"][1]["id"], "gen:generated:1:/b.png")
+        self.assertEqual(out["sources"][0]["type"], "generatedImage")
+        self.assertEqual(out["empty"], [])
+
+    def test_media_tools_module_owns_image_media_source_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+console.log(JSON.stringify({{source:api.imageMediaSource({{id:'img', type:'image', url:'/img.png', name:'Hero', role:'ref'}}, () => 'video'), empty:api.imageMediaSource({{type:'prompt'}}, () => 'image')}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["source"]["type"], "video")
+        self.assertEqual(out["source"]["refs"][0]["role"], "ref")
+        self.assertIsNone(out["empty"])
+
+    def test_media_tools_module_owns_group_media_source_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+const nodes = [{{id:'img', type:'image', url:'/img.png', name:'Hero'}}, {{id:'p', type:'prompt', text:'one'}}, {{id:'p2', type:'prompt', text:'two'}}];
+const sources = api.groupMediaSources({{id:'g', type:'group', items:['img','p','p2']}}, {{nodes, mediaKindForNode:() => 'image'}});
+console.log(JSON.stringify(sources));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        sources = json.loads(result.stdout)
+        self.assertEqual(sources[0]["id"], "g:img")
+        self.assertEqual(sources[1]["type"], "groupPrompt")
+        self.assertEqual(sources[1]["prompt"], "one\n\ntwo")
+
+    def test_media_tools_module_owns_prompt_media_source_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+console.log(JSON.stringify({{source:api.promptMediaSource({{id:'p', type:'prompt', text:'  prompt text  '}}), empty:api.promptMediaSource({{type:'image'}})}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["source"]["label"], "  prompt text  ")
+        self.assertEqual(out["source"]["prompt"], "  prompt text  ")
+        self.assertIsNone(out["empty"])
+
+    def test_media_tools_module_owns_prompt_group_media_source_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+const nodes = [{{id:'p', type:'prompt', text:'one'}}, {{id:'p2', type:'prompt', text:'two'}}, {{id:'img', type:'image', text:'skip'}}];
+console.log(JSON.stringify({{source:api.promptGroupMediaSource({{id:'pg', type:'promptGroup', items:['p','p2','img']}}, {{nodes}}), empty:api.promptGroupMediaSource({{type:'promptGroup', items:[]}}, {{nodes}})}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["source"]["label"], "提示词 2 个")
+        self.assertEqual(out["source"]["prompt"], "one\n\ntwo")
+        self.assertEqual(out["empty"]["label"], "提示词 0 个")
+
+    def test_media_tools_module_owns_llm_media_source_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+console.log(JSON.stringify({{source:api.llmMediaSource({{id:'l', type:'llm', mode:'node', outputText:'generated text'}}), chat:api.llmMediaSource({{id:'c', type:'llm', mode:'chat', outputText:'chat'}}), empty:api.llmMediaSource({{type:'llm', outputText:''}})}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["source"]["prompt"], "generated text")
+        self.assertIsNone(out["chat"])
+        self.assertIsNone(out["empty"])
+
+    def test_media_tools_module_owns_loop_fallback_source_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+console.log(JSON.stringify({{source:api.loopFallbackSource({{id:'loop', type:'loop'}}, 'prompt', 'Loop 3x'), empty:api.loopFallbackSource({{type:'image'}}, 'x')}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["source"], {"id": "loop", "type": "loop", "label": "Loop 3x", "refs": [], "prompt": "prompt"})
+        self.assertIsNone(out["empty"])
+
+    def test_media_tools_module_owns_loop_image_source_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+const sources = api.loopImageMediaSources({{id:'loop', type:'loop', loopStart:2}}, [{{url:'/a.png'}}, {{url:'/b.png'}}], {{index:5, prompt:'ctx', labelFor:n => 'image ' + n}});
+console.log(JSON.stringify(sources));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        sources = json.loads(result.stdout)
+        self.assertEqual(sources[0]["id"], "loop:image:5:/a.png")
+        self.assertEqual(sources[0]["prompt"], "ctx")
+        self.assertEqual(sources[1]["prompt"], "")
+
+    def test_media_tools_module_owns_ordered_input_source_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+const node = {{inputs:['missing','b','a']}};
+const sources = [{{id:'a'}}, {{id:'b'}}, {{id:'c'}}];
+console.log(JSON.stringify({{ordered:api.orderedInputSources(node, sources), inputs:node.inputs}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertEqual([item["id"] for item in out["ordered"]], ["b", "a", "c"])
+        self.assertEqual(out["inputs"], ["b", "a", "c"])
+
+    def test_media_tools_module_owns_input_reorder_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+console.log(JSON.stringify({{reordered:api.reorderInputIds(['a','prompt','b'], 'b', 'a', ['a','b']), invalid:api.reorderInputIds(['a'], 'a', 'missing', ['a'])}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["reordered"], ["b", "a", "prompt"])
+        self.assertIsNone(out["invalid"])
+
+    def test_media_tools_module_owns_image_input_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+const sources = api.imageInputSources([{{id:'a', refs:[{{kind:'image'}}, {{kind:'text'}}]}}, {{id:'b', refs:[]}}], refs => refs.filter(ref => ref.kind === 'image'));
+console.log(JSON.stringify(sources));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        sources = json.loads(result.stdout)
+        self.assertEqual(len(sources), 1)
+        self.assertEqual(sources[0]["id"], "a")
+        self.assertEqual(sources[0]["refs"], [ {"kind": "image"} ])
+
+    def test_media_tools_module_owns_prompt_input_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+console.log(JSON.stringify(api.promptInputSources([{{id:'p', prompt:'text', refs:[]}}, {{id:'m', prompt:'media', refs:[{{url:'/a.png'}}]}}, {{id:'e', prompt:'', refs:[]}}])));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        sources = json.loads(result.stdout)
+        self.assertEqual([source["id"] for source in sources], ["p"])
+
+    def test_media_tools_module_owns_input_view_projection_batch(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+const out = api.inputViewProjection([{{id:'i',refs:[{{kind:'image'}}]}},{{id:'p',prompt:'text',refs:[]}}], refs => refs.filter(ref => ref.kind === 'image'));
+console.log(JSON.stringify({{images:out.imageInputs.map(item=>item.id), prompts:out.promptInputs.map(item=>item.id)}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), {"images": ["i"], "prompts": ["p"]})
+
+    def test_runninghub_renderer_owns_source_projection_batch(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "runninghub-field-renderer.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasRunningHubFieldRenderer;
+const out = api.sourceProjection([{{id:'b',refs:[{{kind:'image',url:'/b.png'}}]}},{{id:'a',prompt:'p',refs:[]}}], {{order:list=>list.slice().reverse(), kindOf:ref=>ref.kind, imageLimit:4}});
+console.log(JSON.stringify({{ids:out.sources.map(x=>x.id), images:out.image.length, prompt:out.prompt}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), {"ids": ["a", "b"], "images": 1, "prompt": "p"})
+
+    def test_media_tools_module_owns_output_download_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+const out = api.outputDownloadProjection({{images:[{{url:'/output/a.png',kind:'image'}},{{url:'/remote/b.png',kind:'video'}}]}}, {{kindOf:i=>i.kind, outputValue:i=>i.url, isMissing:u=>u.includes('remote')}});
+console.log(JSON.stringify(out));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), {"urls": ["/output/a.png"], "downloadable": ["/output/a.png"]})
+
+    def test_media_tools_module_owns_reference_source_id_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+console.log(JSON.stringify(api.refSourceIds([{{id:'a', refs:[{{}}]}}, {{id:'b', refs:[]}}, {{id:'c', refs:[{{}}]}}])));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), ["a", "c"])
+
+    def test_media_tools_module_owns_connected_input_node_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+const nodes = [{{id:'a'}}, {{id:'b'}}, {{id:'other'}}];
+console.log(JSON.stringify(api.connectedInputNodes('target', [{{from:'a',to:'target'}}, {{from:'missing',to:'target'}}, {{from:'other',to:'other'}}], nodes)));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), [{"id": "a"}])
+
+    def test_media_tools_module_owns_generated_media_reference_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+const refs = api.generatedMediaRefs({{type:'generator', generatedOutputs:[{{url:'/a.png', kind:'image'}}, {{url:'/v.mp4', kind:'video'}}, {{url:''}}]}}, {{outputUrlValue:i=>i.url, mediaKindForOutputItem:i=>i.kind, outputImageName:u=>u.split('/').pop()}});
+console.log(JSON.stringify(refs));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        refs = json.loads(result.stdout)
+        self.assertEqual(refs, [{"url": "/a.png", "name": "a.png", "kind": "image"}])
+
+    def test_media_tools_module_owns_output_resolution_markup(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+console.log(JSON.stringify({{withTime:api.outputResolutionMarkup('1024x1024', 2500, ms => ms + 'ms'), empty:api.outputResolutionMarkup('', 0, ms => ms + 'ms')}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertIn("1024x1024", out["withTime"])
+        self.assertIn("2500ms", out["withTime"])
+        self.assertEqual(out["empty"], "--")
+
+    def test_media_tools_module_owns_compare_mode_style_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+console.log(JSON.stringify({{active:api.compareModeStyles(true), inactive:api.compareModeStyles(false)}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["active"], {"clipPath": "inset(0 50% 0 0)", "sliderLeft": "50%"})
+        self.assertEqual(out["inactive"], {"clipPath": "", "sliderLeft": ""})
+
+    def test_media_tools_module_owns_rerun_output_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+const out = api.rerunOutputProjection({{run:{{nodeType:'generator', node:{{model:'x'}}, prompt:'hello', refs:[{{url:'/a.png', name:'A'}}, {{url:'/b.png'}}]}}}}, {{x:10,y:20}}, prefix => prefix + '-' + Math.random());
+console.log(JSON.stringify({{nodes:out.nodes.map(n=>n.type), connections:out.connections.length, prompt:out.nodes[1].text}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), {"nodes": ["generator", "prompt", "image", "image"], "connections": 3, "prompt": "hello"})
+
+    def test_media_tools_module_owns_output_image_node_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+console.log(JSON.stringify({{node:api.outputImageNodeProjection('/a.png', {{x:4,y:5}}, prefix => prefix + '-1', url => 'A'), empty:api.outputImageNodeProjection('', {{x:0,y:0}}, () => 'x')}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["node"], {"id": "img-1", "type": "image", "x": 4, "y": 5, "url": "/a.png", "name": "A"})
+        self.assertIsNone(out["empty"])
+
+    def test_media_tools_module_owns_output_node_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+console.log(JSON.stringify(api.outputNodeProjection({{x:7,y:8}}, prefix => prefix + '-1')));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), {"id": "out-1", "type": "output", "x": 7, "y": 8, "images": []})
+
+    def test_media_tools_module_owns_editor_output_node_lookup(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+const nodes = [{{id:'out', type:'output'}}, {{id:'other', type:'image'}}];
+console.log(JSON.stringify({{found:api.findOutputNodeForSource('src', [{{from:'src',to:'out'}}], nodes), missing:api.findOutputNodeForSource('src', [{{from:'src',to:'other'}}], nodes)}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["found"]["id"], "out")
+        self.assertIsNone(out["missing"])
+
+    def test_media_tools_module_owns_latest_output_and_duplicate_projections(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+const node = {{generatedOutputs:[{{url:''}}, {{url:'/latest.png'}}]}};
+const out = {{images:[{{url:'/existing.png'}}]}};
+console.log(JSON.stringify({{latest:api.latestGeneratedOutputItem(node, i=>i.url), existing:api.outputHasUrl(out, '/existing.png', i=>i.url), missing:api.outputHasUrl(out, '/new.png', i=>i.url)}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        value = json.loads(result.stdout)
+        self.assertEqual(value["latest"]["url"], "/latest.png")
+        self.assertTrue(value["existing"])
+        self.assertFalse(value["missing"])
+
+    def test_media_tools_module_owns_output_lifecycle_projection_batch(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+const nodes = [{{id:'out',type:'output'}},{{id:'img',type:'image'}}];
+const output = {{images:[{{url:'/old.png'}}]}};
+console.log(JSON.stringify({{nodes:api.outputNodesForSource('src',[{{from:'src',to:'out'}},{{from:'src',to:'img'}}],nodes).map(n=>n.id), valid:api.outputItemsWithUrl([{{url:''}},{{url:'/new.png'}}],i=>i.url), unique:api.uniqueOutputItems(output,[{{url:'/old.png'}},{{url:'/new.png'}}],i=>i.url)}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["nodes"], ["out"])
+        self.assertEqual(out["valid"], [{"url": "/new.png"}])
+        self.assertEqual(out["unique"], [{"url": "/new.png"}])
+
+    def test_media_tools_module_owns_unique_output_append_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+console.log(JSON.stringify(api.appendUniqueOutputRecords([{{url:'/old.png'}}], [{{url:'/old.png'}}, {{url:'/new.png'}}], null, [], null, i=>i.url)));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertEqual([item["url"] for item in out["images"]], ["/old.png", "/new.png"])
+        self.assertEqual(out["added"], 1)
+
+    def test_media_tools_module_owns_input_group_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+let next = 0;
+const out = api.inputGroupProjection(['/a.png','/b.png','/c.png'], {{x:10,y:20}}, prefix => prefix + '-' + (++next), url => url.slice(1));
+console.log(JSON.stringify({{count:out.nodes.length, group:out.group, first:out.nodes[0]}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["count"], 4)
+        self.assertEqual(out["group"]["items"], ["img-1", "img-2", "img-3"])
+        self.assertEqual(out["first"]["name"], "a.png")
+
+    def test_media_tools_module_owns_downstream_target_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+console.log(JSON.stringify(api.downstreamTargetIds('src', [{{from:'src',to:'a'}},{{from:'other',to:'b'}},{{from:'src',to:'c'}}])));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), ["a", "c"])
+
+    def test_media_tools_module_owns_archive_download_filename_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+console.log(JSON.stringify([api.archiveDownloadFilename('Canvas', 'out', 'canvas-output'), api.archiveDownloadFilename('', 'grp', 'canvas-group')]));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), ["Canvas-out.zip", "canvas-group-grp.zip"])
+
+    def test_media_tools_module_owns_archive_download_payload_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+console.log(JSON.stringify(api.archiveDownloadPayload(['/a.png','',null], 'bundle.zip', {{items:[{{url:'/a.png',name:'A'}}]}})));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), {"urls": ["/a.png"], "filename": "bundle.zip", "items": [{"url": "/a.png", "name": "A"}]})
+
+    def test_media_tools_module_owns_download_href_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+console.log(JSON.stringify([api.downloadHref('/output/a.png','a.png',u=>u+'?raw'), api.downloadHref('blob:abc','a.png'), api.downloadHref('', 'x')]));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        hrefs = json.loads(result.stdout)
+        self.assertIn('/api/download-output?url=', hrefs[0])
+        self.assertEqual(hrefs[1], 'blob:abc')
+        self.assertEqual(hrefs[2], '')
+
+    def test_workflow_transfer_module_owns_export_projection_batch(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "workflow-transfer-client.js"
+        http_error = ROOT / "static" / "js" / "workbench" / "canvas" / "canvas-http-error.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}, Date}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(http_error))}, 'utf8'), sandbox);
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasWorkflowTransfer;
+const out = api.exportProjection({{nodes:[{{id:'n'}}],connections:[]}}, 'Canvas', 'json', 0);
+console.log(JSON.stringify({{nodes:out.payload.nodes.length, filename:out.filename.endsWith('.json')}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), {"nodes": 1, "filename": True})
+
+    def test_media_tools_module_owns_generator_source_projection_batch(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+const nodes = [{{id:'img',type:'image',url:'/a.png',name:'A'}},{{id:'p',type:'prompt',text:'prompt'}}];
+const out = api.generatorSourceProjection({{id:'gen'}}, [{{from:'img',to:'gen'}},{{from:'p',to:'gen'}}], nodes, {{mediaKindForNode:()=> 'image'}});
+console.log(JSON.stringify(out.map(item => item.type)));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), ["image", "prompt"])
+
+    def test_media_tools_module_owns_generated_image_node_projection(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+console.log(JSON.stringify({{node:api.generatedImageNodeProjection({{url:'/generated.png', name:''}}, {{x:3,y:4}}, prefix => prefix + '-1', 'crop', {{mediaKind:'image'}}), empty:api.generatedImageNodeProjection({{}}, {{x:0,y:0}}, () => 'x', 'crop')}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["node"], {"id": "img-1", "type": "image", "x": 3, "y": 4, "url": "/generated.png", "name": "crop", "mediaKind": "image"})
+        self.assertIsNone(out["empty"])
+
+    def test_media_tools_module_owns_output_prompt_and_rerun_projections(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+console.log(JSON.stringify({{prompt:api.outputPromptProjection({{run:{{prompt:'hello'}}}}, 'none'), empty:api.outputPromptProjection(null, 'none'), rerun:api.outputRerunAvailable({{run:{{nodeType:'generator'}}}}), noRerun:api.outputRerunAvailable({{run:{{}}}})}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        out = json.loads(result.stdout)
+        self.assertEqual(out["prompt"], {"prompt": "hello", "open": True, "text": "hello"})
+        self.assertEqual(out["empty"], {"prompt": "", "open": False, "text": "none"})
+        self.assertTrue(out["rerun"])
+        self.assertFalse(out["noRerun"])
+
     def test_execution_host_module_owns_the_canvas_lifecycle_contract(self):
         execution_host_module = ROOT / "static" / "js" / "workbench" / "canvas" / "execution-host.js"
         script = f"""
@@ -4625,17 +5185,17 @@ console.log(JSON.stringify({{calls, frozen, missingThrew, nonObjectThrew}}));
 
     def test_provider_controls_is_loaded_before_the_classic_page_and_llm_body_uses_it(self):
         page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         provider_controls_module = (ROOT / "static" / "js" / "workbench" / "canvas" / "provider-controls.js").read_text(encoding="utf-8")
         card_body_seam = (ROOT / "static" / "js" / "workbench" / "canvas" / "classic-card-body-renderer.js").read_text(encoding="utf-8")
         # The provider-controls seam module loads ahead of the editor script
         # AND ahead of the card-body seam (card-body consumes provider-controls
         # via host injection so the dependency order must hold).
-        self.assertLess(page.index("workbench/canvas/provider-controls.js"), page.index("js/canvas.js"))
+        self.assertLess(page.index("workbench/canvas/provider-controls.js"), page.index("workbench/canvas/canvas-app-bootstrap.js"))
         self.assertLess(page.index("workbench/canvas/provider-controls.js"),
                         page.index("workbench/canvas/classic-card-body-renderer.js"))
         self.assertLess(page.index("workbench/canvas/classic-card-body-renderer.js"),
-                        page.index("js/canvas.js"))
+                        page.index("workbench/canvas/canvas-app-bootstrap.js"))
         # canvas.js still constructs the host handle (host injection) — the
         # page owns `ensureProviderControls()`, the card-body seam only
         # consumes the returned handle.
@@ -4663,10 +5223,12 @@ console.log(JSON.stringify({{calls, frozen, missingThrew, nonObjectThrew}}));
             self.assertNotIn(adapter_detail, provider_controls_module)
 
     def test_classic_execution_host_module_owns_the_canvas_lifecycle_contract(self):
+        neutral_execution_host_module = ROOT / "static" / "js" / "workbench" / "canvas" / "execution-host.js"
         classic_execution_host_module = ROOT / "static" / "js" / "workbench" / "canvas" / "classic-execution-host.js"
         script = f"""
 const fs = require('fs'); const vm = require('vm');
 const sandbox = {{ window: {{}} }};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(neutral_execution_host_module))}, 'utf8'), sandbox);
 vm.runInNewContext(fs.readFileSync({json.dumps(str(classic_execution_host_module))}, 'utf8'), sandbox);
 const api = sandbox.window.WorkbenchCanvasClassicExecutionHost;
 const calls = [];
@@ -4716,8 +5278,8 @@ console.log(JSON.stringify({{calls, frozen, missingThrew, nonObjectThrew}}));
         match = re.search(r"```json\n(.*?)\n```", doc, re.S)
         self.assertIsNotNone(match, "the characterization doc must embed a JSON evidence manifest")
         manifest = json.loads(match.group(1))
-        self.assertEqual(manifest["source"], "static/js/canvas.js")
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        self.assertEqual(manifest["source"], "static/js/workbench/canvas/canvas-app-compat-host.js")
+        classic = read_canvas_app_source(ROOT)
         allowed_dispositions = {"seamed", "host-cutover", "host-candidate", "transport-only", "flag-only"}
         seen_dispositions = set()
         for entry in manifest["entry_points"]:
@@ -4740,10 +5302,10 @@ console.log(JSON.stringify({{calls, frozen, missingThrew, nonObjectThrew}}));
 
     def test_classic_execution_host_is_loaded_before_the_classic_page_and_run_llm_uses_it(self):
         page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         classic_execution_host_module = (ROOT / "static" / "js" / "workbench" / "canvas" / "classic-execution-host.js").read_text(encoding="utf-8")
         # The module loads ahead of the editor script.
-        self.assertLess(page.index("workbench/canvas/classic-execution-host.js"), page.index("js/canvas.js"))
+        self.assertLess(page.index("workbench/canvas/classic-execution-host.js"), page.index("workbench/canvas/canvas-app-bootstrap.js"))
         # The page constructs the host handle and delegates runLLMNode's Canvas
         # lifecycle/state side-effects through it (no direct node writes).
         # Wave 16a moved runLLMNode's body (with the host delegation) into
@@ -4805,10 +5367,10 @@ console.log(JSON.stringify({{classicUrl, smartUrl, remembered, listUrl}}));
         # and canvas.html must load the two Smart-compatibility shared seams
         # (composer.js, media-tools.js) ahead of canvas.js.
         page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         # The two shared seams are loaded ahead of the editor script.
-        self.assertLess(page.index("workbench/canvas/composer.js"), page.index("js/canvas.js"))
-        self.assertLess(page.index("workbench/canvas/media-tools.js"), page.index("js/canvas.js"))
+        self.assertLess(page.index("workbench/canvas/composer.js"), page.index("workbench/canvas/canvas-app-bootstrap.js"))
+        self.assertLess(page.index("workbench/canvas/media-tools.js"), page.index("workbench/canvas/canvas-app-bootstrap.js"))
         # The handoff redirect and its helper are gone from canvas.js.
         for token in ("openSmartCanvasPage", "requiresLegacySmartHandoff", "legacySmartCanvasUrl"):
             self.assertNotIn(token, classic, f"{token} must be removed from canvas.js (R4-34)")
@@ -5192,7 +5754,7 @@ console.log(JSON.stringify({{
         })
 
     def test_classic_connect_admission_delegates_to_shared_policy(self):
-        classic = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         admission = classic[classic.index("function canConnect("):classic.index("function sanitizeConnections(")]
         self.assertIn("WorkbenchLegacyGraphCompatibility.canClassicConnect", admission)
         self.assertNotIn("wouldCreateGeneratorCycle", classic)
@@ -5204,7 +5766,7 @@ console.log(JSON.stringify({{
         # projection the policy returns — group membership (idempotent and
         # command-gated) plus the historically unconditional output /
         # generator syncs.
-        classic_source = (ROOT / "static/js/canvas.js").read_text(encoding="utf-8")
+        classic_source = read_canvas_app_source(ROOT)
         policy_source = (ROOT / "static/js/workbench/canvas/legacy-graph-compatibility.js").read_text(encoding="utf-8")
         factory = re.search(
             r"let classicLegacyGraphCompatibility = null;[\s\S]*?\n\}\n",
@@ -5428,7 +5990,7 @@ console.log(JSON.stringify({{first, second, edges, invalid}}));
         self.assertTrue(payload["invalid"])
 
     def test_classic_page_delegates_group_membership_transition_to_the_shared_module(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         flow = classic[classic.index("function updateGroupMembership(") : classic.index("function portPoint(")]
         # The transition algorithm is delegated; the page keeps only the
         # product policy inputs (type pairs, geometry, eligibility, connect
@@ -5440,7 +6002,7 @@ console.log(JSON.stringify({{first, second, edges, invalid}}));
         self.assertIn("WorkbenchCanvasGroupMembership.handoffChildEdgesToGroup", classic)
         # The shared module loads before the editor.
         page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
-        self.assertLess(page.index("workbench/canvas/group-membership.js"), page.index("js/canvas.js"))
+        self.assertLess(page.index("workbench/canvas/group-membership.js"), page.index("workbench/canvas/canvas-app-bootstrap.js"))
 
     def test_render_sweep_owns_rebuild_isolation_reuse_and_refresh_fallback(self):
         # R4-39 Wave 4 render slice: the throwaway-render sweep algorithm is
@@ -5567,7 +6129,7 @@ console.log(JSON.stringify({afterRun, afterRefresh, afterFallback, emptyCaptures
         self.assertTrue(payload["threw"])
 
     def test_classic_page_delegates_the_render_sweep_to_the_shared_module(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         render_flow = classic[classic.index("let canvasRenderSweep = null;") : classic.index("function refreshRunNodes(")]
         # The sweep algorithm is delegated; the page keeps only the product
         # projections (builder, live-media test, per-mode capture/restore,
@@ -5584,7 +6146,7 @@ console.log(JSON.stringify({afterRun, afterRefresh, afterFallback, emptyCaptures
         self.assertNotIn("[...nodesEl.children].forEach(child => {", classic)
         # The shared module loads before the editor.
         page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
-        self.assertLess(page.index("workbench/canvas/render-sweep.js"), page.index("js/canvas.js"))
+        self.assertLess(page.index("workbench/canvas/render-sweep.js"), page.index("workbench/canvas/canvas-app-bootstrap.js"))
 
     def test_minimap_projection_scaling_stays_linear_at_100_and_300_nodes(self):
         # DoD: minimap performance remains acceptable at 100/300 nodes — the
@@ -5592,7 +6154,7 @@ console.log(JSON.stringify({afterRun, afterRefresh, afterFallback, emptyCaptures
         # linear in node count with bounded per-node work.
         runtime_state = (ROOT / "static" / "js" / "workbench" / "canvas" / "runtime-state.js").read_text(encoding="utf-8")
         self.assertIn("function worldPointFromMinimapPointer", runtime_state)
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         minimap_render = classic[classic.index("function renderMinimap(){") : classic.index("function updateMinimapViewport(){")]
         # Per-node work is a bounded string template (no per-node layout reads,
         # no O(n^2) passes) — the same linear shape that produced the recorded
@@ -5684,13 +6246,13 @@ console.log(JSON.stringify({
         self.assertEqual(payload["mounted"], "g1,g2,g3")
 
     def test_opening_a_classic_canvas_does_not_issue_a_touch_write(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         opening = classic[classic.index("async function openCanvas(id){") : classic.index("async function applyCanvasSessionRecord", classic.index("async function openCanvas(id){"))]
         self.assertNotIn("touchCanvasOpened", classic)
         self.assertNotIn("/touch", opening)
 
     def test_both_canvas_pages_load_compatibility_modules_before_editor(self):
-        for page, editor in (("canvas.html", "canvas.js"),):
+        for page, editor in (("canvas.html", "workbench/canvas/canvas-app-bootstrap.js"),):
             text = (ROOT / "static" / page).read_text(encoding="utf-8")
             self.assertLess(text.index("workbench/canvas/records.js"), text.index(editor))
             self.assertLess(text.index("workbench/canvas/node-inspector.js"), text.index(editor))
@@ -5715,19 +6277,37 @@ console.log(JSON.stringify({
 
     def test_performance_harness_only_forwards_explicit_renderer_feature_gates(self):
         harness = (ROOT / "static" / "canvas-performance-harness.html").read_text(encoding="utf-8")
-        self.assertIn("const rendererFlags = [", harness)
-        self.assertIn("'node_shell', 'legacy_renderer', 'media_renderer', 'semantic_zoom'", harness)
-        self.assertIn("'screen_space_controls', 'unified_canvas'", harness)
-        self.assertIn(".filter(name => params.get(name) === '1')", harness)
+        inline_script = harness.split("<script>", 1)[1].rsplit("</script>", 1)[0]
+        syntax = subprocess.run(["node", "--check", "-"], input=inline_script, text=True, capture_output=True)
+        self.assertEqual(syntax.returncode, 0, syntax.stderr)
+        self.assertNotIn("rendererFlags", harness)
+        self.assertNotIn("unified_canvas", harness)
+        self.assertNotIn("legacy_renderer", harness)
         self.assertIn("const benchmarkNonce = Date.now();", harness)
-        self.assertIn("&benchmark=1&benchmark_nonce=${benchmarkNonce}${rendererQuery}", harness)
-        self.assertIn("renderer_flags=${rendererFlags.length ? rendererFlags.join(',') : 'none'}", harness)
+        self.assertIn("&benchmark=1&benchmark_nonce=${benchmarkNonce}`", harness)
+        self.assertIn("renderer_flags=stable", harness)
         self.assertIn("const visibleTarget = params.get('visible') === '1';", harness)
+        self.assertIn("const memoryCycles = Math.min(10, Math.max(0, Math.floor(Number(params.get('memory_cycles') || 0))));", harness)
         self.assertIn("document.body.classList.toggle('visible-target', visibleTarget);", harness)
         self.assertIn("target_visibility=${visibleTarget ? 'visible' : 'offscreen'}", harness)
+        self.assertIn("const interactionResult = [result.zoomMs, result.panMs, result.minimapMs].some(value => value === null)", harness)
+        self.assertIn("? 'TIMEOUT'", harness)
+        self.assertIn("`interaction_result=${interactionResult}`", harness)
+        self.assertIn("new targetWindow.WheelEvent('wheel'", harness)
+        self.assertIn("new targetWindow.MouseEvent('mousedown'", harness)
+        self.assertIn("if (typeof board.onwheel === 'function') board.onwheel(event);", harness)
+        self.assertIn("board.dispatchEvent(event);", harness)
+        self.assertIn("minimapContent.dispatchEvent(new targetWindow.MouseEvent('mousemove'", harness)
+        self.assertIn("const runMemoryInspection = async () => {", harness)
+        self.assertIn("const render = targetWindow?.render;", harness)
+        self.assertIn("if (typeof render !== 'function') return { supported: false, reason: 'render-unavailable' };", harness)
+        self.assertIn("render();", harness)
+        self.assertIn("memory_result=UNSUPPORTED", harness)
+        self.assertIn("memory_render_passes=${result.renderPasses}", harness)
+        self.assertIn("memory_result=OBSERVED", harness)
 
     def test_classic_minimap_updates_the_viewport_box_without_rebuilding_nodes(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         harness = (ROOT / "static" / "canvas-performance-harness.html").read_text(encoding="utf-8")
         apply_viewport = classic[classic.index("function applyViewport()") : classic.index("function canvasNodeShellSemanticZoomEnabled()")]
         self.assertIn("scheduleMinimapViewportUpdate();", apply_viewport)
@@ -6109,7 +6689,7 @@ console.log(JSON.stringify({{
         self.assertEqual(mounted["calls"], [["source-payload", "classic-prompt"], ["media", "smart-image"]])
 
     def test_classic_connected_blank_image_uses_the_versioned_graph_mutation_route(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         create_block = classic[classic.index("async function createVersionedLinkedImage"):classic.index("function createNodeByType")]
         self.assertIn("definition_ref:{type:'legacy', id:'image', version:'0'}", create_block)
         self.assertIn("await window.WorkbenchNodeClient.createNodeAndEdge(canvas.id", create_block)
@@ -6118,7 +6698,7 @@ console.log(JSON.stringify({{
         self.assertNotIn("scheduleSave();", create_block)
 
     def test_classic_connected_blank_prompt_and_loop_use_the_versioned_graph_mutation_route(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         block = classic[classic.index("async function createVersionedLinkedPrompt"):classic.index("function createNodeByType")]
         registry = (ROOT / "static" / "js" / "workbench" / "canvas" / "command-registry.js").read_text(encoding="utf-8")
         repository = (ROOT / "workbench" / "repositories" / "legacy_json_node_repository.py").read_text(encoding="utf-8")
@@ -6251,7 +6831,7 @@ console.log(JSON.stringify({{
             self.assertNotIn("document.", text)
 
     def test_classic_standalone_blank_image_delete_uses_the_versioned_mutation_route(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         delete_block = classic[classic.index("function canUseVersionedBlankImageDelete(node)"):classic.index("function deleteConnection(id, event){")]
         self.assertIn("node.type !== 'image' || node.url", delete_block)
         self.assertIn("Array.isArray(candidate.items) && candidate.items.includes(node.id)", delete_block)
@@ -6261,7 +6841,7 @@ console.log(JSON.stringify({{
         self.assertNotIn("scheduleSave();", delete_block)
 
     def test_classic_standalone_blank_image_move_uses_versioned_position_mutation(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         move_block = classic[classic.index("async function commitVersionedBlankImagePosition(drag)"):classic.index("async function deleteVersionedBlankImageNode(id)")]
         end_drag = classic[classic.index("function endDrag(event=null){"):classic.index("function nodeRect(n){")]
         self.assertIn("drag?.isLocalCopy || (drag?.children || []).length", move_block)
@@ -6273,7 +6853,7 @@ console.log(JSON.stringify({{
         self.assertIn("if(!handled) scheduleSave();", end_drag)
 
     def test_classic_standalone_blank_prompt_uses_the_versioned_mutation_route(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         block = classic[classic.index("function canUseVersionedBlankPromptDelete(node)"):classic.index("async function deleteNodeFromButton")]
         self.assertIn("node.type !== 'prompt' || String(node.text || '').trim()", block)
         self.assertIn("connections.some(connection => connection.from === node.id || connection.to === node.id)", block)
@@ -6284,7 +6864,7 @@ console.log(JSON.stringify({{
         self.assertIn("if(await commitVersionedBlankLoopPosition(drag)) return true;", block)
 
     def test_classic_standalone_default_loop_uses_the_versioned_mutation_route(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         block = classic[classic.index("function canUseVersionedBlankLoopDelete(node)"):classic.index("async function deleteNodeFromButton")]
         self.assertIn("Number(node.count || 3) !== 3", block)
         self.assertIn("node.mode === 'parallel' || node.showPrompt || node.imageInput || node.videoInput", block)
@@ -6295,7 +6875,7 @@ console.log(JSON.stringify({{
         self.assertIn("if(await commitVersionedBlankOutputPosition(drag)) return true;", block)
 
     def test_classic_standalone_empty_output_uses_the_versioned_mutation_route(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         block = classic[classic.index("function canUseVersionedBlankOutputDelete(node)"):classic.index("function deleteConnection(id, event){")]
         self.assertIn("node.type !== 'output'", block)
         self.assertIn("(node.images || []).length || (node._pending || []).length", block)
@@ -6308,7 +6888,7 @@ console.log(JSON.stringify({{
         self.assertIn("if(await deleteVersionedBlankOutputNode(id)) return;", block)
 
     def test_classic_standalone_empty_group_uses_the_versioned_mutation_route(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         block = classic[classic.index("function canUseVersionedEmptyGroupDelete(node)"):classic.index("function deleteConnection(id, event){")]
         self.assertIn("node.type !== 'group' || (node.items || []).length", block)
         self.assertIn("connections.some(connection => connection.from === node.id || connection.to === node.id)", block)
@@ -6463,7 +7043,7 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
                     "legacyApplied", "legacySummary", "legacyReset", "indicatorBuilt", "indicatorUpdated"):
             self.assertTrue(payload[key], key)
 
-        for page, editor in (("canvas.html", "canvas.js"),):
+        for page, editor in (("canvas.html", "workbench/canvas/canvas-app-bootstrap.js"),):
             text = (ROOT / "static" / page).read_text(encoding="utf-8")
             apply_tag = text.index("workbench/canvas/semantic-zoom-apply.js")
             self.assertLess(text.index("workbench/canvas/semantic-zoom.js"), apply_tag)
@@ -6471,7 +7051,7 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
 
 
     def test_classic_output_node_can_use_the_opt_in_shared_legacy_renderer(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         styles = (ROOT / "static" / "css" / "canvas.css").read_text(encoding="utf-8")
         self.assertIn("WorkbenchRendererAdmission?.admits({enabled:canvasLegacyRendererEnabled(), types:['prompt', 'loop', 'output', 'llm', 'generator', 'midjourney', 'msgen', 'video', 'comfy', 'rh', 'ltxDirector', 'minimax', 'promptGroup']}", classic)
         self.assertIn("if(node?.type === 'output') return {input:true, output:true};", classic)
@@ -6479,13 +7059,13 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         self.assertIn("overflow:auto", styles)
 
     def test_classic_legacy_renderer_gate_covers_all_migrated_families_and_port_contracts(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         migrated = [
             "prompt", "loop", "output", "llm", "generator", "midjourney",
             "msgen", "video", "comfy", "rh", "ltxDirector", "minimax", "promptGroup",
         ]
-        self.assertIn("params.get('node_shell') !== '0'", classic)
-        self.assertIn("params.get('legacy_renderer') !== '0'", classic)
+        self.assertNotIn("params.get('node_shell')", classic)
+        self.assertNotIn("params.get('legacy_renderer')", classic)
         self.assertIn("window.WorkbenchNodeClient?.isLoopback?.()", classic)
         self.assertIn("WorkbenchRendererAdmission?.admits({enabled:canvasLegacyRendererEnabled(), types:['prompt', 'loop', 'output', 'llm', 'generator', 'midjourney', 'msgen', 'video', 'comfy', 'rh', 'ltxDirector', 'minimax', 'promptGroup']}", classic)
         self.assertIn("if(node?.type === 'prompt') return {input:false, output:true};", classic)
@@ -6494,7 +7074,7 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
             self.assertIn(f"if(node?.type === '{node_type}') return {{input:true, output:true}};", classic)
 
     def test_classic_llm_node_can_use_the_opt_in_shared_legacy_renderer(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         styles = (ROOT / "static" / "css" / "canvas.css").read_text(encoding="utf-8")
         self.assertIn("WorkbenchRendererAdmission?.admits", classic)
         self.assertIn("if(node?.type === 'llm') return {input:true, output:true};", classic)
@@ -6502,7 +7082,7 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         self.assertIn(".node.node-shell-mounted.llm-node .llm-body", styles)
 
     def test_classic_generator_node_can_use_the_opt_in_shared_legacy_renderer(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         styles = (ROOT / "static" / "css" / "canvas.css").read_text(encoding="utf-8")
         self.assertIn("WorkbenchRendererAdmission?.admits", classic)
         self.assertIn("if(node?.type === 'generator') return {input:true, output:true};", classic)
@@ -6510,7 +7090,7 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         self.assertIn(".node.node-shell-mounted.generator-node .generator-body", styles)
 
     def test_classic_midjourney_node_can_use_the_opt_in_shared_legacy_renderer(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         styles = (ROOT / "static" / "css" / "canvas.css").read_text(encoding="utf-8")
         self.assertIn("WorkbenchRendererAdmission?.admits", classic)
         self.assertIn("if(node?.type === 'midjourney') return {input:true, output:true};", classic)
@@ -6518,7 +7098,7 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         self.assertIn(".node.node-shell-mounted.midjourney-node .generator-body", styles)
 
     def test_classic_modelscope_generation_node_can_use_the_opt_in_shared_legacy_renderer(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         styles = (ROOT / "static" / "css" / "canvas.css").read_text(encoding="utf-8")
         self.assertIn("WorkbenchRendererAdmission?.admits", classic)
         self.assertIn("if(node?.type === 'msgen') return {input:true, output:true};", classic)
@@ -6526,7 +7106,7 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         self.assertIn(".node.node-shell-mounted.msgen-node .generator-body", styles)
 
     def test_classic_video_node_can_use_the_opt_in_shared_legacy_renderer(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         styles = (ROOT / "static" / "css" / "canvas.css").read_text(encoding="utf-8")
         self.assertIn("WorkbenchRendererAdmission?.admits", classic)
         self.assertIn("if(node?.type === 'video') return {input:true, output:true};", classic)
@@ -6534,7 +7114,7 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         self.assertIn(".node.node-shell-mounted.video-node .generator-body", styles)
 
     def test_classic_comfy_node_can_use_the_opt_in_shared_legacy_renderer(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         styles = (ROOT / "static" / "css" / "canvas.css").read_text(encoding="utf-8")
         self.assertIn("WorkbenchRendererAdmission?.admits", classic)
         self.assertIn("if(node?.type === 'comfy') return {input:true, output:true};", classic)
@@ -6542,7 +7122,7 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         self.assertIn(".node.node-shell-mounted.comfy-node .comfy-body", styles)
 
     def test_classic_runninghub_node_can_use_the_opt_in_shared_legacy_renderer(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         styles = (ROOT / "static" / "css" / "canvas.css").read_text(encoding="utf-8")
         self.assertIn("WorkbenchRendererAdmission?.admits", classic)
         self.assertIn("if(node?.type === 'rh') return {input:true, output:true};", classic)
@@ -6550,7 +7130,7 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         self.assertIn(".node.node-shell-mounted.rh-node .rh-body", styles)
 
     def test_classic_ltx_director_node_can_use_the_opt_in_shared_legacy_renderer(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         styles = (ROOT / "static" / "css" / "canvas.css").read_text(encoding="utf-8")
         self.assertIn("WorkbenchRendererAdmission?.admits", classic)
         self.assertIn("if(node?.type === 'ltxDirector') return {input:true, output:true};", classic)
@@ -6558,7 +7138,7 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         self.assertIn(".node.node-shell-mounted.ltxDirector-node .ltx-director-body", styles)
 
     def test_classic_minimax_node_can_use_the_opt_in_shared_legacy_renderer(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         styles = (ROOT / "static" / "css" / "canvas.css").read_text(encoding="utf-8")
         self.assertIn("WorkbenchRendererAdmission?.admits", classic)
         self.assertIn("if(node?.type === 'minimax') return {input:true, output:true};", classic)
@@ -6566,7 +7146,7 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         self.assertIn(".node.node-shell-mounted.minimax-node .minimax-canvas-workbench", styles)
 
     def test_classic_prompt_group_can_use_the_opt_in_shared_legacy_renderer(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         self.assertIn("WorkbenchRendererAdmission?.admits", classic)
         self.assertIn("if(node?.type === 'promptGroup') return {input:false, output:true};", classic)
         self.assertIn("if(node.type === 'promptGroup') {", classic)
@@ -6594,11 +7174,11 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         self.assertIn("root.append(legacyContent)", renderer)
 
     def test_classic_media_node_shell_reuses_legacy_gesture_and_link_state_machines(self):
-        classic = (ROOT / "static" / "js" / "canvas.js").read_text(encoding="utf-8")
+        classic = read_canvas_app_source(ROOT)
         styles = (ROOT / "static" / "css" / "canvas.css").read_text(encoding="utf-8")
         page = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
         self.assertIn("function canvasNodeShellEnabled()", classic)
-        self.assertIn("params.get('node_shell') !== '0'", classic)
+        self.assertNotIn("params.get('node_shell')", classic)
         self.assertIn("function mountCanvasNodeShellForMedia", classic)
         self.assertIn("onclick=\"menuAdd('group')\"", page)
         self.assertIn("function addVersionedBlankGroupNode", classic)
@@ -6612,7 +7192,7 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         self.assertIn("controlSettings:CANVAS_NODE_SHELL_LEGACY_CONTROLS", classic)
         self.assertIn("cardClasses:['node-shell-mounted'", classic)
         self.assertIn("function canvasLegacyRendererEnabled()", classic)
-        self.assertIn("params.get('legacy_renderer') !== '0'", classic)
+        self.assertNotIn("params.get('legacy_renderer')", classic)
         self.assertIn("function mountCanvasNodeShellForLegacy", classic)
         self.assertIn("WorkbenchRendererAdmission?.admits({enabled:canvasLegacyRendererEnabled(), types:['prompt', 'loop', 'output', 'llm', 'generator', 'midjourney', 'msgen', 'video', 'comfy', 'rh', 'ltxDirector', 'minimax', 'promptGroup']}", classic)
         self.assertIn("function canvasLegacyNodeShellPorts(node)", classic)
@@ -6637,7 +7217,7 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         # projection (card R4-25) instead of an inline push.
         self.assertIn("projection.addedNodeIds.forEach", classic)
         self.assertIn("function canvasNodeShellSemanticZoomEnabled()", classic)
-        self.assertIn("params.get('semantic_zoom') !== '0'", classic)
+        self.assertNotIn("params.get('semantic_zoom')", classic)
         self.assertIn("WorkbenchSemanticZoom.viewModel(node, viewport.scale)", classic)
         self.assertIn("WorkbenchSemanticZoomApply.applyShellPresentation", classic)
         self.assertIn("WorkbenchSemanticZoomApply.applyLegacyPresentation", classic)
@@ -6666,7 +7246,7 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         self.assertIn("command-registry.js?v=2026.09.06.6", page)
         self.assertIn("creation-catalog.js?v=2026.09.04.1", page)
         self.assertIn("generation-intent.js?v=2026.09.04.1", page)
-        self.assertIn("canvas.js?v=2026.09.08.5", page)
+        self.assertIn("canvas-app-bootstrap.js?v=2026.09.09.2", page)
         self.assertIn("WorkbenchUnifiedRenderHost.cardShellView({selected:selected.has(node.id), onIntent:handleCanvasNodeShellIntent})", classic)
         self.assertIn("const canvasNodeShellIntentAdapter = window.WorkbenchUnifiedRenderHost.createIntentAdapter({", classic)
         self.assertIn("delete:intent => deleteNodeFromButton(intent.nodeId)", classic)

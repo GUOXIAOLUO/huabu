@@ -33,13 +33,51 @@ silent_model_provider_executor_fallback_allowed: false
 active_round: R4
 active_round_name: Unified Canvas Cutover
 round_status: in_progress
-blocking_issues: []
+blocking_issues:
+  - R4-41 formal final gate is BLOCKED: the checklist requires merged code
+    evaluated by the Integration Owner, but R4-39/R4-40 changes are still
+    uncommitted in the local worktree (HEAD a013582).
+  - R4-41 lacks current merged evidence for 100/300-node acceptance, memory
+    growth, and duplicate listener/timer/observer inspection.
 
-Active task: R4-39 — Remove Legacy `canvas.js` Product Runtime (activated
-2026-09-08 with Owner authorization via in-conversation "继续"). R4-38 is the
-completed predecessor. R4-39 must characterize the residual runtime and replace
-each page-owned responsibility before deletion; relocating names or renaming the
-monolith is not completion. R4-40 and R5+ remain unauthorized.
+Active task: R4-41 — R4 Full Acceptance Gate, activated on 2026-09-09 after
+R4-40 passed independent Review. R4-41 is BLOCKED on the formal merged-code
+and acceptance-evidence requirements recorded in its card. R4-40 is archived
+as DONE; R5+ remains unauthorized.
+
+R4-41 acceptance/fix attempt (2026-09-09): title/icon metadata writes were
+moved to the dedicated `/meta` boundary and covered by a regression contract.
+Local `./scripts/agent-verify.sh` passed (637 tests, 81 Python AST files, 112 JavaScript files, 4 architecture
+guards, clean diff check). The formal checklist remains `R4: NOT PASS` because
+the R4-39/R4-40 implementation is uncommitted on `main` (HEAD `a013582`) and
+the gate lacks current merged evidence for 100/300-node acceptance, memory
+growth, and duplicate listener/timer/observer inspection. Git Review also
+confirmed the compatibility-only graph-array projections are now isolated
+behind `legacy-canvas-mutation.js`; no direct array writes remain in
+`canvas-app-interaction.js`. Interaction blur and metadata/crop resize cleanup
+were consolidated to one global listener per event; output pan and compare
+share one guarded global pointer pair, with touch handlers kept separate.
+Remote polling start/stop idempotence is covered by a focused regression test.
+The local listener/timer/observer audit is recorded in
+`docs/benchmarks/r4-41-runtime-audit-2026-09-09.md`; it remains non-merged
+evidence and does not close the formal Gate. Its local 300-node Chromium heap
+sample observed 24,905,516 bytes before and after five confirmed real re-renders (zero
+delta); this is diagnostic rather than a merged acceptance result.
+An isolated disposable-record browser recheck repaired an actual
+viewport-controller initialization defect and the harness's cross-frame event
+sequence. The 100-node run passed zoom/pan/minimap visual updates in 15.400 /
+27.500 / 116.400 ms; the 300-node run passed them in 10.900 / 62.100 /
+30.500 ms. This is diagnostic local evidence only, so R4 remains blocked
+until merged-gate evidence exists.
+No ownership change or R5 activation is authorized.
+
+R4-40 completion evidence (2026-09-09): the six R4 query flags
+(`unified_canvas`, `node_shell`, `media_renderer`, `legacy_renderer`,
+`semantic_zoom`, `screen_space_controls`) no longer select runtime branches in
+Canvas or the performance harness. Focused flag-retirement tests: PASS (9).
+Full `./scripts/agent-verify.sh`: PASS (633 tests, 81 Python AST files, 111
+JavaScript files, 4 architecture guards, clean diff check). R4-40 is DONE;
+R4-41 was not started.
 
 R4-39 Wave 1 characterization (2026-09-08):
 `docs/plans/R4_39_CLASSIC_RUNTIME_REMOVAL.md` records eight residual ownership
@@ -172,6 +210,1169 @@ JavaScript syntax 87; architecture guards 4; diff check clean). R4-39 remains
 IN_PROGRESS; the next bounded slice is remaining graph/group mutation
 ownership. R4-40 and R5+ remain unauthorized.
 
+R4-39 Wave 5 slice 26 — outpaint Blob projection (2026-09-08): white-canvas,
+offset and PNG Blob generation now delegates to
+`WorkbenchCanvasMediaTools.outpaintImageBlob`; the page retains bounds
+calculation, upload and node mutation effects. Focused behavior coverage proves
+canvas sizing, fill and image placement. Full `./scripts/agent-verify.sh`:
+PASS (396 tests; Python AST 78; JavaScript syntax 92; architecture guards 4;
+diff check clean). R4-39 remains IN_PROGRESS; the next bounded slice is
+remaining prompt/workflow/media-editing ownership. R4-40 and R5+ remain
+unauthorized.
+
+Residual RunningHub/Loop behavior verification (2026-09-09): focused frontend
+workbench module suite PASS (127 tests), covering RunningHub controls seam
+wiring, classic compatibility boundaries, and Loop runtime integration. No new
+ownership removal is justified by this suite; R4-39 remains `IN_PROGRESS`.
+
+R4-39 executable deletion-gate check (2026-09-09): PASS — all four gate tests
+pass, including residual-cluster grounding and the explicit rule that the card
+cannot close while `static/js/canvas.js` exists. The gate remains intentionally
+open pending the authorized runtime-removal step.
+
+Wave 6 deletion dependency inventory (2026-09-09): `canvas.html` still loads
+`canvas.js` after the Classic seam modules; executor, asset, node-factory,
+provider-control, cascade, and card-renderer modules still inject host
+operations from the page, while the command registry retains explicit Classic
+canvas kinds. Deletion therefore requires a replacement bootstrap/host boundary
+before removing the script tag; R4-39 remains `IN_PROGRESS`.
+
+Wave 6 host-contract inventory (2026-09-09): the loaded Classic seam set
+contains 13 host-injected modules (asset, card, cascade, Comfy, execution,
+executor, generation-log, LTX, MiniMax, output-grid, RunningHub, video-card,
+and video-provider controls), plus node factories. Each validates a required
+operation set at creation time; replacement work must satisfy these contracts
+before the page script can be removed.
+
+Wave 6 host-contract reconciliation (2026-09-09): PASS — the focused
+`test_classic_seam_factories_inject_every_required_host_op` guard reconciles
+each seam's `REQUIRED_OPS` against its `canvas.js` factory injection. The
+replacement host must preserve this contract set before script removal.
+
+Wave 6 host-contract sizing (2026-09-09): the current seam contracts total
+513 required operations: executor runtime 107, asset runtime 101, RunningHub
+controls 60, card renderer 49, MiniMax controls 35, Comfy controls 29,
+cascade 25, LTX 24, generation log 22, video card 21, output grid 19, video
+provider 15, and execution host 6. Replacement-host work must therefore be
+sequenced by contract cluster rather than attempted as a single deletion.
+
+Wave 6 execution-host candidate characterization (2026-09-09): the smallest
+replacement cluster is `WorkbenchCanvasClassicExecutionHost` with six operations
+(`markRunning`, `writeOutputText`, `setRunStatus`, `render`, `save`, and
+`notifyError`). The page adapter currently owns node-state writes, refresh,
+save scheduling, and user notification; these callbacks must remain explicit
+until a neutral lifecycle host replaces them.
+
+Wave 6 execution-host contract split (2026-09-09): the existing neutral
+`execution-host.js` exposes the Smart five-operation contract
+(`markRunning`, `writePromptResult`, `save`, `render`, `notifyError`), while
+Classic requires six operations (`markRunning`, `writeOutputText`,
+`setRunStatus`, `render`, `save`, `notifyError`). These contracts cannot be
+merged by renaming methods; replacement work needs an explicit dual-contract
+adapter with independent behavior tests.
+
+Wave 6 dual-contract host foundation (2026-09-09): neutral
+`WorkbenchCanvasExecutionHost.createClassic()` now exposes the explicit
+six-operation Classic contract without changing existing script loading or
+runtime wiring. Focused behavior coverage proves operation forwarding and
+boolean normalization; full `./scripts/agent-verify.sh`: PASS (542 tests;
+Python AST 78; JavaScript syntax 103; architecture guards 4; diff check clean).
+
+Wave 6 execution-host baseline verification (2026-09-09): PASS — three focused
+lifecycle/ordering tests cover all six host operations, missing-op rejection,
+script-load order, and `runLLMNode` delegation. This baseline is required before
+replacing the page adapter.
+
+Wave 6 execution-host wiring batch (2026-09-09): `canvas.html` now loads the
+neutral execution host before the Classic adapter; the Classic factory delegates
+to `WorkbenchCanvasExecutionHost.createClassic()` when available and retains an
+isolated fallback for standalone loading. Focused behavior coverage proves
+delegation and compatibility. Full `./scripts/agent-verify.sh`: PASS (543
+tests; Python AST 78; JavaScript syntax 103; architecture guards 4; diff check
+clean). R4-39 remains `IN_PROGRESS`.
+
+Wave 6 execution-host load-order verification (2026-09-09): PASS — the page
+loads neutral `execution-host.js` before `classic-execution-host.js`, and both
+before `canvas.js`. Full `./scripts/agent-verify.sh`: PASS (544 tests; Python
+AST 78; JavaScript syntax 103; architecture guards 4; diff check clean).
+
+Wave 6 asset/executor contract characterization (2026-09-09): Asset Runtime's
+101 operations span upload/drop, asset-manager DOM, workflow transfer, media
+classification, node creation, and Canvas persistence callbacks. Executor
+Runtime's 107 operations span provider execution, polling, cascade control,
+result placement, and the already-characterized RunningHub/Loop projections.
+These are separate replacement clusters and must not be collapsed into one new
+monolith.
+
+Wave 6 DOM-heavy seam characterization (2026-09-09): Video Provider Params
+(15 ops), Output Grid (19 ops), and Generation Log (22 ops) remain UI-bound
+contracts. Focused routing tests for Video Provider Params and Output Grid pass;
+their replacement requires a neutral DOM/render host, not another data helper.
+
+Wave 6 Output Grid identity batch (2026-09-09): output-item and pending-item DOM
+key generation now delegates to `WorkbenchCanvasMediaTools`; the page retains
+DOM reconciliation and interaction callbacks. Focused behavior coverage passes
+for stable item/pending keys. Full `./scripts/agent-verify.sh`: PASS (541
+tests; Python AST 78; JavaScript syntax 103; architecture guards 4; diff check
+clean). R4-39 remains `IN_PROGRESS`.
+
+R4-39 Wave 5 RunningHub current-entry batch (2026-09-09): current entry
+extraction and model/workflow/app mode fallback now delegate to the neutral
+renderer; the page retains selected-reference lookup. Focused behavior coverage
+passes for entry and mode fallback. Full `./scripts/agent-verify.sh`: PASS (540
+tests; Python AST 78; JavaScript syntax 103; architecture guards 4; diff check
+clean). R4-39 remains `IN_PROGRESS`; the next bounded batch continues the
+remaining Loop/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 RunningHub workflow-source batch (2026-09-09): workflow entry
+field extraction, saved-config detection, and first-nonempty workflow source
+selection now delegate to the neutral renderer. Focused behavior coverage passes
+for field/config/source fallback rules. Full `./scripts/agent-verify.sh`: PASS
+(539 tests; Python AST 78; JavaScript syntax 103; architecture guards 4; diff
+check clean). R4-39 remains `IN_PROGRESS`; the next bounded batch continues the
+remaining Loop/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 residual ownership sweep (2026-09-09): remaining RunningHub/Loop
+page functions are limited to provider reads, node-state writes, UI/HTML
+composition, and executor side effects; no additional pure projection remains
+safe to move without crossing the current compatibility boundary. Full
+verification remains green at 540 tests; R4-39 stays `IN_PROGRESS` pending the
+remaining compatibility-runtime removal Gate. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 RunningHub visible-entry batch (2026-09-09): provider entry
+filtering for disabled and hidden items now delegates to the neutral renderer;
+the page retains provider access. Focused behavior coverage passes for
+visible-entry filtering. Full `./scripts/agent-verify.sh`: PASS (538 tests;
+Python AST 78; JavaScript syntax 103; architecture guards 4; diff check clean).
+R4-39 remains `IN_PROGRESS`; the next bounded batch continues the remaining
+Loop/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 RunningHub entry-reference batch (2026-09-09): current entry
+resolution by configuration key, workflow ID, and app ID fallback now delegates
+to the neutral renderer; the page retains node-state reads. Focused behavior
+coverage passes for key and ID fallback resolution. Full
+`./scripts/agent-verify.sh`: PASS (537 tests; Python AST 78; JavaScript syntax
+103; architecture guards 4; diff check clean). R4-39 remains `IN_PROGRESS`;
+the next bounded batch continues the remaining Loop/workflow responsibility
+cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 RunningHub entry-collection batch (2026-09-09): model/app/workflow
+entry aggregation and normalized identity projection now delegate to the neutral
+renderer; the page retains provider reads. Focused behavior coverage passes for
+cross-kind ordering and ID filtering. Full `./scripts/agent-verify.sh`: PASS
+(536 tests; Python AST 78; JavaScript syntax 103; architecture guards 4; diff
+check clean). R4-39 remains `IN_PROGRESS`; the next bounded batch continues the
+remaining Loop/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 RunningHub entry-identity batch (2026-09-09): workflow/app/model
+ID extraction, display-label fallback, configuration-key creation, and key
+parsing now delegate to the neutral renderer. Focused behavior coverage passes
+for identity and label fallbacks. Full `./scripts/agent-verify.sh`: PASS (535
+tests; Python AST 78; JavaScript syntax 103; architecture guards 4; diff check
+clean). R4-39 remains `IN_PROGRESS`; the next bounded batch continues the
+remaining Loop/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 RunningHub workflow-field-list batch (2026-09-09): workflow input
+enumeration and image/video/audio/number/boolean/text type inference now
+delegate to the neutral renderer; the page retains link-recognition
+compatibility wiring. Focused behavior coverage passes for link exclusion and
+type inference. Full `./scripts/agent-verify.sh`: PASS (534 tests; Python AST
+78; JavaScript syntax 103; architecture guards 4; diff check clean). R4-39
+remains `IN_PROGRESS`; the next bounded batch continues the remaining
+Loop/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 RunningHub source-summary batch (2026-09-09): reference filtering,
+image/video/audio grouping, image-limit enforcement, and prompt aggregation now
+delegate to the neutral renderer; the page retains source ordering. Focused
+behavior coverage passes for grouping, limiting, and prompt joining. Full
+`./scripts/agent-verify.sh`: PASS (533 tests; Python AST 78; JavaScript syntax
+103; architecture guards 4; diff check clean). R4-39 remains `IN_PROGRESS`;
+the next bounded batch continues the remaining Loop/workflow responsibility
+cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 Loop token-insertion batch (2026-09-09): token chip creation,
+selection replacement, and fallback append behavior now delegate to the neutral
+Loop prompt renderer; the page supplies DOM and selection handles. Focused
+behavior coverage passes for fallback insertion. Full
+`./scripts/agent-verify.sh`: PASS (532 tests; Python AST 78; JavaScript syntax
+103; architecture guards 4; diff check clean). R4-39 remains `IN_PROGRESS`;
+the next bounded batch continues the remaining Loop/workflow responsibility
+cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 RunningHub random-state batch (2026-09-09): random state read
+semantics now delegate to the neutral renderer; the page retains state
+initialization, writes, and refresh side effects. Focused behavior coverage
+passes for default, disabled, and enabled states. Full
+`./scripts/agent-verify.sh`: PASS (531 tests; Python AST 78; JavaScript syntax
+103; architecture guards 4; diff check clean). R4-39 remains `IN_PROGRESS`;
+the next bounded batch continues the remaining Loop/workflow responsibility
+cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 RunningHub random-eligibility batch (2026-09-09): numeric
+random-field eligibility now delegates to the neutral renderer; the page
+retains random-state toggling and generated-value persistence. Focused behavior
+coverage passes for numeric/type and flag gating. Full `./scripts/agent-verify.sh`:
+PASS (530 tests; Python AST 78; JavaScript syntax 103; architecture guards 4;
+diff check clean). R4-39 remains `IN_PROGRESS`; the next bounded batch
+continues the remaining Loop/workflow responsibility cluster. R4-40 and R5+
+remain unauthorized.
+
+R4-39 Wave 5 Loop prompt-counter batch (2026-09-09): prompt length and
+counter-markup projection now delegate to the neutral Loop prompt renderer; the
+page retains DOM counter updates. Focused behavior coverage passes for Unicode
+length and over-limit markup. Full `./scripts/agent-verify.sh`: PASS (529
+tests; Python AST 78; JavaScript syntax 103; architecture guards 4; diff check
+clean). R4-39 remains `IN_PROGRESS`; the next bounded batch continues the
+remaining Loop/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 RunningHub option-extraction batch (2026-09-09): field option
+extraction from primitive lists, labeled objects, typed values, and known-field
+fallbacks now delegates to the neutral renderer. Focused behavior coverage
+passes for object and fallback extraction. Full `./scripts/agent-verify.sh`:
+PASS (528 tests; Python AST 78; JavaScript syntax 103; architecture guards 4;
+diff check clean). R4-39 remains `IN_PROGRESS`; the next bounded batch
+continues the remaining Loop/workflow responsibility cluster. R4-40 and R5+
+remain unauthorized.
+
+R4-39 Wave 5 RunningHub field-metadata batch (2026-09-09): parameter-key
+construction, field-kind detection, field-role detection, and default-value
+normalization now delegate to the neutral renderer; the page retains
+compatibility wrappers. Focused behavior coverage passes for media type, prompt
+role, and array-default handling. Full `./scripts/agent-verify.sh`: PASS (527
+tests; Python AST 78; JavaScript syntax 103; architecture guards 4; diff check
+clean). R4-39 remains `IN_PROGRESS`; the next bounded batch continues the
+remaining Loop/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 RunningHub workflow-pruning batch (2026-09-09): missing-field
+deletion, empty-node removal, and dangling-link cleanup now delegate to
+`WorkbenchCanvasRunningHubFieldRenderer.pruneWorkflowForMissingFields`; the
+page supplies only workflow-node/link recognition callbacks. Focused behavior
+coverage passes for node and link pruning. Full `./scripts/agent-verify.sh`:
+PASS (524 tests; Python AST 78; JavaScript syntax 103; architecture guards 4;
+diff check clean). R4-39 remains `IN_PROGRESS`; the next bounded batch
+continues the remaining Loop/workflow responsibility cluster. R4-40 and R5+
+remain unauthorized.
+
+R4-39 Wave 5 RunningHub field-catalog batch (2026-09-09): enabled-field
+fallback filtering and deterministic image-first field sorting now delegate to
+neutral renderer helpers; the page retains source selection. Focused behavior
+coverage passes for enabled fallback and image-order sorting. Full
+`./scripts/agent-verify.sh`: PASS (526 tests; Python AST 78; JavaScript syntax
+103; architecture guards 4; diff check clean). R4-39 remains `IN_PROGRESS`;
+the next bounded batch continues the remaining Loop/workflow responsibility
+cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 RunningHub workflow-support batch (2026-09-09): field error
+labels and workflow-link recognition now delegate to neutral renderer helpers
+used by validation and pruning. Focused behavior coverage passes for label
+fallbacks and strict link recognition. Full `./scripts/agent-verify.sh`: PASS
+(525 tests; Python AST 78; JavaScript syntax 103; architecture guards 4; diff
+check clean). R4-39 remains `IN_PROGRESS`; the next bounded batch continues
+the remaining Loop/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 RunningHub legacy request-path batch (2026-09-09): the remaining
+image-only workflow request path now reuses the neutral media input-state
+projection for required/optional classification; the page retains error text
+and pruning side effects. Full `./scripts/agent-verify.sh`: PASS (523 tests;
+Python AST 78; JavaScript syntax 103; architecture guards 4; diff check clean).
+R4-39 remains `IN_PROGRESS`; the next bounded batch continues the remaining
+Loop/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 MiniMax segment-compaction projection cluster (2026-09-08):
+timeline sorting, minimum duration normalization, total duration, and playhead
+clamping now delegate to `WorkbenchCanvasMediaTools.minimaxCompactSegments`;
+`canvas.js` retains node mutation. Focused behavior coverage proves ordering,
+minimum duration, and upper-bound clamping. Full `./scripts/agent-verify.sh`:
+PASS (491 tests; Python AST 78; JavaScript syntax 103; architecture guards 4;
+diff check clean). R4-39 remains IN_PROGRESS; the next bounded slice is the
+remaining media/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 MiniMax reference projection cluster (2026-09-08): aspect
+parsing, reference normalization, deduplication, and image/video/audio summary
+formatting now delegate to `WorkbenchCanvasMediaTools`; `canvas.js` retains
+source collection. Focused behavior coverage proves aspect fallback, duplicate
+removal, and summary counts. Full `./scripts/agent-verify.sh`: PASS (490 tests;
+Python AST 78; JavaScript syntax 103; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is the remaining
+media/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 MiniMax playhead projection cluster (2026-09-08): time clamping,
+timeline percentage, and duration-label formatting now delegate to
+`WorkbenchCanvasMediaTools.minimaxPlayheadProjection`; `canvas.js` retains DOM
+updates and selected-segment effects. Focused behavior coverage proves
+fractional, upper-bound, and zero-duration cases. Full
+`./scripts/agent-verify.sh`: PASS (489 tests; Python AST 78; JavaScript syntax
+103; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 MiniMax pane-size projection cluster (2026-09-08): library,
+preview, video-track, and reference-lane clamp rules now delegate to
+`WorkbenchCanvasMediaTools.minimaxPaneProjection`; `canvas.js` retains pointer
+events, node mutation, and CSS variable effects. Focused behavior coverage
+proves lower and upper bounds. Full `./scripts/agent-verify.sh`: PASS (488
+tests; Python AST 78; JavaScript syntax 103; architecture guards 4; diff check
+clean). R4-39 remains IN_PROGRESS; the next bounded slice is the remaining
+media/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 MiniMax media-card rendering cluster (2026-09-08): image/video/
+audio/file thumbnail type branches and labels now delegate to
+`WorkbenchCanvasMediaOutputRenderer.renderLite`; `canvas.js` retains media-kind
+and preview callbacks. Focused behavior coverage proves video lite-card
+markup. Full `./scripts/agent-verify.sh`: PASS (487 tests; Python AST 78;
+JavaScript syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 RunningHub media-index batch (2026-09-09): ordered image, video,
+and audio field indexing now delegates to
+`WorkbenchCanvasRunningHubFieldRenderer.mediaIndexes`; the page retains only
+the compatibility wrapper. Focused behavior coverage passes for image-order
+sorting and per-kind counters. Full `./scripts/agent-verify.sh`: PASS (523
+tests; Python AST 78; JavaScript syntax 103; architecture guards 4; diff check
+clean). R4-39 remains `IN_PROGRESS`; the next bounded batch continues the
+remaining Loop/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 RunningHub aspect-field ownership cleanup (2026-09-09):
+full-aspect field detection now delegates to
+`WorkbenchCanvasRunningHubFieldRenderer.isFullAspectField`; focused field
+projection coverage remains green. Full `./scripts/agent-verify.sh`: PASS
+(518 tests; Python AST 78; JavaScript syntax 103; architecture guards 4; diff
+check clean). R4-39 remains IN_PROGRESS; the next bounded batch continues
+the remaining Loop/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 RunningHub preset-parameter batch (2026-09-09): MiniMax prompt,
+duration, aspect, and megapixel field-write composition now delegates to
+`WorkbenchCanvasRunningHubFieldRenderer.applyPresetParams`; focused behavior
+coverage passes for preset matching and writes. Full
+`./scripts/agent-verify.sh`: PASS (519 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded batch continues the remaining Loop/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 RunningHub field-value batch (2026-09-09): upstream media,
+parameter/default precedence, skip rules, upload intent, and numeric
+normalization now delegate to
+`WorkbenchCanvasRunningHubFieldRenderer.fieldValue`; the page retains required
+checks and upload effects. Focused media and numeric behavior tests pass. Full
+`./scripts/agent-verify.sh`: PASS (520 tests; Python AST 78; JavaScript syntax
+103; architecture guards 4; diff check clean). R4-39 remains `IN_PROGRESS`;
+the next bounded batch continues the remaining Loop/workflow responsibility
+cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 RunningHub field-value ownership batch (2026-09-09): page-side
+field value lookup now delegates media, prompt, default, and disabled-upstream
+precedence to `WorkbenchCanvasRunningHubFieldRenderer.fieldValue`; random-value
+generation remains page-owned. Focused behavior coverage passes for manual media
+precedence. Full `./scripts/agent-verify.sh`: PASS (522 tests; Python AST 78;
+JavaScript syntax 103; architecture guards 4; diff check clean). R4-39 remains
+`IN_PROGRESS`; the next bounded batch continues the remaining Loop/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 RunningHub media-input-state batch (2026-09-09): required,
+optional, and present media classification now delegates to
+`WorkbenchCanvasRunningHubFieldRenderer.mediaInputState`; the page retains
+localized required-error text and optional workflow pruning side effects.
+Focused behavior coverage passes for all three paths. Full
+`./scripts/agent-verify.sh`: PASS (521 tests; Python AST 78; JavaScript syntax
+103; architecture guards 4; diff check clean). R4-39 remains `IN_PROGRESS`;
+the next bounded batch continues the remaining Loop/workflow responsibility
+cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 loop-input prompt-selection projection cluster (2026-09-08):
+current-round selection, start-index normalization, cycling, and empty fallback
+now delegate to `WorkbenchCanvasLoopInputProjection.select`; `canvas.js` retains
+prompt source collection. Focused behavior coverage proves sequential, cyclic,
+and empty selection. Full `./scripts/agent-verify.sh`: PASS (486 tests; Python
+AST 78; JavaScript syntax 103; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is the remaining
+media/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 loop-count and prompt-splitting projection cluster (2026-09-08):
+count bounds and numbered/line-based prompt splitting now delegate to
+`WorkbenchCanvasLoopPromptRenderer`; `canvas.js` retains graph traversal and
+source collection. Focused behavior coverage proves lower/upper bounds,
+numbered items, and single-item fallback. Full `./scripts/agent-verify.sh`:
+PASS (485 tests; Python AST 78; JavaScript syntax 103; architecture guards 4;
+diff check clean). R4-39 remains IN_PROGRESS; the next bounded slice is the
+remaining media/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 loop-layout projection cluster (2026-09-08): opening/closing
+dimensions and prompt/media panel height rules now delegate to
+`WorkbenchCanvasLoopLayoutProjection`; `canvas.js` retains node mutation and
+rerender effects. Focused behavior coverage proves open, closed, combined-panel,
+and empty-panel sizes. Full `./scripts/agent-verify.sh`: PASS (484 tests;
+Python AST 78; JavaScript syntax 103; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is the remaining
+media/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 loop-token label projection cluster (2026-09-08): localized
+token-label fallback mapping now delegates to
+`WorkbenchCanvasLoopPromptRenderer.tokenLabel`; `canvas.js` retains translation
+lookup only. Focused behavior coverage proves localized and unknown-token
+fallback behavior. Full `./scripts/agent-verify.sh`: PASS (483 tests; Python
+AST 78; JavaScript syntax 102; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is the remaining
+media/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 loop-editor token markup cluster (2026-09-08): token-chip and
+variable-text markup, escaping, labels, and deletion affordances now delegate
+to `WorkbenchCanvasLoopPromptRenderer`; `canvas.js` retains editor DOM behavior.
+Focused behavior coverage proves chip and variable composition. Full
+`./scripts/agent-verify.sh`: PASS (482 tests; Python AST 78; JavaScript syntax
+102; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 loop-input batching projection cluster (2026-09-08): image/video
+batch size, start-index, current-round slicing, and filtering now delegate to
+`WorkbenchCanvasLoopInputProjection.batch`; `canvas.js` retains source
+collection. Focused behavior coverage proves current-round slicing and
+fallback batch normalization. Full `./scripts/agent-verify.sh`: PASS (481
+tests; Python AST 78; JavaScript syntax 102; architecture guards 4; diff check
+clean). R4-39 remains IN_PROGRESS; the next bounded slice is the remaining
+media/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 loop-prompt projection cluster (2026-09-08): counter/total/progress
+token replacement, selected-input precedence, and hidden-state fallback now
+delegate to `WorkbenchCanvasLoopPromptRenderer`; `canvas.js` retains loop input
+collection. Focused behavior coverage proves translated tokens and hidden
+prompts. Full `./scripts/agent-verify.sh`: PASS (480 tests; Python AST 78;
+JavaScript syntax 101; architecture guards 4; diff check clean). R4-39
+remains IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 Comfy field rendering cluster (2026-09-08): boolean, slider,
+dropdown, textarea, random-number, and scalar parameter markup now delegate to
+`WorkbenchCanvasComfyFieldRenderer`; `canvas.js` retains value resolution,
+random-state policy, and event binding. Focused behavior coverage proves
+boolean and dropdown rendering. Full `./scripts/agent-verify.sh`: PASS (479
+tests; Python AST 78; JavaScript syntax 100; architecture guards 4; diff check
+clean). R4-39 remains IN_PROGRESS; the next bounded slice is the remaining
+media/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 RunningHub prompt-field rendering cluster (2026-09-08): prompt
+textarea markup and escaping now delegate to
+`WorkbenchCanvasRunningHubFieldRenderer.promptMarkup`; `canvas.js` retains field
+resolution and control binding. Focused behavior coverage proves escaped labels
+and values. Full `./scripts/agent-verify.sh`: PASS (478 tests; Python AST 78;
+JavaScript syntax 99; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 RunningHub field rendering cluster (2026-09-08): boolean, slider,
+select, random-number, and scalar parameter markup now delegate to
+`WorkbenchCanvasRunningHubFieldRenderer`; `canvas.js` retains field value
+resolution, control binding, and validation. Focused behavior coverage proves
+boolean and select rendering. Full `./scripts/agent-verify.sh`: PASS (477
+tests; Python AST 78; JavaScript syntax 99; architecture guards 4; diff check
+clean). R4-39 remains IN_PROGRESS; the next bounded slice is the remaining
+media/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 LLM-pane rendering cluster (2026-09-08): LLM input/output and
+chat panel markup, escaping, empty state, and running labels now delegate to
+`WorkbenchCanvasLlmPaneRenderer`; `canvas.js` retains input, run, copy, retry,
+and cascade event wiring. Focused behavior coverage proves escaped panel values
+and chat empty state. Full `./scripts/agent-verify.sh`: PASS (476 tests; Python
+AST 78; JavaScript syntax 98; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is the remaining
+media/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 Comfy media-input rendering cluster (2026-09-08): Comfy grouped
+media inputs now reuse `WorkbenchCanvasMediaInputRenderer` for empty-state,
+ordered markup, preview, audio, video, and missing-item branches; `canvas.js`
+retains kind selection and drag/reorder effects. Focused behavior coverage
+proves shared renderer wiring. Full `./scripts/agent-verify.sh`: PASS (475
+tests; Python AST 78; JavaScript syntax 97; architecture guards 4; diff check
+clean). R4-39 remains IN_PROGRESS; the next bounded slice is the remaining
+media/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 RunningHub media-input rendering cluster (2026-09-08): grouped
+RunningHub media inputs now reuse `WorkbenchCanvasMediaInputRenderer`;
+`canvas.js` retains media-kind selection, preview callbacks, and list binding.
+Focused behavior coverage proves the shared renderer path and removal of
+duplicate inline markup. Full `./scripts/agent-verify.sh`: PASS (474 tests;
+Python AST 78; JavaScript syntax 97; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is the remaining
+media/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 media-input list rendering cluster (2026-09-08): empty-state and
+ordered item markup, escaping, and preview/missing projections now delegate to
+`WorkbenchCanvasMediaInputRenderer`; `canvas.js` retains DOM event wiring and
+reorder callbacks. Focused behavior coverage proves empty, escaped, preview,
+and missing-item markup. Full `./scripts/agent-verify.sh`: PASS (473 tests;
+Python AST 78; JavaScript syntax 97; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is the remaining
+media/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 prompt-preview rendering cluster (2026-09-08): prompt preview
+list markup and escaping now delegate to
+`WorkbenchCanvasPromptTemplateRenderer.renderPreviewInputs`; `canvas.js`
+retains only container binding. Focused behavior coverage proves empty-state,
+escaped labels, and null-item handling. Full `./scripts/agent-verify.sh`: PASS
+(472 tests; Python AST 78; JavaScript syntax 96; architecture guards 4; diff
+check clean). R4-39 remains IN_PROGRESS; the next bounded slice is the
+remaining media/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 output-preview zoom/pan projection cluster (2026-09-08): wheel
+zoom anchoring, bounds, reset, and drag translation now delegate to
+`WorkbenchCanvasMediaTools.previewZoomProjection` and
+`previewPanProjection`; `canvas.js` retains event wiring and DOM application.
+Focused behavior coverage proves zoom-in, reset, and pan translation. Full
+`./scripts/agent-verify.sh`: PASS (471 tests; Python AST 78; JavaScript syntax
+96; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 output-compare slider projection cluster (2026-09-08): clamped
+position and clip-path formatting now delegate to
+`WorkbenchCanvasMediaTools.compareSliderProjection`; `canvas.js` retains DOM
+style application. Focused behavior coverage proves centered, lower-bound, and
+zero-width cases. Full `./scripts/agent-verify.sh`: PASS (470 tests; Python AST
+78; JavaScript syntax 96; architecture guards 4; diff check clean). R4-39
+remains IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 output-preview transform projection cluster (2026-09-08): preview
+transform formatting and zoomed-state thresholding now delegate to
+`WorkbenchCanvasMediaTools.previewTransformProjection`; `canvas.js` retains DOM
+transform application. Focused behavior coverage proves translated, scaled,
+and default states. Full `./scripts/agent-verify.sh`: PASS (469 tests; Python
+AST 78; JavaScript syntax 96; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is the remaining
+media/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 brush-control projection cluster (2026-09-08): brush/mask size,
+color, and alpha normalization now delegate to
+`WorkbenchCanvasMediaTools.brushControlProjection`; `canvas.js` retains DOM
+reads and Canvas drawing effects. Focused behavior coverage proves brush, mask,
+and fallback controls. Full `./scripts/agent-verify.sh`: PASS (468 tests;
+Python AST 78; JavaScript syntax 96; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is the remaining
+media/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 25 — crop Blob projection (2026-09-08): crop image
+Canvas/Blob generation now delegates to
+`WorkbenchCanvasMediaTools.cropImageBlob`; the page retains coordinate
+conversion, upload and node mutation effects. Focused behavior coverage proves
+crop rectangle and PNG Blob output. Full `./scripts/agent-verify.sh`: PASS
+(395 tests; Python AST 78; JavaScript syntax 92; architecture guards 4; diff
+check clean). R4-39 remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 22 — outpaint natural-size projection (2026-09-08):
+CSS-to-natural pixel scaling now delegates to
+`WorkbenchCanvasMediaTools.outpaintNaturalSize`; the page retains image and
+crop-state lookup. Focused behavior coverage proves scaled dimensions. Full
+`./scripts/agent-verify.sh`: PASS (392 tests; Python AST 78; JavaScript syntax
+92; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is remaining prompt/workflow/media-editing ownership. R4-40
+and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 57 — prompt-template empty state (2026-09-08): empty-list
+placeholder HTML now delegates to `WorkbenchCanvasPromptTemplateData.emptyState`;
+the page retains list container and event wiring. Focused behavior coverage
+proves escaping and empty-state markup. Full `./scripts/agent-verify.sh`: PASS
+(426 tests; Python AST 78; JavaScript syntax 93; architecture guards 4; diff
+check clean). R4-39 remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 58 — prompt-template renderer (2026-09-08): category
+navigation, list cards, detail/edit markup and action buttons now delegate to
+`WorkbenchCanvasPromptTemplateRenderer`; the page retains state and event
+effects. Focused renderer coverage proves selection, escaping and apply-action
+markup. Full `./scripts/agent-verify.sh`: PASS (428 tests; Python AST 78;
+JavaScript syntax 94; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is remaining media/workflow ownership.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 editor-canvas sizing projection cluster (2026-09-08):
+natural/client dimension fallback and CSS sizing for draw/text layers now
+delegate to `WorkbenchCanvasMediaTools.editorCanvasProjection`; `canvas.js`
+retains canvas mutation and redraw effects. Focused behavior coverage proves
+natural-size and fallback cases. Full `./scripts/agent-verify.sh`: PASS (467
+tests; Python AST 78; JavaScript syntax 96; architecture guards 4; diff check
+clean). R4-39 remains IN_PROGRESS; the next bounded slice is the remaining
+media/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 59 — prompt-template renderer normalization (2026-09-08):
+detail output now consumes the shared normalized positive, negative and
+parameter projections, preserving existing display behavior. Full
+`./scripts/agent-verify.sh`: PASS (428 tests; Python AST 78; JavaScript syntax
+94; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is remaining media/workflow ownership. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 slice 60 — media text overlay geometry (2026-09-08): text overlay
+record creation, font sizing, measurement and hit testing now delegate to
+`WorkbenchCanvasMediaTextOverlay`; page-side Canvas drawing remains local.
+Full `./scripts/agent-verify.sh`: PASS (429 tests; Python AST 78; JavaScript
+syntax 95; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS;
+the next bounded slice is remaining media/workflow ownership. R4-40 and R5+
+remain unauthorized.
+
+R4-39 Wave 5 slice 61 — custom grid-line geometry (2026-09-08): custom grid
+line hit testing and clamped position updates now delegate to
+`WorkbenchCanvasMediaTools`; pointer capture and preview effects remain local.
+Full `./scripts/agent-verify.sh`: PASS (430 tests; Python AST 78; JavaScript
+syntax 95; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS;
+the next bounded slice is remaining media/workflow ownership. R4-40 and R5+
+remain unauthorized.
+
+R4-39 Wave 5 slice 62 — regular grid settings (2026-09-08): row, column and
+gap normalization now delegates to `WorkbenchCanvasMediaTools`; page code keeps
+DOM reads and label synchronization. Full `./scripts/agent-verify.sh`: PASS
+(431 tests; Python AST 78; JavaScript syntax 95; architecture guards 4; diff
+check clean). R4-39 remains IN_PROGRESS; the next bounded slice is remaining
+media/workflow ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 media-drawing cluster (2026-09-08): brush, mask and number-label
+style rules now delegate to `WorkbenchCanvasMediaTools`; page code retains
+Canvas drawing effects. Full `./scripts/agent-verify.sh`: PASS (432 tests;
+Python AST 78; JavaScript syntax 95; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is the remaining media and
+workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 crop-geometry cluster (2026-09-08): outpaint growth and free-crop
+resize geometry now delegate to `WorkbenchCanvasMediaTools`; page code retains
+state mutation and clamping effects. Full `./scripts/agent-verify.sh`: PASS
+(433 tests; Python AST 78; JavaScript syntax 95; architecture guards 4; diff
+check clean). R4-39 remains IN_PROGRESS; the next bounded slice is the
+remaining media/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 aspect-crop geometry cluster (2026-09-08): fixed-ratio edge and
+corner resize geometry now delegates to `WorkbenchCanvasMediaTools`; page code
+retains crop-state application and rendering. Full `./scripts/agent-verify.sh`:
+PASS (434 tests; Python AST 78; JavaScript syntax 95; architecture guards 4;
+diff check clean). R4-39 remains IN_PROGRESS; the next bounded slice is the
+remaining media/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 custom-grid geometry cluster (2026-09-08): custom grid line
+classification, deduplication, sorting and gap-aware rectangle generation now
+delegate to `WorkbenchCanvasMediaTools`; page code retains DOM reads and preview
+effects. Full `./scripts/agent-verify.sh`: PASS (435 tests; Python AST 78;
+JavaScript syntax 95; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 workflow-transfer cluster (2026-09-08): selected workflow export
+envelope construction now delegates to `WorkbenchCanvasWorkflowTransfer`; page
+code retains subgraph selection and serialization callbacks. Full
+`./scripts/agent-verify.sh`: PASS (436 tests; Python AST 78; JavaScript syntax
+95; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 crop-state geometry cluster (2026-09-08): crop initialization and
+ordinary crop-boundary clamping now delegate to `WorkbenchCanvasMediaTools`; page
+code retains outpaint branching and redraw effects. Full
+`./scripts/agent-verify.sh`: PASS (437 tests; Python AST 78; JavaScript syntax
+95; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 editor-zoom geometry cluster (2026-09-08): crop rectangle scaling
+during image-editor zoom now delegates to `WorkbenchCanvasMediaTools`; page code
+retains DOM resizing, clamping and preview effects. Full
+`./scripts/agent-verify.sh`: PASS (438 tests; Python AST 78; JavaScript syntax
+95; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 editor-pointer cluster (2026-09-08): client-to-Canvas pointer
+coordinate projection now delegates to `WorkbenchCanvasMediaTools`; page code
+retains pointer event handling. Full `./scripts/agent-verify.sh`: PASS (439
+tests; Python AST 78; JavaScript syntax 95; architecture guards 4; diff check
+clean). R4-39 remains IN_PROGRESS; the next bounded slice is the remaining
+media/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 resize-control cluster (2026-09-08): resize control projection now
+returns normalized scale, target dimensions and display text from
+`WorkbenchCanvasMediaTools`; page code retains DOM synchronization. Full
+`./scripts/agent-verify.sh`: PASS (440 tests; Python AST 78; JavaScript syntax
+95; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 media-action dispatch cluster (2026-09-08): image-editor
+mode-to-action dispatch now delegates to `WorkbenchCanvasMediaEditorState`; page
+code retains concrete action callbacks. Full `./scripts/agent-verify.sh`: PASS
+(441 tests; Python AST 78; JavaScript syntax 95; architecture guards 4; diff
+check clean). R4-39 remains IN_PROGRESS; the next bounded slice is the
+remaining media/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 workflow-import normalization cluster (2026-09-08): legacy array,
+direct object and nested workflow import shapes now normalize through
+`WorkbenchCanvasWorkflowTransfer`, removing empty records at the boundary. Full
+`./scripts/agent-verify.sh`: PASS (442 tests; Python AST 78; JavaScript syntax
+95; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 crop-handle interaction cluster (2026-09-08): crop box edge/corner
+hit classification now delegates to `WorkbenchCanvasMediaTools`; page code
+retains explicit handle overrides and drag initiation. Full
+`./scripts/agent-verify.sh`: PASS (443 tests; Python AST 78; JavaScript syntax
+95; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 crop-pointer delta cluster (2026-09-08): crop drag client-
+coordinate delta calculation now delegates to `WorkbenchCanvasMediaTools`; page
+code retains mode-specific state application and redraw. Full
+`./scripts/agent-verify.sh`: PASS (444 tests; Python AST 78; JavaScript syntax
+95; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 crop-drag snapshot cluster (2026-09-08): crop drag mode, pointer
+origin and immutable crop snapshot creation now delegate to
+`WorkbenchCanvasMediaTools`; page code retains event guards and lifecycle state.
+Full `./scripts/agent-verify.sh`: PASS (445 tests; Python AST 78; JavaScript
+syntax 95; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 workflow-export normalization cluster (2026-09-08): exported
+workflow envelopes now remove empty nodes and connections at the
+`WorkbenchCanvasWorkflowTransfer` boundary, matching import normalization. Full
+`./scripts/agent-verify.sh`: PASS (445 tests; Python AST 78; JavaScript syntax
+95; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 media-output download cluster (2026-09-08): downloadable output
+URL filtering now delegates to `WorkbenchCanvasMediaTools`; page code retains
+download invocation and missing-asset policy injection. Full
+`./scripts/agent-verify.sh`: PASS (446 tests; Python AST 78; JavaScript syntax
+95; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 output-metadata cluster (2026-09-08): output resolution and
+run-duration metadata normalization now delegates to `WorkbenchCanvasMediaTools`;
+page code retains localized formatting and DOM insertion. Full
+`./scripts/agent-verify.sh`: PASS (447 tests; Python AST 78; JavaScript syntax
+95; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 output-download naming cluster (2026-09-08): output download
+extension parsing and timestamped filename generation now delegate to
+`WorkbenchCanvasMediaTools`; page code retains actual download invocation. Full
+`./scripts/agent-verify.sh`: PASS (448 tests; Python AST 78; JavaScript syntax
+95; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 run-duration formatting cluster (2026-09-08): seconds/minutes
+duration formatting now delegates to `WorkbenchCanvasMediaTools`; page code
+retains metadata markup insertion. Full `./scripts/agent-verify.sh`: PASS (449
+tests; Python AST 78; JavaScript syntax 95; architecture guards 4; diff check
+clean). R4-39 remains IN_PROGRESS; the next bounded slice is the remaining
+media/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 output-data projection cluster (2026-09-08): output URL extraction
+and URL-to-metadata lookup now delegate to `WorkbenchCanvasMediaTools`; page
+code retains output lightbox and download effects. Full
+`./scripts/agent-verify.sh`: PASS (450 tests; Python AST 78; JavaScript syntax
+95; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 output-name projection cluster (2026-09-08): output filename
+extraction and URL decoding now delegate to `WorkbenchCanvasMediaTools`; page
+code retains card rendering and download effects. Full
+`./scripts/agent-verify.sh`: PASS (451 tests; Python AST 78; JavaScript syntax
+95; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 output-grid validation cluster (2026-09-08): grid split output-
+layout validation now delegates to `WorkbenchCanvasMediaTools`; page code
+retains pending-run gating and rendering. Full `./scripts/agent-verify.sh`: PASS
+(452 tests; Python AST 78; JavaScript syntax 95; architecture guards 4; diff
+check clean). R4-39 remains IN_PROGRESS; the next bounded slice is the
+remaining media/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 output-grid placement cluster (2026-09-08): grid item row, column
+and aspect-ratio placement normalization now delegates to
+`WorkbenchCanvasMediaTools`; page code retains HTML insertion. Full
+`./scripts/agent-verify.sh`: PASS (453 tests; Python AST 78; JavaScript syntax
+95; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 output-presentation cluster (2026-09-08): output URL, media kind,
+display name, run duration and optional grid placement now project through
+`WorkbenchCanvasMediaTools`; page code retains type-specific HTML and effects.
+Full `./scripts/agent-verify.sh`: PASS (454 tests; Python AST 78; JavaScript
+syntax 95; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 output-media renderer cluster (2026-09-08): type-specific output
+card HTML for missing, video, audio, file and image items now delegates to
+`WorkbenchCanvasMediaOutputRenderer`; page code retains preview, missing-asset
+and localization callbacks. Full `./scripts/agent-verify.sh`: PASS (455 tests;
+Python AST 78; JavaScript syntax 96; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is the remaining
+media/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 output-append lifecycle cluster (2026-09-08): output record append,
+metadata normalization, grid-layout replacement and comparison indexing now
+delegate to `WorkbenchCanvasMediaTools`; page code retains node mutation and
+persistence effects. Full `./scripts/agent-verify.sh`: PASS (456 tests; Python
+AST 78; JavaScript syntax 96; architecture guards 4; diff check clean). R4-39
+remains IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 output-viewed lifecycle cluster (2026-09-08): immutable output
+viewed-state updates now delegate to `WorkbenchCanvasMediaTools`; page code
+retains render/save effects only on change. Full `./scripts/agent-verify.sh`:
+PASS (457 tests; Python AST 78; JavaScript syntax 96; architecture guards 4;
+diff check clean). R4-39 remains IN_PROGRESS; the next bounded slice is the
+remaining media/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 output-compare lifecycle cluster (2026-09-08): comparison URL
+resolution now delegates to `WorkbenchCanvasMediaTools`, centralizing explicit
+string/object mappings and run-reference fallback. Full
+`./scripts/agent-verify.sh`: PASS (458 tests; Python AST 78; JavaScript syntax
+96; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 lightbox-source cluster (2026-09-08): lightbox item collection and
+source priority now delegate to `WorkbenchCanvasMediaTools`; page code retains
+lightbox navigation and rendering effects. Full `./scripts/agent-verify.sh`:
+PASS (459 tests; Python AST 78; JavaScript syntax 96; architecture guards 4;
+diff check clean). R4-39 remains IN_PROGRESS; the next bounded slice is the
+remaining media/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 lightbox-navigation cluster (2026-09-08): current item lookup and
+cyclic direction navigation now delegate to `WorkbenchCanvasMediaTools`; page
+code retains target-node lookup and lightbox rendering. Full
+`./scripts/agent-verify.sh`: PASS (460 tests; Python AST 78; JavaScript syntax
+96; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 group-lightbox index cluster (2026-09-08): group lightbox index
+clamping now delegates to `WorkbenchCanvasMediaTools`; page code retains group
+lookup and lightbox opening. Full `./scripts/agent-verify.sh`: PASS (461 tests;
+Python AST 78; JavaScript syntax 96; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is the remaining
+media/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 lightbox index projection cluster (2026-09-08): group lightbox
+index normalization now uses the shared list-index boundary. Full
+`./scripts/agent-verify.sh`: PASS (461 tests; Python AST 78; JavaScript syntax
+96; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 lightbox visibility cluster (2026-09-08): image vs video lightbox
+visibility projection now delegates to `WorkbenchCanvasMediaTools`; page code
+retains DOM display updates and resource loading. Full
+`./scripts/agent-verify.sh`: PASS (462 tests; Python AST 78; JavaScript syntax
+96; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 56 — prompt-template list cards (2026-09-08): list-card HTML
+now delegates to `WorkbenchCanvasPromptTemplateData.itemCard`; the page retains
+the list container and event wiring. Focused behavior coverage proves selection
+class, escaping, source and category labels. Full `./scripts/agent-verify.sh`:
+PASS (425 tests; Python AST 78; JavaScript syntax 93; architecture guards 4;
+diff check clean). R4-39 remains IN_PROGRESS; the next bounded slice is
+remaining prompt/workflow/media-editing ownership. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 slice 55 — node positions (2026-09-08): position projection now
+delegates to `WorkbenchCanvasNodePresentation.position`; the page retains DOM
+style application. Focused behavior coverage proves numeric coordinates and
+zero fallback. Full `./scripts/agent-verify.sh`: PASS (424 tests; Python AST 78;
+JavaScript syntax 93; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is remaining prompt/workflow/media-editing
+ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 54 — node dimensions (2026-09-08): dimension projection now
+delegates to `WorkbenchCanvasNodePresentation.dimensions`; the page retains DOM
+style application. Focused behavior coverage proves explicit-size and
+default-size paths. Full `./scripts/agent-verify.sh`: PASS (423 tests; Python
+AST 78; JavaScript syntax 93; architecture guards 4; diff check clean). R4-39
+remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 53 — prompt-template preview data (2026-09-08): detail
+preview data now delegates to `WorkbenchCanvasPromptTemplateData.preview`; the
+page retains markup and escaping. Focused behavior coverage proves normalized
+positive, negative and parameter fields. Full `./scripts/agent-verify.sh`: PASS
+(422 tests; Python AST 78; JavaScript syntax 93; architecture guards 4; diff
+check clean). R4-39 remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 52 — fixed node-size policy (2026-09-08): fixed-height
+decision now delegates to `WorkbenchCanvasNodePresentation.isFixedSize`; the
+page retains DOM style application. Focused behavior coverage proves explicit
+and default fixed-height paths. Full `./scripts/agent-verify.sh`: PASS (421
+tests; Python AST 78; JavaScript syntax 93; architecture guards 4; diff check
+clean). R4-39 remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 51 — default node sizes (2026-09-08): node-size mapping now
+delegates to `WorkbenchCanvasNodePresentation.defaultSize`; the page retains
+DOM sizing application. Focused behavior coverage proves image, LLM and
+unknown-type sizes. Full `./scripts/agent-verify.sh`: PASS (420 tests; Python
+AST 78; JavaScript syntax 93; architecture guards 4; diff check clean). R4-39
+remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 50 — media-kind titles (2026-09-08): title mapping now
+delegates to `WorkbenchCanvasNodePresentation.mediaTitle`; the page retains
+media-kind resolution. Focused behavior coverage proves video, audio and image
+fallback labels. Full `./scripts/agent-verify.sh`: PASS (419 tests; Python AST
+78; JavaScript syntax 93; architecture guards 4; diff check clean). R4-39
+remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 49 — node CSS classes (2026-09-08): CSS class projection
+now delegates to `WorkbenchCanvasNodePresentation.className`; the page retains
+DOM creation and attribute assignment. Focused behavior coverage proves type,
+media, size and selection composition. Full `./scripts/agent-verify.sh`: PASS
+(418 tests; Python AST 78; JavaScript syntax 93; architecture guards 4; diff
+check clean). R4-39 remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 48 — media-node title override (2026-09-08): title override
+now delegates to `WorkbenchCanvasNodePresentation.displayTitle`; the page
+retains media-title lookup and markup. Focused behavior coverage proves media,
+non-media and missing-URL paths. Full `./scripts/agent-verify.sh`: PASS (417
+tests; Python AST 78; JavaScript syntax 93; architecture guards 4; diff check
+clean). R4-39 remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 47 — node status markup (2026-09-08): run-status badge HTML
+now delegates to `WorkbenchCanvasNodePresentation.statusMarkup`; the page
+retains only the insertion point. Focused behavior coverage proves escaping,
+status class and cascade suffix. Full `./scripts/agent-verify.sh`: PASS (416
+tests; Python AST 78; JavaScript syntax 93; architecture guards 4; diff check
+clean). R4-39 remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 46 — node status visibility (2026-09-08): run-status badge
+visibility now delegates to `WorkbenchCanvasNodePresentation.shouldShowStatus`;
+the page retains status markup. Focused behavior coverage proves normal, failed
+and cascade-failed states. Full `./scripts/agent-verify.sh`: PASS (415 tests;
+Python AST 78; JavaScript syntax 93; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 45 — node status labels (2026-09-08): run-status label
+projection now delegates to `WorkbenchCanvasNodePresentation.statusLabel`; the
+page retains status markup and visibility policy. Focused behavior coverage
+proves known and unknown status handling. Full `./scripts/agent-verify.sh`:
+PASS (414 tests; Python AST 78; JavaScript syntax 93; architecture guards 4;
+diff check clean). R4-39 remains IN_PROGRESS; the next bounded slice is
+remaining prompt/workflow/media-editing ownership. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 slice 44 — node title projection (2026-09-08): neutral node title
+mapping now delegates to `WorkbenchCanvasNodePresentation`; the page retains
+title markup and media display overrides. Focused behavior coverage proves
+localized and fallback title mapping. Full `./scripts/agent-verify.sh`: PASS
+(413 tests; Python AST 78; JavaScript syntax 93; architecture guards 4; diff
+check clean). R4-39 remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 43 — Grid-split output naming (2026-09-08): Grid-split
+filenames now reuse `WorkbenchCanvasMediaTools.outputFileName`; the page retains
+row/column suffix selection. Full `./scripts/agent-verify.sh`: PASS (412 tests;
+Python AST 78; JavaScript syntax 92; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 42 — media output filenames (2026-09-08): suffix and
+extension composition now delegates to `WorkbenchCanvasMediaTools.outputFileName`;
+the page retains operation-specific suffixes. Focused behavior coverage proves
+crop and custom-extension naming. Full `./scripts/agent-verify.sh`: PASS (412
+tests; Python AST 78; JavaScript syntax 92; architecture guards 4; diff check
+clean). R4-39 remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 41 — media output base names (2026-09-08): base-name
+parsing now delegates to `WorkbenchCanvasMediaTools.baseNameWithoutExtension`;
+the page retains suffix selection and upload effects. Focused behavior coverage
+proves extension removal and fallback naming. Full `./scripts/agent-verify.sh`:
+PASS (411 tests; Python AST 78; JavaScript syntax 92; architecture guards 4;
+diff check clean). R4-39 remains IN_PROGRESS; the next bounded slice is
+remaining prompt/workflow/media-editing ownership. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 slice 40 — prompt-template positive text (2026-09-08): positive
+text normalization now delegates to
+`WorkbenchCanvasPromptTemplateData.positiveText`; the page retains preview
+markup and escaping. Focused behavior coverage proves whitespace trimming and
+empty suppression. Full `./scripts/agent-verify.sh`: PASS (410 tests; Python
+AST 78; JavaScript syntax 92; architecture guards 4; diff check clean). R4-39
+remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 39 — prompt-template negative text (2026-09-08): negative
+text normalization now delegates to
+`WorkbenchCanvasPromptTemplateData.negativeText`; the page retains preview
+markup and escaping. Focused behavior coverage proves whitespace trimming and
+empty suppression. Full `./scripts/agent-verify.sh`: PASS (409 tests; Python
+AST 78; JavaScript syntax 92; architecture guards 4; diff check clean). R4-39
+remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 38 — prompt-template display scene (2026-09-08): display
+scene fallback now delegates to `WorkbenchCanvasPromptTemplateData.displayScene`;
+the page retains preview markup and escaping. Focused behavior coverage proves
+scene preservation and positive-text fallback. Full `./scripts/agent-verify.sh`:
+PASS (408 tests; Python AST 78; JavaScript syntax 92; architecture guards 4;
+diff check clean). R4-39 remains IN_PROGRESS; the next bounded slice is
+remaining prompt/workflow/media-editing ownership. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 slice 37 — outpaint rectangle projection (2026-09-08):
+display-to-natural outpaint rectangle conversion now delegates to
+`WorkbenchCanvasMediaTools.outpaintRectFromDisplay`; the page retains image and
+crop-state lookup. Focused behavior coverage proves offset scaling and minimum
+natural dimensions. Full `./scripts/agent-verify.sh`: PASS (407 tests; Python
+AST 78; JavaScript syntax 92; architecture guards 4; diff check clean). R4-39
+remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 36 — crop rectangle projection (2026-09-08):
+display-to-natural crop rectangle conversion now delegates to
+`WorkbenchCanvasMediaTools.cropRectFromDisplay`; the page retains image and
+crop-state lookup. Focused behavior coverage proves scale, rounding and
+minimum dimensions. Full `./scripts/agent-verify.sh`: PASS (406 tests; Python
+AST 78; JavaScript syntax 92; architecture guards 4; diff check clean). R4-39
+remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 35 — prompt-template detail source labels (2026-09-08):
+detail source label resolution now delegates to
+`WorkbenchCanvasPromptTemplateData.detailSourceLabel`; the page retains
+translation lookup and preview markup. Focused behavior coverage proves
+built-in and user-template detail labels. Full `./scripts/agent-verify.sh`:
+PASS (405 tests; Python AST 78; JavaScript syntax 92; architecture guards 4;
+diff check clean). R4-39 remains IN_PROGRESS; the next bounded slice is
+remaining prompt/workflow/media-editing ownership. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 slice 34 — prompt-template source labels (2026-09-08): source
+label resolution now delegates to `WorkbenchCanvasPromptTemplateData.sourceLabel`;
+the page retains translation lookup and escaping. Focused behavior coverage
+proves built-in and user-template labels. Full `./scripts/agent-verify.sh`:
+PASS (404 tests; Python AST 78; JavaScript syntax 92; architecture guards 4;
+diff check clean). R4-39 remains IN_PROGRESS; the next bounded slice is
+remaining prompt/workflow/media-editing ownership. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 slice 33 — selected prompt-template item (2026-09-08): item
+resolution now delegates to `WorkbenchCanvasPromptTemplateData.selectedItem`;
+the page retains selection id and collection state. Focused behavior coverage
+proves current-id, first-item and empty-list paths. Full
+`./scripts/agent-verify.sh`: PASS (403 tests; Python AST 78; JavaScript syntax
+92; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is remaining prompt/workflow/media-editing ownership. R4-40
+and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 32 — prompt-template parameter summary (2026-09-08):
+parameter summary projection now delegates to
+`WorkbenchCanvasPromptTemplateData.paramsText`; the page retains preview markup
+and escaping. Focused behavior coverage proves ordered multi-parameter and
+empty summaries. Full `./scripts/agent-verify.sh`: PASS (402 tests; Python AST
+78; JavaScript syntax 92; architecture guards 4; diff check clean). R4-39
+remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 31 — prompt-node text projection (2026-09-08): current
+prompt-node text lookup now delegates to
+`WorkbenchCanvasPromptTemplateData.nodeText`; the page retains node collection
+and selected id state. Focused behavior coverage proves prompt-type filtering
+and trimming. Full `./scripts/agent-verify.sh`: PASS (401 tests; Python AST 78;
+JavaScript syntax 92; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is remaining prompt/workflow/media-editing
+ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 30 — prompt-template selection fallback (2026-09-08):
+selected-item fallback now delegates to
+`WorkbenchCanvasPromptTemplateData.selectedId`; the page retains selection state
+assignment. Focused behavior coverage proves retained, missing and empty
+selection handling. Full `./scripts/agent-verify.sh`: PASS (400 tests; Python
+AST 78; JavaScript syntax 92; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 29 — prompt-template category counts (2026-09-08): category
+count aggregation now delegates to
+`WorkbenchCanvasPromptTemplateData.categoryCounts`; the page retains markup and
+translation rendering. Focused behavior coverage proves default-category
+normalization and totals. Full `./scripts/agent-verify.sh`: PASS (399 tests;
+Python AST 78; JavaScript syntax 92; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 28 — PNG Blob boundary (2026-09-08): crop, outpaint, mask,
+brush and Grid-split paths now use the shared
+`WorkbenchCanvasMediaTools.toPngBlob` encoding boundary. Focused behavior
+coverage proves the `image/png` MIME contract. Full `./scripts/agent-verify.sh`:
+PASS (398 tests; Python AST 78; JavaScript syntax 92; architecture guards 4;
+diff check clean). R4-39 remains IN_PROGRESS; the next bounded slice is
+remaining prompt/workflow/media-editing ownership. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 slice 27 — Grid-split Blob projection (2026-09-08): multi-image
+Canvas/Blob generation now delegates to
+`WorkbenchCanvasMediaTools.splitImageBlobs`; the page retains upload naming
+and output-node projection. Focused behavior coverage proves rectangle order,
+metadata and Blob output. Full `./scripts/agent-verify.sh`: PASS (397 tests;
+Python AST 78; JavaScript syntax 92; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 24 — brush layer composition (2026-09-08): image, draw and
+text layer composition now delegates to
+`WorkbenchCanvasMediaTools.composeBrushCanvas`; the page retains upload and
+node mutation effects. Focused behavior coverage proves layer order and output
+dimensions. Full `./scripts/agent-verify.sh`: PASS (394 tests; Python AST 78;
+JavaScript syntax 92; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is remaining prompt/workflow/media-editing
+ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 23 — resized-image Blob projection (2026-09-08): resized
+image canvas generation now delegates to
+`WorkbenchCanvasMediaTools.resizedImageBlob`; the page retains editor lookup
+and dimension selection. Focused behavior coverage proves target dimensions,
+smoothing and Blob output. Full `./scripts/agent-verify.sh`: PASS (393 tests;
+Python AST 78; JavaScript syntax 92; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
 R4-39 Wave 4 slice 7 — connection deletion projection (2026-09-08): link
 deletion now delegates local edge removal to
 `WorkbenchCanvasGraphFragment.removeConnection`; `canvas.js` retains undo,
@@ -180,6 +1381,117 @@ generator-input synchronization, render and save effects. Full
 87; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
 next bounded slice is remaining graph/group mutation ownership. R4-40 and R5+
 remain unauthorized.
+
+R4-39 Wave 5 slice 13 — aspect-ratio crop geometry (2026-09-08): crop-boundary
+geometry now delegates to `WorkbenchCanvasMediaTools.aspectCropToBounds`; the
+page retains pointer handling and crop-state mutation. Full
+`./scripts/agent-verify.sh`: PASS (383 tests; Python AST 78; JavaScript syntax
+90; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is remaining prompt/workflow/media-editing ownership. R4-40
+and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 21 — prompt-template button projection (2026-09-08):
+open-button active state and ARIA projection now delegate to
+`WorkbenchCanvasPromptTemplateInteraction`; the page retains the DOM reference
+and selected node id. Focused behavior coverage proves active/inactive states.
+Full `./scripts/agent-verify.sh`: PASS (391 tests; Python AST 78; JavaScript
+syntax 92; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is remaining prompt/workflow/media-editing
+ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 20 — prompt-template scroll state (2026-09-08): modal
+scroll snapshot and restoration now delegate to
+`WorkbenchCanvasPromptTemplateInteraction`; the page retains the panel
+reference and animation-frame adapter. Focused behavior coverage proves nested
+positions survive rerender. Full `./scripts/agent-verify.sh`: PASS (390 tests;
+Python AST 78; JavaScript syntax 92; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 18 — media pixel detection (2026-09-08): drawn-pixel
+presence detection now delegates to `WorkbenchCanvasMediaTools.canvasHasPixels`;
+the page retains the optional text-layer check. Focused behavior coverage
+proves empty versus painted alpha buffers. Full `./scripts/agent-verify.sh`:
+PASS (388 tests; Python AST 78; JavaScript syntax 92; architecture guards 4;
+diff check clean). R4-39 remains IN_PROGRESS; the next bounded slice is
+remaining prompt/workflow/media-editing ownership. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 slice 19 — outpaint reset projection (2026-09-08): reset-to-bounds
+state mutation now delegates to `WorkbenchCanvasMediaTools.resetOutpaintState`;
+the page retains crop-bound lookup and render effects. Focused behavior
+coverage proves deterministic reset. Full `./scripts/agent-verify.sh`: PASS
+(389 tests; Python AST 78; JavaScript syntax 92; architecture guards 4; diff
+check clean). R4-39 remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 17 — outpaint bounds projection (2026-09-08): outpaint
+crop-state minimum-size and position clamping now delegate to
+`WorkbenchCanvasMediaTools.clampOutpaintState`; the page retains state lookup
+and render effects. Focused behavior coverage proves bounds normalization. Full
+`./scripts/agent-verify.sh`: PASS (387 tests; Python AST 78; JavaScript syntax
+92; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is remaining prompt/workflow/media-editing ownership. R4-40
+and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 16 — media mask projection (2026-09-08): drawn-alpha mask
+conversion now delegates to `WorkbenchCanvasMediaTools.maskFromCanvas`; the
+page retains editor lookup and upload effects. Focused behavior coverage proves
+transparent/painted threshold mapping. Full `./scripts/agent-verify.sh`: PASS
+(386 tests; Python AST 78; JavaScript syntax 92; architecture guards 4; diff
+check clean). R4-39 remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 15 — prompt-template application (2026-09-08): selected
+template text mutation and modal close now delegate to
+`WorkbenchCanvasPromptTemplateApplication`; the page retains lookup and
+post-application save/render effects. Focused behavior coverage proves success
+and missing-input rejection. Full `./scripts/agent-verify.sh`: PASS (385
+tests; Python AST 78; JavaScript syntax 92; architecture guards 4; diff check
+clean). R4-39 remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 14 — prompt-template interaction routing (2026-09-08):
+prompt-template modal search, library, close, apply and selection event routing
+now delegates to `WorkbenchCanvasPromptTemplateInteraction`; the page supplies
+state callbacks and retains modal rendering/state mutation. Focused behavior
+coverage proves query/library normalization and apply dispatch. Full
+`./scripts/agent-verify.sh`: PASS (384 tests; Python AST 78; JavaScript syntax
+91; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is remaining prompt/workflow/media-editing ownership. R4-40
+and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 12 — media collection projections (2026-09-08): output-
+image URL filtering and Group-image item projection now delegate to
+`WorkbenchCanvasMediaTools`; the page supplies media-kind and missing-asset
+policies. Full `./scripts/agent-verify.sh`: PASS (383 tests; Python AST 78;
+JavaScript syntax 90; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is remaining prompt/workflow/media-editing
+ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 11 — media output naming (2026-09-08): extension
+extraction, filename sanitization and Group-image download naming now delegate
+to `WorkbenchCanvasMediaTools`; the page supplies only the optional fallback
+name. Full `./scripts/agent-verify.sh`: PASS (383 tests; Python AST 78;
+JavaScript syntax 90; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is remaining prompt/workflow/media-editing
+ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 10 — media-editor output positioning (2026-09-08):
+image-editor output-node positioning now delegates to
+`WorkbenchCanvasMediaTools.outputPoint`; node lookup/creation and graph effects
+remain page-owned. Full `./scripts/agent-verify.sh`: PASS (383 tests; Python
+AST 78; JavaScript syntax 90; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is remaining
+prompt/workflow/media-editing ownership. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 slice 9 — media-editor apply dispatch (2026-09-08): mode-to-
+action dispatch now delegates to `WorkbenchCanvasMediaEditorState.applyAction`;
+action implementations and media mutations remain compatibility-owned. Full
+`./scripts/agent-verify.sh`: PASS (383 tests; Python AST 78; JavaScript syntax
+90; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is remaining prompt/workflow/media-editing ownership. R4-40
+and R5+ remain unauthorized.
 
 R4-39 Wave 5 slice 8 — media-editor mode rules (2026-09-08): mode
 normalization and presentation mapping now delegate to
@@ -3676,17 +4988,453 @@ listed product-relevant responsibility has an accepted shared replacement or an
 explicit bounded compatibility adapter with focused interaction, browser, rollback,
 and source-reference evidence.
 
+R4-39 Wave 5 crop-box projection cluster (2026-09-08): crop/outpaint box,
+frame, and image-offset projection now delegate to
+`WorkbenchCanvasMediaTools.cropBoxProjection`; `canvas.js` retains DOM style
+application. Focused behavior coverage proves both modes. Full
+`./scripts/agent-verify.sh`: PASS (463 tests; Python AST 78; JavaScript syntax
+96; architecture guards 4; diff check clean). R4-39 remains IN_PROGRESS; the
+next bounded slice is the remaining media/workflow responsibility cluster.
+R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 media-editor mode projection cluster (2026-09-08): normalized mode
+flags, apply visibility, labels, and cleanup signals now delegate to
+`WorkbenchCanvasMediaEditorState.uiProjection`; `canvas.js` retains DOM toggles,
+translation, and media effects. Focused behavior coverage proves preview, grid,
+and outpaint. Full `./scripts/agent-verify.sh`: PASS (464 tests; Python AST 78;
+JavaScript syntax 96; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 media-editor zoom/overflow projection cluster (2026-09-08): scaled
+editor dimensions, zoom label, and stage overflow flags now delegate to
+`WorkbenchCanvasMediaTools`; `canvas.js` retains DOM updates and crop-state
+synchronization. Focused behavior coverage proves scaled and
+overflow/non-overflow cases. Full `./scripts/agent-verify.sh`: PASS (465 tests;
+Python AST 78; JavaScript syntax 96; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is the remaining
+media/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 brush-tool projection cluster (2026-09-08): tool normalization and
+text-mode eligibility now delegate to
+`WorkbenchCanvasMediaEditorState.brushToolProjection`; `canvas.js` retains
+inline-editor cleanup and DOM class updates. Focused behavior coverage proves
+valid, fallback, and non-brush text cases. Full `./scripts/agent-verify.sh`:
+PASS (466 tests; Python AST 78; JavaScript syntax 96; architecture guards 4;
+diff check clean). R4-39 remains IN_PROGRESS; the next bounded slice is the
+remaining media/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 MiniMax active-segment projection cluster (2026-09-08): playhead
+hit selection and selected-segment fallback now delegate to
+`WorkbenchCanvasMediaTools.minimaxActiveSegment`; focused behavior coverage
+passes for time-hit, selected-id fallback, and empty segments. Full
+`./scripts/agent-verify.sh`: PASS (492 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 MiniMax segment-reference projection cluster (2026-09-08):
+segment-local reference precedence, upstream fallback, deduplication, capping,
+and media-kind filtering now delegate to
+`WorkbenchCanvasMediaTools.minimaxSegmentRefs` and
+`minimaxSegmentRefsByKind`; focused behavior coverage passes for local,
+fallback, and kind-filter paths. Full `./scripts/agent-verify.sh`: PASS
+(493 tests; Python AST 78; JavaScript syntax 103; architecture guards 4; diff
+check clean). R4-39 remains IN_PROGRESS; the next bounded slice is the
+remaining media/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 MiniMax segment-result projection cluster (2026-09-08): result
+normalization and unique-prepend behavior now delegate to
+`WorkbenchCanvasMediaTools.minimaxSegmentResult` and
+`minimaxPrependUnique`; focused behavior coverage passes for string/object
+normalization and duplicate suppression. Full
+`./scripts/agent-verify.sh`: PASS (494 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 MiniMax source aggregation projection cluster (2026-09-08):
+ordered source-to-prompt and source-to-reference projection now delegates to
+`WorkbenchCanvasMediaTools.minimaxSourceProjection`; focused behavior
+coverage passes for prompt joining, empty-source filtering, and reference
+collection. Full `./scripts/agent-verify.sh`: PASS (495 tests; Python AST
+78; JavaScript syntax 103; architecture guards 4; diff check clean). R4-39
+remains IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 MiniMax segment-timing projection cluster (2026-09-08):
+start/duration clamping, sequential start enforcement, and trim boundary
+normalization now delegate to
+`WorkbenchCanvasMediaTools.minimaxSegmentTiming`; focused behavior coverage
+passes for default, clamped, and sequential timing cases. Full
+`./scripts/agent-verify.sh`: PASS (496 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 MiniMax segment-visual projection cluster (2026-09-08):
+aspect-ratio and megapixel fallback/normalization now delegate to
+`WorkbenchCanvasMediaTools.minimaxSegmentVisuals`; focused behavior coverage
+passes for normalized explicit values and node-level fallbacks. Full
+`./scripts/agent-verify.sh`: PASS (497 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 MiniMax reference-migration projection cluster (2026-09-08):
+legacy array/refItems/type-bucket merging, normalization, deduplication, and
+capacity limiting now delegate to
+`WorkbenchCanvasMediaTools.minimaxReferenceMigration`; focused behavior
+coverage preserves legacy merge order and cap behavior. Full
+`./scripts/agent-verify.sh`: PASS (498 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 MiniMax output-collection projection cluster (2026-09-08):
+current-result type completion and valid-URL filtering for segment
+results/materials now delegate to
+`WorkbenchCanvasMediaTools.minimaxOutputProjection`; focused behavior
+coverage passes for current-result normalization and invalid-item filtering.
+Full `./scripts/agent-verify.sh`: PASS (499 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 MiniMax node-config projection cluster (2026-09-08): workflow,
+RunningHub workflow, payment mode, aspect-ratio, and megapixel default
+normalization now delegate to
+`WorkbenchCanvasMediaTools.minimaxNodeConfig`; focused behavior coverage
+passes for defaults and explicit overrides. Full
+`./scripts/agent-verify.sh`: PASS (500 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 MiniMax segment-list projection cluster (2026-09-08): empty list
+initialization, default segment timing fields, and missing-ID generation now
+delegate to `WorkbenchCanvasMediaTools.minimaxSegmentList`; focused behavior
+coverage passes for generated defaults and existing-list preservation. Full
+`./scripts/agent-verify.sh`: PASS (501 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 MiniMax selection-duration projection cluster (2026-09-08):
+selected-segment fallback and timeline duration aggregation now delegate to
+`WorkbenchCanvasMediaTools.minimaxSelectionProjection`; focused behavior
+coverage passes for valid selection, missing-selection fallback, and duration
+floor behavior. Full `./scripts/agent-verify.sh`: PASS (502 tests; Python
+AST 78; JavaScript syntax 103; architecture guards 4; diff check clean).
+R4-39 remains IN_PROGRESS; the next bounded slice is the remaining
+media/workflow responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 Loop upstream-prompt projection cluster (2026-09-08): prompt,
+promptGroup, loop, and LLM upstream text collection with trimming and cycle
+protection now delegates to
+`WorkbenchCanvasLoopInputProjection.promptItems`; focused behavior coverage
+passes for all upstream source types. Full `./scripts/agent-verify.sh`: PASS
+(503 tests; Python AST 78; JavaScript syntax 103; architecture guards 4; diff
+check clean). R4-39 remains IN_PROGRESS; the next bounded slice is the
+remaining media/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 Loop connected-media batch projection cluster (2026-09-08):
+enabled-state checking, connection traversal, URL filtering, and image/video
+batch projection now delegate to
+`WorkbenchCanvasLoopInputProjection.connectedBatch`; focused behavior
+coverage passes for enabled and disabled paths. Full
+`./scripts/agent-verify.sh`: PASS (504 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 MiniMax download projection cluster (2026-09-08): valid URL
+checks and safe download-name projection now delegate to
+`WorkbenchCanvasMediaTools.minimaxDownloadProjection`; focused behavior
+coverage passes for valid and empty URL paths. Full
+`./scripts/agent-verify.sh`: PASS (505 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 Loop output-media reference projection cluster (2026-09-08):
+output-item type filtering, URL/name projection, fallback naming, and
+output-index metadata now delegate to
+`WorkbenchCanvasLoopInputProjection.outputMediaRefs`; focused behavior
+coverage passes for image/video mappings and legacy index semantics. Full
+`./scripts/agent-verify.sh`: PASS (506 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 Loop node-media reference projection cluster (2026-09-08):
+image/group/output/generated-node reference projection now delegates to
+`WorkbenchCanvasLoopInputProjection.nodeMediaRefs`; focused behavior
+coverage passes for group media mapping and generated/output paths. Full
+`./scripts/agent-verify.sh`: PASS (507 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded slice is the remaining media/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 MiniMax timeline-interaction batch (2026-09-09): playhead
+clamping, active-segment hit testing, and selection-change detection now
+delegate to `WorkbenchCanvasMediaTools.minimaxTimelineInteraction`; focused
+behavior coverage passes for timeline hit and selection transition. Full
+`./scripts/agent-verify.sh`: PASS (508 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded batch is the remaining Loop/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 Loop configuration batch (2026-09-09): count, start index,
+batch-size, mode, and input-toggle normalization now delegate to
+`WorkbenchCanvasLoopInputProjection.config`; focused behavior coverage
+passes for bounded defaults and mode/toggle preservation. Full
+`./scripts/agent-verify.sh`: PASS (509 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded batch continues the remaining Loop/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 Loop prompt-context batch (2026-09-09): variable text, count,
+current index, and total-round normalization now delegate to
+`WorkbenchCanvasLoopPromptRenderer.contextProjection`; focused behavior
+coverage passes for trimming and bounded context defaults. Full
+`./scripts/agent-verify.sh`: PASS (510 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded batch continues the remaining Loop/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 Loop editor-text batch (2026-09-09): token-chip, line-break,
+text-node, and non-breaking-space projection now delegates to
+`WorkbenchCanvasLoopPromptRenderer.editorText`; focused behavior coverage
+passes for editor-text parity. Full `./scripts/agent-verify.sh`: PASS (511
+tests; Python AST 78; JavaScript syntax 103; architecture guards 4; diff
+check clean). R4-39 remains IN_PROGRESS; the next bounded batch continues
+the remaining Loop/workflow responsibility cluster. R4-40 and R5+ remain
+unauthorized.
+
+R4-39 Wave 5 Loop input-summary batch (2026-09-09): image/prompt counts and
+upstream-prompt presence now delegate to
+`WorkbenchCanvasLoopInputProjection.summary`; focused behavior coverage
+passes for positive and empty summaries. Full
+`./scripts/agent-verify.sh`: PASS (512 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded batch continues the remaining Loop/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 RunningHub field-projection batch (2026-09-09): field text
+indexing, pattern matching, aspect labels, option matching, and parameter
+assignment now delegate to
+`WorkbenchCanvasRunningHubFieldRenderer`; focused behavior coverage passes
+for matching, aspect conversion, and parameter writes. Full
+`./scripts/agent-verify.sh`: PASS (513 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded batch continues the remaining Loop/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 RunningHub diagnostics batch (2026-09-09): compact JSON and
+detailed-error construction now delegate to
+`WorkbenchCanvasRunningHubFieldRenderer`; focused behavior coverage passes
+for truncation and detail preservation. Full
+`./scripts/agent-verify.sh`: PASS (514 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded batch continues the remaining Loop/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 RunningHub readable-error batch (2026-09-09): structured
+ComfyUI/RunningHub error parsing and user-facing message projection now
+delegate to `WorkbenchCanvasRunningHubFieldRenderer.readableError`; focused
+behavior coverage passes for provider prefixes and node details. Full
+`./scripts/agent-verify.sh`: PASS (515 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded batch continues the remaining Loop/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 RunningHub payload-error batch (2026-09-09): detail/raw/code/
+taskId extraction and message assembly now delegate to
+`WorkbenchCanvasRunningHubFieldRenderer.payloadError`; focused behavior
+coverage passes for detail preservation and metadata extraction. Full
+`./scripts/agent-verify.sh`: PASS (516 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded batch continues the remaining Loop/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 RunningHub log-detail batch (2026-09-09): task/code/stage/
+workflow/raw detail-line assembly now delegates to
+`WorkbenchCanvasRunningHubFieldRenderer.logErrorText`; focused behavior
+coverage passes for detail ordering and compact raw output. Full
+`./scripts/agent-verify.sh`: PASS (517 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded batch continues the remaining Loop/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
+R4-39 Wave 5 RunningHub entry-selection batch (2026-09-09): title, current-ID,
+and default-ID fallback selection now delegates to
+`WorkbenchCanvasRunningHubFieldRenderer.selectEntry`; focused behavior
+coverage passes for title priority and ID fallbacks. Full
+`./scripts/agent-verify.sh`: PASS (518 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean). R4-39 remains
+IN_PROGRESS; the next bounded batch continues the remaining Loop/workflow
+responsibility cluster. R4-40 and R5+ remain unauthorized.
+
 ## Blockers
 
 No external blocker. Source backup/validation, SQLite authority activation, default
 canonical routing, isolated Classic/Smart browser reads and browser creation,
 restart/stale-conflict/rollback verification, workflow archive round-trip, and the
-deterministic benchmark are complete. R4 remains incomplete only at U7: duplicate
-Classic/Smart runtime and page removal, followed by UI migration-flag retirement.
+deterministic benchmark and duplicate Classic/Smart runtime removal are complete.
+R4 remains incomplete only at the separately authorized UI migration-flag
+retirement work; R4-40 has not been activated.
 
 ## Exactly one next authorized Round
 
 No next Round is authorized while R4 is active.
+
+R4-39 Wave 5 media-input and field-value verification (2026-09-09): required/
+optional RunningHub media presence and page-side field-value precedence now
+delegate to `WorkbenchCanvasRunningHubFieldRenderer`; focused behavior coverage
+passes for required/optional/present media and disabled-upstream precedence.
+Full `./scripts/agent-verify.sh`: PASS (544 tests; Python AST 78; JavaScript
+syntax 103; architecture guards 4; diff check clean).
+
+R4-39 Wave 5 Comfy field-projection batch (2026-09-09): field-kind
+classification, workflow field filtering, parameter/default precedence, random
+enablement/active state, and bounded random-value policy now belong to
+`WorkbenchCanvasComfyFieldRenderer`; the page retains node mutation, event
+handling, and side effects. Focused behavior coverage passes; full verification
+now passes at 545 tests, 78 Python AST files, 103 JavaScript files, 4
+architecture guards, and clean diff check.
+
+R4-39 Wave 5 LLM pane-state batch (2026-09-09): connected-input read-only
+projection, manual-input fallback, and bounded input/output pane dimensions now
+belong to `WorkbenchCanvasLlmPaneRenderer`; the page retains DOM event wiring,
+copy/run actions, and persistence side effects. Focused behavior coverage and
+full verification pass at 546 tests, 78 Python AST files, 103 JavaScript files,
+4 architecture guards, and clean diff check.
+
+R4-39 Wave 5 LLM chat-state batch (2026-09-09): message-list normalization,
+chat-input normalization, running state, and send-label selection now belong to
+`WorkbenchCanvasLlmPaneRenderer`; the page retains chat DOM event wiring and
+run/copy side effects. Focused behavior coverage and full verification pass at
+547 tests, 78 Python AST files, 103 JavaScript files, 4 architecture guards,
+and clean diff check.
+
+R4-39 Wave 5 RunningHub media-input-list batch (2026-09-09): reference-list
+normalization and empty-state classification now belong to
+`WorkbenchCanvasMediaInputRenderer`; the page retains preview construction,
+DOM insertion, and provider-specific labels. Focused behavior coverage and full
+verification pass at 548 tests, 78 Python AST files, 103 JavaScript files, 4
+architecture guards, and clean diff check.
+
+R4-39 Wave 5 shared media-input-list wiring (2026-09-09): generic image-input
+rendering and RunningHub input rendering now share the same neutral list-state
+projection; page-specific preview and drag/event effects remain local. Wiring
+coverage passes, with full verification at 549 tests, 78 Python AST files, 103
+JavaScript files, 4 architecture guards, and clean diff check.
+
+R4-39 Wave 5 RunningHub prompt-field projection batch (2026-09-09): prompt
+field filtering, key/label derivation, and value projection now belong to
+`WorkbenchCanvasRunningHubFieldRenderer`; the page retains markup insertion,
+control binding, and save/render side effects. Focused behavior coverage and
+full verification pass at 550 tests, 78 Python AST files, 103 JavaScript files,
+4 architecture guards, and clean diff check.
+
+R4-39 Wave 5 RunningHub setting-field projection batch (2026-09-09): boolean,
+slider, option, and random-number descriptor normalization now belong to
+`WorkbenchCanvasRunningHubFieldRenderer`; the page retains final markup calls,
+control binding, and side effects. Focused behavior coverage and full
+verification pass at 551 tests, 78 Python AST files, 103 JavaScript files, 4
+architecture guards, and clean diff check.
+
+R4-39 Wave 5 prompt-preview input-state batch (2026-09-09): prompt preview
+input filtering and empty-state classification now belong to
+`WorkbenchCanvasPromptTemplateRenderer`; the page retains container updates and
+markup insertion. Focused behavior coverage and full verification pass at 552
+tests, 78 Python AST files, 103 JavaScript files, 4 architecture guards, and
+clean diff check.
+
+R4-39 Wave 5 shared media-input-list wiring completion (2026-09-09): generic,
+Comfy, and RunningHub media-input paths now share the neutral list-state
+projection; provider-specific preview, labels, drag handling, and DOM effects
+remain local. Existing wiring coverage and full verification remain PASS at 552
+tests, 78 Python AST files, 103 JavaScript files, 4 architecture guards, and
+clean diff check.
+
+R4-39 Wave 5 Loop body-state batch (2026-09-09): loop image/prompt visibility,
+input count, prompt count, and upstream-prompt classification now belong to
+`WorkbenchCanvasLoopLayoutProjection`; the page retains cascade markup, DOM
+updates, and interaction effects. Focused behavior coverage and full
+verification pass at 553 tests, 78 Python AST files, 103 JavaScript files, 4
+architecture guards, and clean diff check.
+
+R4-39 Wave 5 Loop cascade-run-state batch (2026-09-09): cascade target
+presence, active/stopping state, order length, and bounded round count now
+belong to `WorkbenchCanvasLoopLayoutProjection`; the page retains cascade
+button markup and event effects. Focused behavior coverage and full
+verification pass at 554 tests, 78 Python AST files, 103 JavaScript files, 4
+architecture guards, and clean diff check.
+
+R4-39 Wave 5 Comfy random-toggle transition batch (2026-09-09): the neutral
+Comfy field renderer now owns the random-active state transition calculation;
+the page retains node assignment, refresh, and save effects. Focused behavior
+coverage and full verification pass at 555 tests, 78 Python AST files, 103
+JavaScript files, 4 architecture guards, and clean diff check.
+
+R4-39 Wave 5 RunningHub random-toggle transition batch (2026-09-09): the
+neutral RunningHub field renderer now owns random-active state transition
+calculation; the page retains node assignment, refresh, and save effects.
+Focused behavior coverage and full verification pass at 556 tests, 78 Python
+AST files, 103 JavaScript files, 4 architecture guards, and clean diff check.
+
+R4-39 Wave 5 RunningHub entry-options batch (2026-09-09): model/app/workflow
+option-group markup and empty-provider fallback now belong to
+`WorkbenchCanvasRunningHubFieldRenderer`; the page retains provider entry
+loading and selection effects. Focused behavior coverage and full verification
+pass at 557 tests, 78 Python AST files, 103 JavaScript files, 4 architecture
+guards, and clean diff check.
+
+R4-39 Wave 5 RunningHub payment-options batch (2026-09-09): free-key/wallet-key
+ option markup and missing-capability labels now belong to
+ `WorkbenchCanvasRunningHubFieldRenderer`; the page retains provider capability
+ reads and selection effects. Focused behavior coverage and full verification
+ pass at 558 tests, 78 Python AST files, 103 JavaScript files, 4 architecture
+guards, and clean diff check.
+
+R4-39 Wave 5 Comfy workflow-name selection batch (2026-09-09): requested-name
+validation and first-available fallback now belong to
+`WorkbenchCanvasComfyFieldRenderer`; the page retains workflow cache access and
+async loading. Focused behavior coverage and full verification pass at 559
+tests, 78 Python AST files, 103 JavaScript files, 4 architecture guards, and
+clean diff check.
+
+R4-39 Wave 5 Comfy workflow-presence batch (2026-09-09): workflow existence
+ checks now belong to `WorkbenchCanvasComfyFieldRenderer`; the page retains
+ workflow registry access. Focused behavior coverage and full verification pass
+ at 560 tests, 78 Python AST files, 103 JavaScript files, 4 architecture guards,
+ and clean diff check.
+
+R4-39 Wave 5 Comfy workflow-load batch (2026-09-09): valid-name resolution,
+cache hits, failed-load cleanup, and JSON response projection now belong to
+`WorkbenchCanvasComfyFieldRenderer`; the page retains the network entry point.
+Focused behavior coverage and full verification pass at 561 tests, 78 Python
+AST files, 103 JavaScript files, 4 architecture guards, and clean diff check.
+
+R4-39 Wave 5 RunningHub workflow-load batch (2026-09-09): workflow ID
+normalization, cache hits, failed-load cleanup, and response.workflow projection
+now belong to `WorkbenchCanvasRunningHubFieldRenderer`; the page retains the
+network entry point. Focused behavior coverage and full verification pass at
+562 tests, 78 Python AST files, 103 JavaScript files, 4 architecture guards,
+and clean diff check.
+
+R4-39 Wave 6 browser acceptance recheck (2026-09-09, isolated local service at
+`127.0.0.1:3045`): the default canonical Canvas URL rendered the persisted
+two-node fixture after a cache-busting reload with no new browser errors; the
+all-zero rollback URL rendered the same Canvas title and both node cards with
+no new browser errors. This is evidence for the current execution-host wiring,
+not deletion evidence: `static/js/canvas.js` still exists, so R4-39 remains
+IN_PROGRESS and the U7 deletion gate is open.
 
 ## Forbidden next actions
 
@@ -3699,3 +5447,540 @@ Canvas adapter/page removal. U7 may remove a duplicate only after its replacemen
 has focused interaction, browser, rollback, and source-reference acceptance. Do not
 add new Workbench business responsibility to `main.py`,
 `static/js/canvas.js`, or `static/js/smart-canvas.js`.
+
+R4-39 Wave 6 Classic LLM chat lifecycle batch (2026-09-09): chat message
+append, input clearing, running-state transitions, output projection, render,
+save, and error notification now delegate through the neutral Classic chat
+execution-host contract; the runtime retains only input/history reads and the
+LLM call. Focused behavior coverage and full verification pass at 564 tests,
+78 Python AST files, 103 JavaScript files, 4 architecture guards, and clean
+diff check. This is replacement evidence, not deletion evidence: the Classic
+page/runtime still exists and R4-39 remains IN_PROGRESS.
+
+R4-39 Wave 6 MiniMax execution lifecycle batch (2026-09-09): running-state,
+success/failure status, render, and save transitions now delegate through the
+Classic execution-host contract; MiniMax request/output composition remains in
+the runtime. Focused behavior coverage and full verification pass at 565
+tests, 78 Python AST files, 103 JavaScript files, 4 architecture guards, and
+clean diff check. The Classic runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 6 RunningHub model execution lifecycle batch (2026-09-09):
+running-state, success/failure status, render, and save transitions now
+delegate through the Classic execution-host contract; RunningHub request,
+pending-task, polling, and output composition remain in the runtime. Focused
+behavior coverage and full verification pass at 567 tests, 78 Python AST files,
+103 JavaScript files, 4 architecture guards, and clean diff check. The Classic
+runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 browser acceptance route audit (2026-09-09): the service canonical entry
+is `/` and embeds `/static/canvas-list.html`; `/canvas.html` is not a registered
+HTTP route and returns 404. The prior browser acceptance note using
+`/canvas.html` is therefore stale and cannot be reused as current evidence.
+Re-run acceptance against the canonical root/iframe route before the U7
+deletion gate is evaluated.
+
+R4-39 canonical browser acceptance recheck (2026-09-09, isolated
+`127.0.0.1:3045`): PASS — the root entry loaded the Canvas manager iframe;
+opening record `c29d2daf364a4c7fa5b5632f60e9903d` rendered the title and two
+nodes. The canonical static Canvas URL with all six explicit zero flags also
+rendered the same title and both node cards. No save, create, execute, or
+delete action was performed. This refreshes browser evidence for the current
+worktree, while `static/js/canvas.js` remains and the U7 deletion gate stays
+open.
+
+R4-39 Wave 6 source-reference audit (2026-09-09): execution entry points in
+`canvas.js` are compatibility wrappers that call
+`ensureClassicExecutorRuntime()`; the concrete generator implementations stay
+inside `classic-executor-runtime.js`, and no direct execution-state writes
+remain there. Classic cascade orchestration is still the bounded compatibility
+adapter, so deletion evidence is not yet complete.
+
+R4-39 Wave 6 execution-host ownership guard (2026-09-09): the Classic
+executor runtime now contains no direct `running`, `runStatus`, or `runError`
+assignments for node/generator execution state; focused source guard and full
+verification pass at 580 tests, 78 Python AST files, 103 JavaScript files, 4
+architecture guards, and clean diff check. This proves runtime ownership
+removal for the migrated execution paths, not Classic runtime deletion; R4-39
+remains IN_PROGRESS.
+
+R4-39 Wave 6 recovered pending-output completion batch (2026-09-09):
+recovered task success status, running-state reset, render, and save now
+delegate through the Classic execution-host contract; recovery query and
+result/output composition remain in the page/runtime. Focused behavior
+coverage and full verification pass at 579 tests, 78 Python AST files, 103
+JavaScript files, 4 architecture guards, and clean diff check. The Classic
+runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 6 shared image-task completion lifecycle batch (2026-09-09):
+successful pending-task completion, status finalization, running-state reset,
+render, and save now delegate through the Classic execution-host contract;
+result normalization and output/log composition remain in the page/runtime.
+Focused behavior coverage and full verification pass at 578 tests, 78 Python
+AST files, 103 JavaScript files, 4 architecture guards, and clean diff check.
+The Classic runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 6 shared image-task failure lifecycle batch (2026-09-09): pending
+task recovery/failure status, running-state reset, render, and save now
+delegate through the Classic execution-host contract; task lookup, recovery
+metadata, and generation-log composition remain in the runtime. Focused
+behavior coverage and full verification pass at 577 tests, 78 Python AST files,
+103 JavaScript files, 4 architecture guards, and clean diff check. The Classic
+runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 6 Midjourney action/inpaint lifecycle batch (2026-09-09): action
+and modal start, running-state, success/failure status, render, and save
+transitions now delegate through the Classic execution-host contract;
+Midjourney action submission, polling, and output composition remain in the
+runtime. Focused behavior coverage and full verification pass at 576 tests,
+78 Python AST files, 103 JavaScript files, 4 architecture guards, and clean
+diff check. The Classic runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 6 RunningHub workflow/application execution lifecycle batch
+(2026-09-09): running-state, success/failure status, render, and save
+transitions now delegate through the Classic execution-host contract;
+RunningHub submission, polling, and output composition remain in the runtime.
+Focused behavior coverage and full verification pass at 574 tests, 78 Python
+AST files, 103 JavaScript files, 4 architecture guards, and clean diff check.
+The Classic runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 6 LTX Director execution lifecycle batch (2026-09-09): running,
+success/failure status, render, and save transitions now delegate through the
+Classic execution-host contract; timeline preparation, Comfy request, and
+output composition remain in the runtime. Focused behavior coverage and full
+verification pass at 573 tests, 78 Python AST files, 103 JavaScript files, 4
+architecture guards, and clean diff check. The Classic runtime remains, so
+R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 6 cascade cleanup ownership batch (2026-09-09): cascade node-state
+cleanup now delegates status/error clearing through the execution-status seam;
+the cascade adapter no longer directly owns that cleanup write. Full
+verification passes at 588 tests, 78 Python AST files, 103 JavaScript files, 4
+architecture guards, and clean diff check. Classic runtime deletion remains
+outstanding.
+
+R4-39 Wave 6 entry-chain cache-bust browser recheck (2026-09-09):
+`index.html` -> `canvas-list.html` -> `canvas-list.js` -> `canvas.html` now
+propagates fresh versions; isolated browser logs confirmed
+`classic-execution-host.js?v=2026.09.09.2` was fetched and the two-node Canvas
+rendered successfully. Full verification passes at 586 tests. Classic runtime
+deletion remains outstanding.
+
+R4-39 Wave 6 Cascade main-pass status batch (2026-09-09): queued, running,
+success, and failure transitions in the main Cascade pass now delegate through
+the execution-status seam. Focused coverage and full verification pass at 589
+tests, 78 Python AST files, 103 JavaScript files, 4 architecture guards, and
+clean diff check. Classic runtime deletion remains outstanding.
+
+R4-39 Wave 6 execution-adapter cache-bust batch (2026-09-09):
+`canvas.html` now references `classic-execution-host.js?v=2026.09.09.2` after
+fallback removal, preventing stale browser code from masking neutral
+delegation. Focused coverage and full verification pass at 585 tests, 78
+Python AST files, 103 JavaScript files, 4 architecture guards, and clean diff
+check.
+
+R4-39 Wave 6 Classic execution-adapter deduplication (2026-09-09):
+`classic-execution-host.js` no longer contains a duplicate fallback
+implementation; it now requires and delegates to the neutral execution host,
+matching the canonical HTML load order. Full verification passes after updating
+the contract test to load both modules; Classic runtime deletion remains
+outstanding.
+
+R4-39 Wave 6 RunningHub config-status cleanup batch (2026-09-09): app and
+workflow configuration refreshes now clear execution status through the
+Classic execution-host contract instead of direct page writes. Focused source
+coverage and full verification pass at 583 tests, 78 Python AST files, 103
+JavaScript files, 4 architecture guards, and clean diff check. Classic runtime
+deletion remains outstanding.
+
+R4-39 Wave 6 execution-state confinement guard (2026-09-09): remaining
+`running/runStatus/runError` writes in `canvas.js` are confined to execution-host
+callback implementations; no page/runtime path writes those fields directly.
+Focused source coverage and full verification pass at 584 tests, 78 Python AST
+files, 103 JavaScript files, 4 architecture guards, and clean diff check.
+
+R4-39 Wave 6 transient run-state reset batch (2026-09-09): Canvas load/reconnect
+cleanup now delegates running/status/error reset through the Classic
+execution-host contract instead of writing node execution fields directly.
+Focused source coverage and full verification pass at 582 tests, 78 Python AST
+files, 103 JavaScript files, 4 architecture guards, and clean diff check.
+Classic runtime deletion remains outstanding.
+
+R4-39 Wave 6 stuck-generator cleanup batch (2026-09-09): stale running-state
+reset now delegates through the Classic execution-host contract instead of
+writing `node.running` directly. Focused source coverage and full verification
+pass at 581 tests, 78 Python AST files, 103 JavaScript files, 4 architecture
+guards, and clean diff check. Classic runtime deletion remains outstanding.
+
+R4-39 Wave 6 Comfy execution lifecycle batch (2026-09-09): running-state,
+success/failure status, render, and save transitions now delegate through the
+Classic execution-host contract; Comfy request/workflow/output composition
+remains in the runtime. Focused behavior coverage and full verification pass at
+566 tests, 78 Python AST files, 103 JavaScript files, 4 architecture guards,
+and clean diff check. The Classic runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 6 generic generator execution lifecycle batch (2026-09-09):
+running-state, success/failure status, render, and save transitions now
+delegate through the Classic execution-host contract; provider request,
+pending-task, polling, and output composition remain in the runtime. Focused
+behavior coverage and full verification pass at 568 tests, 78 Python AST
+files, 103 JavaScript files, 4 architecture guards, and clean diff check. The
+Classic runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 6 legacy generator execution lifecycle batch (2026-09-09):
+running-state, success/failure status, render, and save transitions now
+delegate through the Classic execution-host contract; the legacy online-image
+request and output composition remain in the runtime. Focused behavior coverage
+and full verification pass at 569 tests, 78 Python AST files, 103 JavaScript
+files, 4 architecture guards, and clean diff check. The Classic runtime
+remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 6 Midjourney execution lifecycle batch (2026-09-09): start,
+success-completion, failure, running-state, render, and save transitions now
+delegate through the Classic execution-host contract; Midjourney request,
+polling, and output composition remain in the runtime. Focused behavior
+coverage and full verification pass at 571 tests, 78 Python AST files, 103
+JavaScript files, 4 architecture guards, and clean diff check. The Classic
+runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 6 video execution lifecycle batch (2026-09-09): running-state,
+success/failure status, render, and save transitions now delegate through the
+Classic execution-host contract; video request, media normalization, and
+output composition remain in the runtime. Focused behavior coverage and full
+verification pass at 572 tests, 78 Python AST files, 103 JavaScript files, 4
+architecture guards, and clean diff check. The Classic runtime remains, so
+R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 cascade loop lifecycle batch (2026-09-09): parallel and serial
+loop rounds now route queued/running/done/failed/cleanup state transitions
+through the cascade execution-status seam; loop scheduling and node execution
+remain in the bounded compatibility adapter. Focused behavior coverage and
+full verification pass at 589 tests, 78 Python AST files, 103 JavaScript
+files, 4 architecture guards, and clean diff check. The Classic runtime
+remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 media-kind node projection batch (2026-09-09): node media-kind
+classification now delegates explicit-kind and URL fallback resolution to
+the neutral `WorkbenchCanvasMediaKind` owner, including Classic FLV behavior;
+editor-specific URL normalization remains at the adapter seam. Focused node
+explicit/fallback coverage and full verification pass at 589 tests, 78 Python
+AST files, 103 JavaScript files, 4 architecture guards, and clean diff check.
+ The Classic runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 media-reference projection batch (2026-09-09): image, group,
+output, and generated-media reference assembly now delegates to neutral
+`WorkbenchCanvasMediaTools.mediaRefsFromNode`; node lookup, media-kind policy,
+and generated-output discovery remain explicit adapter callbacks. Focused
+reference-shape coverage and full verification pass at 590 tests, 78 Python AST
+files, 103 JavaScript files, 4 architecture guards, and clean diff check. The
+Classic runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 latest-output reference batch (2026-09-09): generator input
+ projection now delegates newest non-empty output selection and reference-shape
+ construction to neutral `WorkbenchCanvasMediaTools.latestOutputReference`;
+ page-level classification remains an explicit callback. Focused newest/empty
+ coverage and full verification pass at 591 tests, 78 Python AST files, 103
+ JavaScript files, 4 architecture guards, and clean diff check. The Classic
+ runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 generated-media source projection batch (2026-09-09): generator
+ input projection now delegates generated-reference source wrapping to neutral
+ `WorkbenchCanvasMediaTools.generatedMediaSources`; generated-reference
+ discovery remains an adapter callback. Focused ordering/empty coverage and
+ full verification pass at 592 tests, 78 Python AST files, 103 JavaScript
+ files, 4 architecture guards, and clean diff check. The Classic runtime
+ remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 image-source projection batch (2026-09-09): generator input
+ projection now delegates single-image upstream source construction to neutral
+ `WorkbenchCanvasMediaTools.imageMediaSource`; page-level media-kind
+ classification remains a callback. Focused source/empty coverage and full
+ verification pass at 593 tests, 78 Python AST files, 103 JavaScript files, 4
+ architecture guards, and clean diff check. The Classic runtime remains, so
+ R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 group-source projection batch (2026-09-09): generator input
+ projection now delegates group image-member and prompt-summary source
+ construction to neutral `WorkbenchCanvasMediaTools.groupMediaSources`; node
+ lookup and media-kind policy remain adapter callbacks. Focused member/order/
+ prompt coverage and full verification pass at 594 tests, 78 Python AST files,
+ 103 JavaScript files, 4 architecture guards, and clean diff check. The
+ Classic runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 prompt-source projection batch (2026-09-09): generator input
+ projection now delegates single-prompt upstream source construction to neutral
+ `WorkbenchCanvasMediaTools.promptMediaSource`; prompt text remains unchanged
+ and execution stays in the adapter. Focused label/text/empty coverage and full
+ verification pass at 595 tests, 78 Python AST files, 103 JavaScript files, 4
+ architecture guards, and clean diff check. The Classic runtime remains, so
+ R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 prompt-group source projection batch (2026-09-09): generator
+ input projection now delegates promptGroup member filtering and text-summary
+ construction to neutral `WorkbenchCanvasMediaTools.promptGroupMediaSource`;
+ node lookup remains an adapter callback. Focused member/count/empty coverage
+ and full verification pass at 596 tests, 78 Python AST files, 103 JavaScript
+ files, 4 architecture guards, and clean diff check. The Classic runtime
+ remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 LLM source projection batch (2026-09-09): generator input
+ projection now delegates node-mode LLM output-text source construction to
+ neutral `WorkbenchCanvasMediaTools.llmMediaSource`; chat-mode nodes and empty
+ outputs remain excluded. Focused mode/text/empty coverage and full
+ verification pass at 597 tests, 78 Python AST files, 103 JavaScript files, 4
+ architecture guards, and clean diff check. The Classic runtime remains, so
+ R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 loop fallback source projection batch (2026-09-09): generator
+ input projection now delegates no-image loop fallback source construction to
+ neutral `WorkbenchCanvasMediaTools.loopFallbackSource`; loop context and
+ image-batch projection remain in the adapter. Focused label/prompt/empty
+ coverage and full verification pass at 598 tests, 78 Python AST files, 103
+ JavaScript files, 4 architecture guards, and clean diff check. The Classic
+ runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 loop-image source projection batch (2026-09-09): generator input
+ projection now delegates loop image-reference source list construction to
+ neutral `WorkbenchCanvasMediaTools.loopImageMediaSources`; loop context,
+ reference discovery, and localized labels remain explicit adapter inputs.
+ Focused index/order/prompt coverage and full verification pass at 599 tests,
+ 78 Python AST files, 103 JavaScript files, 4 architecture guards, and clean
+ diff check. The Classic runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 ordered-input projection batch (2026-09-09): generator input
+ reconciliation now delegates stale-id removal, existing-order retention, and
+ new-source append behavior to neutral `WorkbenchCanvasMediaTools.orderedInputSources`;
+ the adapter retains the mutation call boundary. Focused order/reconciliation
+ coverage and full verification pass at 600 tests, 78 Python AST files, 103
+ JavaScript files, 4 architecture guards, and clean diff check. The Classic
+ runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 input-reorder projection batch (2026-09-09): media input reorder
+ now delegates pure media-before-prompt ordering and invalid-target rejection
+ to neutral `WorkbenchCanvasMediaTools.reorderInputIds`; page-level render and
+ save effects remain local. Focused reorder/invalid coverage and full
+ verification pass at 601 tests, 78 Python AST files, 103 JavaScript files, 4
+ architecture guards, and clean diff check. The Classic runtime remains, so
+ R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 image-input projection batch (2026-09-09): generator view input
+ projection now delegates reference normalization/filtering to neutral
+ `WorkbenchCanvasMediaTools.imageInputSources`; renderer selection and page
+ effects remain local. Focused filtering/empty coverage and full verification
+ pass at 602 tests, 78 Python AST files, 103 JavaScript files, 4 architecture
+ guards, and clean diff check. The Classic runtime remains, so R4-39 stays
+ IN_PROGRESS.
+
+R4-39 Wave 5 prompt-input projection batch (2026-09-09): generator view
+ projection now delegates prompt-only source filtering to neutral
+ `WorkbenchCanvasMediaTools.promptInputSources`; renderer selection and page
+ effects remain local. Focused prompt/media/empty coverage and full verification
+ pass at 603 tests, 78 Python AST files, 103 JavaScript files, 4 architecture
+ guards, and clean diff check. The Classic runtime remains, so R4-39 stays
+ IN_PROGRESS.
+
+R4-39 Wave 5 reference-source ID projection batch (2026-09-09): input reorder
+ now delegates media-reference source ID extraction to neutral
+ `WorkbenchCanvasMediaTools.refSourceIds`; ordering mutation and UI effects
+ remain local. Focused inclusion/empty coverage and full verification pass at
+ 604 tests, 78 Python AST files, 103 JavaScript files, 4 architecture guards,
+ and clean diff check. The Classic runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 connected-input projection batch (2026-09-09): generator input
+ projection now delegates target-connection source-node collection to neutral
+ `WorkbenchCanvasMediaTools.connectedInputNodes`; type-specific source mapping
+ remains in the adapter. Focused target/missing-node coverage and full
+ verification pass at 605 tests, 78 Python AST files, 103 JavaScript files, 4
+ architecture guards, and clean diff check. The Classic runtime remains, so
+ R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 generated-media reference batch (2026-09-09): generated output
+ reference normalization, naming, and image/type filtering now delegate to
+ neutral `WorkbenchCanvasMediaTools.generatedMediaRefs`; page-level output
+ classification and naming remain callbacks. Focused filtering/empty coverage
+ and full verification pass at 606 tests, 78 Python AST files, 103 JavaScript
+ files, 4 architecture guards, and clean diff check. The Classic runtime
+ remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 output-resolution markup batch (2026-09-09): output resolution
+ and optional duration markup now delegates to neutral
+ `WorkbenchCanvasMediaTools.outputResolutionMarkup`; page code only assigns the
+ resulting markup. Focused duration/empty coverage and full verification pass at
+ 607 tests, 78 Python AST files, 103 JavaScript files, 4 architecture guards,
+ and clean diff check. The Classic runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 compare-mode style projection batch (2026-09-09): output compare
+ mode initial clip-path and slider position now delegate to neutral
+ `WorkbenchCanvasMediaTools.compareModeStyles`; page code only applies the
+ returned styles. Focused active/inactive coverage and full verification pass at
+ 608 tests, 78 Python AST files, 103 JavaScript files, 4 architecture guards,
+ and clean diff check. The Classic runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 output-rerun projection batch (2026-09-09): rerun-from-output node,
+ prompt, image-reference, and connection construction now delegates to neutral
+ `WorkbenchCanvasMediaTools.rerunOutputProjection`; page code retains insertion,
+ lightbox close, render, and save effects. Focused node/connection coverage and
+ full verification pass at 609 tests, 78 Python AST files, 103 JavaScript files,
+ 4 architecture guards, and clean diff check. The Classic runtime remains, so
+ R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 output-image node projection batch (2026-09-09): image-node data
+ construction from output URLs now delegates to neutral
+ `WorkbenchCanvasMediaTools.outputImageNodeProjection`; page code retains media
+ validation, insertion, render, and save effects. Focused node/empty coverage
+ and full verification pass at 610 tests, 78 Python AST files, 103 JavaScript
+ files, 4 architecture guards, and clean diff check. The Classic runtime
+ remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 editor-output node projection batch (2026-09-09): image editor
+ missing-output node data construction now delegates to neutral
+ `WorkbenchCanvasMediaTools.outputNodeProjection`; connection lookup, insertion,
+ and editor effects remain local. Focused coordinate/shape coverage and full
+ verification pass at 611 tests, 78 Python AST files, 103 JavaScript files, 4
+ architecture guards, and clean diff check. The Classic runtime remains, so
+ R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 editor-generated-image projection batch (2026-09-09): generated
+ image node data construction now delegates to neutral
+ `WorkbenchCanvasMediaTools.generatedImageNodeProjection`; editor insertion,
+ selection, render, and save effects remain local. Focused node/extra/empty
+ coverage and full verification pass at 612 tests, 78 Python AST files, 103
+ JavaScript files, 4 architecture guards, and clean diff check. The Classic
+ runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 output-workflow panel batch (2026-09-09): output prompt-panel
+ open/text projection and rerun availability now delegate to neutral
+ `WorkbenchCanvasMediaTools.outputPromptProjection` and
+ `outputRerunAvailable`; page code retains DOM event binding and rerun action.
+ Focused prompt/empty/availability coverage and full verification pass at 613
+ tests, 78 Python AST files, 103 JavaScript files, 4 architecture guards, and
+ clean diff check. The Classic runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 editor-output lookup batch (2026-09-09): editor output reuse now
+ delegates source-to-output connection lookup to neutral
+ `WorkbenchCanvasMediaTools.findOutputNodeForSource`; output creation and
+ insertion remain local. Focused found/missing coverage and full verification
+ pass at 614 tests, 78 Python AST files, 103 JavaScript files, 4 architecture
+ guards, and clean diff check. The Classic runtime remains, so R4-39 stays
+ IN_PROGRESS.
+
+R4-39 Wave 5 output dedupe batch (2026-09-09): latest generated-output
+ selection and output URL duplicate detection now delegate to neutral
+ `WorkbenchCanvasMediaTools.latestGeneratedOutputItem` and `outputHasUrl`;
+ output mutation and persistence remain local. Focused latest/existing/missing
+ coverage and full verification pass at 615 tests, 78 Python AST files, 103
+ JavaScript files, 4 architecture guards, and clean diff check. The Classic
+ runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 output-lifecycle projection batch (2026-09-09): output-node
+ connection lookup, non-empty output filtering, and duplicate-safe append input
+ preparation now delegate to neutral `WorkbenchCanvasMediaTools.outputNodesForSource`,
+ `outputItemsWithUrl`, and `uniqueOutputItems`; mutation and persistence remain
+ local. Focused lifecycle-batch coverage and full verification pass at 616
+ tests, 78 Python AST files, 103 JavaScript files, 4 architecture guards, and
+ clean diff check. The Classic runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 unique-output append batch (2026-09-09): duplicate filtering and
+ output-record append composition now delegate to neutral
+ `WorkbenchCanvasMediaTools.appendUniqueOutputRecords`; page code applies the
+ returned images, layout, comparisons, and count. Focused duplicate/append
+ coverage and full verification pass at 617 tests, 78 Python AST files, 103
+ JavaScript files, 4 architecture guards, and clean diff check. The Classic
+ runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 output-to-input group projection batch (2026-09-09): image-node
+ placement, group geometry, and item membership construction now delegate to
+ neutral `WorkbenchCanvasMediaTools.inputGroupProjection`; graph mutation,
+ undo, and persistence remain local. Focused count/geometry/membership coverage
+ and full verification pass at 618 tests, 78 Python AST files, 103 JavaScript
+ files, 4 architecture guards, and clean diff check. The Classic runtime
+ remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 output-to-input downstream projection batch (2026-09-09):
+ downstream connection target extraction now delegates to neutral
+ `WorkbenchCanvasMediaTools.downstreamTargetIds`; graph replacement, undo, and
+ persistence remain local. Focused target-order coverage and full verification
+ pass at 619 tests, 78 Python AST files, 103 JavaScript files, 4 architecture
+ guards, and clean diff check. The Classic runtime remains, so R4-39 stays
+ IN_PROGRESS.
+
+R4-39 Wave 5 output-download filename batch (2026-09-09): output/group archive
+ filename projection now delegates to neutral
+ `WorkbenchCanvasMediaTools.archiveDownloadFilename`; network request and
+ browser download effects remain local. Focused fallback/sanitization coverage
+ and full verification pass at 620 tests, 78 Python AST files, 103 JavaScript
+ files, 4 architecture guards, and clean diff check. The Classic runtime
+ remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 generator-source orchestration batch (2026-09-09): complete
+ connected input source projection across output, generated media, image,
+ group, prompt, loop, promptGroup, and LLM branches now delegates to neutral
+ `WorkbenchCanvasMediaTools.generatorSourceProjection`; page code supplies
+ context/classification callbacks only. Focused multi-branch coverage and full
+ verification pass at 621 tests, 78 Python AST files, 103 JavaScript files, 4
+ architecture guards, and clean diff check. The Classic runtime remains, so
+ R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 input-view projection batch (2026-09-09): generator and RunningHub
+ input views now obtain coordinated image/prompt source projections from neutral
+ `WorkbenchCanvasMediaTools.inputViewProjection`; renderer dispatch remains
+ local. Focused dual-projection coverage and full verification pass at 622
+ tests, 78 Python AST files, 103 JavaScript files, 4 architecture guards, and
+ clean diff check. The Classic runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 RunningHub source-summary batch (2026-09-09): RunningHub media
+ source ordering and image/video/audio/prompt summary now delegate to neutral
+ `WorkbenchCanvasRunningHubFieldRenderer.sourceProjection`; page code supplies
+ ordering and kind callbacks. Focused ordering/summary coverage and full
+ verification pass at 623 tests, 78 Python AST files, 103 JavaScript files, 4
+ architecture guards, and clean diff check. The Classic runtime remains, so
+ R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 output-download projection batch (2026-09-09): output image URL
+ and downloadable URL projections now delegate together to neutral
+ `WorkbenchCanvasMediaTools.outputDownloadProjection`; menu, network, and
+ browser-download effects remain local. Focused image/download filtering
+ coverage and full verification pass at 624 tests, 78 Python AST files, 103
+ JavaScript files, 4 architecture guards, and clean diff check. The Classic
+ runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 archive-payload batch (2026-09-09): output/group download request
+ payload construction now delegates to neutral
+ `WorkbenchCanvasMediaTools.archiveDownloadPayload`; fetch, response handling,
+ and browser download effects remain local. Focused URL filtering/extra-item
+ coverage and full verification pass at 625 tests, 78 Python AST files, 103
+ JavaScript files, 4 architecture guards, and clean diff check. The Classic
+ runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 single-download href batch (2026-09-09): media download href
+ construction now delegates to neutral `WorkbenchCanvasMediaTools.downloadHref`,
+ preserving data/blob/API passthrough and encoded server-download fallback;
+ page code retains link creation and click effects. Focused passthrough/fallback
+ coverage and full verification pass at 626 tests, 78 Python AST files, 103
+ JavaScript files, 4 architecture guards, and clean diff check. The Classic
+ runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 Wave 5 workflow-export projection batch (2026-09-09): selected workflow
+ payload and export filename are now composed through neutral
+ `WorkbenchCanvasWorkflowTransfer.exportProjection`; page and asset adapters
+ retain graph selection and actual export/download effects. Focused payload/
+ filename coverage and full verification pass at 627 tests, 78 Python AST files,
+ 103 JavaScript files, 4 architecture guards, and clean diff check. The Classic
+ runtime remains, so R4-39 stays IN_PROGRESS.
+R4-39 Wave 5 output-lightbox state batch (2026-09-09): lightbox media mode,
+comparison visibility, and group-download affordance now delegate to neutral
+`WorkbenchCanvasMediaTools.lightboxProjection`; DOM/media loading and download
+effects remain local. Focused projection coverage and full verification pass at
+628 tests, 78 Python AST files, 103 JavaScript files, 4 architecture guards, and
+clean diff check. The Classic runtime remains, so R4-39 stays IN_PROGRESS.
+
+R4-39 final Classic-runtime removal (2026-09-09): `static/js/canvas.js` and its
+page reference are deleted. `canvas.html` natively loads nine ordered
+responsibility scripts and ends in a 49-line startup/inline-action bootstrap.
+The executable gate requires the former runtime to remain absent, every
+residual cluster to be `MIGRATED`, the native script order to match the
+manifest, and runtime source to contain neither `eval` nor `new Function`.
+Default and all-six-zero browser acceptance rendered the same persisted
+two-node Canvas; workflow modal open/close passed. Full
+`./scripts/agent-verify.sh`: PASS (630 tests, 80 Python AST files, 111
+JavaScript files, 4 architecture guards, clean diff check). R4-39 is DONE.
+R4-40 and R5+ were not started.

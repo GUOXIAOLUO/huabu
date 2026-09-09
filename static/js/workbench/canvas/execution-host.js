@@ -38,5 +38,38 @@
         });
     }
 
-    global.WorkbenchCanvasExecutionHost = Object.freeze({ create });
+    function createClassic(host) {
+        const h = host && typeof host === 'object' ? host : {};
+        const required = ['markRunning', 'writeOutputText', 'setRunStatus', 'render', 'save', 'notifyError'];
+        required.forEach(op => {
+            if (typeof h[op] !== 'function') throw new TypeError(`WorkbenchCanvasExecutionHost.createClassic requires a '${op}' function`);
+        });
+        return Object.freeze({
+            markRunning(node, running) { h.markRunning(node, Boolean(running)); },
+            writeOutputText(node, text) { h.writeOutputText(node, text); },
+            setRunStatus(node, status, error) { h.setRunStatus(node, status, error); },
+            render(node) { h.render(node); },
+            save() { h.save(); },
+            notifyError(message) { h.notifyError(message); },
+        });
+    }
+
+    function createClassicChat(host) {
+        const h = host && typeof host === 'object' ? host : {};
+        const required = ['appendMessage', 'clearChatInput', 'writeOutputText', 'markRunning', 'render', 'save', 'notifyError'];
+        required.forEach(op => {
+            if (typeof h[op] !== 'function') throw new TypeError(`WorkbenchCanvasExecutionHost.createClassicChat requires a '${op}' function`);
+        });
+        return Object.freeze({
+            appendMessage(node, message) { h.appendMessage(node, message); },
+            clearChatInput(node) { h.clearChatInput(node); },
+            writeOutputText(node, text) { h.writeOutputText(node, text); },
+            markRunning(node, running) { h.markRunning(node, Boolean(running)); },
+            render(node) { h.render(node); },
+            save() { h.save(); },
+            notifyError(message) { h.notifyError(message); },
+        });
+    }
+
+    global.WorkbenchCanvasExecutionHost = Object.freeze({ create, createClassic, createClassicChat });
 }(window));

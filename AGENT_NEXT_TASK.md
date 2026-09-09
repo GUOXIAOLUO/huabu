@@ -5,90 +5,31 @@
 
 ## Active Task
 
-- `R4-39` — `IN_PROGRESS` (activated 2026-09-08 with Owner authorization
-  via in-conversation "继续"). Card:
-  `docs/tasks/active/R4-39-remove-classic-runtime.md`. Goal: replace the
-  retained Classic `canvas.js` product runtime with a small neutral bootstrap.
-  First authorized slice: inventory the residual runtime and its Classic seam
-  host dependencies, pin the deletion gate, then migrate one bounded owner at a
-  time. Wave 1 characterization is DONE: eight residual clusters and final
-  owners are recorded in `docs/plans/R4_39_CLASSIC_RUNTIME_REMOVAL.md`, and a
-  focused executable gate prevents DONE while `canvas.js` exists. Wave 2 is
-  also DONE: `WorkbenchCanvasAppBootstrap` owns initialization order and
-  record/list routing behind one frozen `start()` interface; default and
-  all-zero browser acceptance both render the four-node fixture. Wave 3 is also
-  DONE: `WorkbenchCanvasSession` owns record open/save/sync/close, dirty and
-  in-flight state, CAS conflict handling, revision adoption, remote polling and
-  update-message deferral; a stale 409 cannot advance the cursor or auto-retry
-  the rejected payload. An independent review of Waves 1-3 returned
-  CHANGES_REQUIRED on one bookkeeping contradiction (this file's tail said
-  "next slice Wave 3" while the head said Wave 4) plus two stale-status lines;
-  all three were repaired. Wave 4 slice 1 is also DONE: the four remaining
-  direct window mouse-slot sessions in `canvas.js` (LLM pane resize, box
-  selection, selection-link drag, knife drag) begin through
-  `ensureInteractionController().begin(...)` and the cleanup sites
-  (`finishSelection`, `endDrag`, blur guard) unwire through
-  `controller.end()`; no direct `window.onmousemove`/`window.onmouseup`
-  assignment remains in the page. Wave 4 slice 2 is also DONE: the move-driven
-  group-membership transition (containment, membership add/remove,
-  generator-edge handoff) moved into the shared
-  `WorkbenchCanvasGroupMembership.resolveMembershipTransition`; the page keeps
-  type pairs, geometry, eligibility/connect policy and side effects only, and
-  the inline `handoffGroupConnections` logic is deleted. Wave 4 slice 3 is
-  also DONE: `WorkbenchCanvasRenderSweep` delegates mounted-card
-  reconciliation to `WorkbenchRenderRuntime` for teardown-before-build,
-  remote-node removal, failed-build cleanup and clear; Classic graph-connect
-  admission and generator/media-output classifications delegate to
-  `WorkbenchLegacyGraphCompatibility`. Default and all-zero browser
-  acceptance rendered the 15-node fixture and repeated full/targeted LTX
-  rebuilds without console errors. Next slice: remaining Wave 4 graph/group
-  mutation ownership. Do not start R4-40 or any R5+ implementation. Full
-  Wave 4 slice 4 is also DONE: selected image/prompt grouping delegates
-  child-to-generator edge handoff to `WorkbenchCanvasGroupMembership`, which
-  now owns the shared transition and group-creation handoff algorithms. Next
-  slice: remaining graph/group mutation ownership. Wave 4 slice 5 is also DONE:
-  versioned ordinary connection commits delegate edge projection, undo snapshot
-  retention and revision adoption to `WorkbenchNodeClient`; rollback remains
-  an explicit legacy adapter. Do not start R4-40 or any R5+ implementation.
-  Full regression after Wave 4 slice 5: PASS (378 tests; AST/syntax/
-  architecture/diff guards clean). Wave 4 slice 6 is also DONE: all
-  single-node deletion projections use `WorkbenchCanvasGraphFragment` for
-  node/incident-edge removal while page effects remain local. Next slice:
-  remaining graph/group mutation ownership. Full regression: PASS (379 tests;
-  AST/syntax/architecture/diff guards clean). Wave 4 slice 7 is also DONE:
-  link deletion uses the shared graph-fragment connection projection while
-  page effects remain local. Next slice: remaining graph/group mutation
-  ownership. Full regression remains PASS (379 tests). Wave 4 slice 8 is also
-  DONE: output conversion and grouped-upload replacement use the shared
-  graph-fragment node/incident-edge projection. Next slice: remaining
-  graph/group mutation ownership. Wave 4 slice 9 is also DONE: Alt-drag
-  duplication uses the shared graph-fragment subgraph owner. Full regression
-  remains PASS (379 tests). Wave 5 slice 1 is also DONE: workflow-transfer
-  modal lifecycle and selection metadata use the neutral UI module. Next
-  slice: remaining prompt/workflow/media-editing ownership. Full regression:
-  PASS (380 tests; AST/syntax/architecture/diff guards clean). Wave 5 slice 2
-  is also DONE: Classic crop/grid/resize math delegates to
-  `WorkbenchCanvasMediaTools`. Next slice: remaining prompt/workflow/
-  media-editing ownership. Wave 5 slice 3 is also DONE: prompt-template data
-  projections use `WorkbenchCanvasPromptTemplateData`. Next slice: remaining
-  prompt/workflow/media-editing ownership. Full regression: PASS (381 tests;
-  AST/syntax/architecture/diff guards clean). Wave 5 slice 4 is also DONE:
-  image-resize dimensions delegate to `WorkbenchCanvasMediaTools`. Next slice:
-  remaining prompt/workflow/media-editing ownership. Full regression remains
-  PASS (381 tests). Wave 5 slice 5 is also DONE: prompt-template category
-  labels use the neutral data owner. Next slice: remaining
-  prompt/workflow/media-editing ownership. Wave 5 slice 6 is also DONE:
-  image-editor Grid layout metadata delegates to `WorkbenchCanvasMediaTools`.
-  Next slice: remaining prompt/workflow/media-editing ownership. Full
-  regression remains PASS (381 tests). Wave 5 slice 7 is also DONE: workflow
-  export filename projection uses `WorkbenchCanvasWorkflowTransfer`. Next
-  slice: remaining prompt/workflow/media-editing ownership. Full regression:
-  PASS (382 tests). Wave 5 slice 8 is also DONE: image-editor mode
-  normalization/presentation uses `WorkbenchCanvasMediaEditorState`. Next
-  slice: remaining prompt/workflow/media-editing ownership. Full regression:
-  PASS (383 tests; AST/syntax/architecture/diff guards clean).
+- `R4-41` — R4 Full Acceptance Gate (`docs/tasks/active/R4-41-full-gate.md`).
+  Activated 2026-09-09 after R4-40 passed independent Review. Its only
+  dependency, R4-40, is DONE. Acceptance is BLOCKED: metadata writes were
+  repaired to use `/meta`, but the formal checklist
+  requires merged-code evaluation and current 100/300-node, memory, and
+  duplicate-runtime evidence; the implementation remains uncommitted on
+  `main` (HEAD `a013582`). The metadata and interaction-array review findings
+  are now isolated behind dedicated seams, but the merged-code/performance
+  evidence blockers remain. Do not activate R5-01.
+- Execute exactly this one card. Do not start R5-01 or later work.
 
 ## Completed Predecessor
+
+- `R4-39` — `DONE` (closed 2026-09-09). Card:
+  `docs/tasks/done/R4-39-remove-classic-runtime.md`. The Classic
+  `static/js/canvas.js` runtime and its page reference were removed; Canvas
+  now uses native ordered responsibility scripts ending in the small startup
+  bootstrap. The deletion gate, default/all-zero browser acceptance, and
+  independent Review all passed. R4-40 was activated only after this close.
+
+- `R4-40` — `DONE` (closed 2026-09-09). Card:
+  `docs/tasks/done/R4-40-retire-flags.md`. The six R4 query flags can no
+  longer select Classic/Smart rollback branches; Canvas and the performance
+  harness use one stable runtime path. Focused flag tests and the full
+  regression gate passed (633 tests).
 
 - `R4-38` — `DONE` (closed 2026-09-07 under the Owner-approved Wave 16
   structural re-baseline: no capability body remains in canvas.js — all
@@ -1159,9 +1100,12 @@ and **Wave 16 shrink-to-bootstrap final** to close the card.
 ## Required Reads
 
 1. `AGENTS.md`
-2. `.agent/AGENT_CONTRACT.md`
-3. `docs/status/CURRENT_EXECUTION_STATUS.md`
-4. `docs/tasks/done/R4-11-media-rendering.md`
+2. `docs/status/CURRENT_EXECUTION_STATUS.md`
+3. `CURRENT_ARCHITECTURE.md`
+4. `TARGET_ARCHITECTURE.md`
+5. `MIGRATION_PLAN.md`
+6. `IMPLEMENTATION_PLAN.md`
+7. `docs/tasks/done/R4-40-retire-flags.md`
 
 Read architecture documents only as required by the card.
 
@@ -1183,8 +1127,5 @@ After implementation / verification:
 
 ## Recommended Successor
 
-Current Active Task: `R4-39 — Remove Legacy canvas.js Product Runtime`
-(`docs/tasks/active/R4-39-remove-classic-runtime.md`). R4-38 is archived in
-`docs/tasks/done/`. The next bounded slice is R4-39 Wave 4 (interaction,
-render, and graph/group lifecycle ownership); `R4-40` remains a
-backlog successor and is not authorized until R4-39 reaches its deletion gate.
+`R4-41` is the next backlog card. It is recommended only and must not be
+activated or executed by an R4-40 run.

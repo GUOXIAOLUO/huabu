@@ -36,6 +36,11 @@
         return kindForUrl(url, {...options, name: options.name || item.name || ''});
     }
 
+    function kindForNode(node, options = {}) {
+        if (!node) return options.fallback || 'image';
+        return kindForItem({mediaKind: node.mediaKind, url: node.url, name: node.name}, options);
+    }
+
     function kindForFile(file, options = {}) {
         const type = String(file?.type || '').toLowerCase();
         if (type.startsWith('video/')) return 'video';
@@ -51,6 +56,7 @@
     global.WorkbenchCanvasMediaKind = Object.freeze({
         kindForUrl,
         kindForItem,
+        kindForNode,
         kindForFile,
         isKindForUrl,
         isImageUrl: value => IMAGE.test(String(value || '').toLowerCase()),
