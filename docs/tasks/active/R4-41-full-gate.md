@@ -61,14 +61,15 @@ Run:
 
 ## Blockers
 
-- The formal R4 final-gate checklist requires evaluation against merged code by
-  the Integration Owner. `main` currently points to `a013582`, while the
-  R4-39/R4-40 implementation and documentation changes remain uncommitted in
-  the worktree; therefore the integration-state gate is not satisfied.
-- The formal checklist's 100-node and 300-node acceptance, memory-growth
-  inspection, and duplicate listener/timer/observer inspection have no new
-  merged evidence for this gate. Existing benchmark notes are historical and
-  do not establish this card's merged final-gate result.
+- The R4-39/R4-40 cutover is integrated on local `main` at `c201b0f`.
+  The Integration Owner must still evaluate every A–N checklist item against
+  that commit; all checklist boxes remain open, so integration state is not
+  yet an acceptance decision.
+- The committed evidence contains 100/300-node interaction samples, a source
+  audit and one five-render 300-node heap observation. It is not a complete
+  merged Gate-K record: it has no explicit per-item acceptance matrix, no
+  100-node memory observation and no repeated growth threshold. It therefore
+  cannot close DOM/listener/timer/observer/memory acceptance by itself.
 - `docs/plans/R4_FINAL_GATE_CHECKLIST_MULTI_AGENT.md` remains `R4: NOT PASS`
   with all required acceptance items unchecked.
 - Review finding repaired in this run: title/icon edits in
@@ -88,23 +89,25 @@ Run:
 - Output preview/compare initialization is now idempotent, preventing repeated
   element-listener binding on re-entry; focused source-contract coverage
   passes.
-- Runtime listener/timer audit recorded in
-  `docs/benchmarks/r4-41-runtime-audit-2026-09-09.md`; it is explicitly local
-  worktree evidence and does not satisfy the merged Integration Owner Gate.
+- Runtime listener/timer audit is committed in
+  `docs/benchmarks/r4-41-runtime-audit-2026-09-09.md`; it remains diagnostic
+  evidence and does not satisfy the Integration Owner Gate by itself.
 - The same local audit now includes a 300-node Chromium heap observation over
   five confirmed real re-renders: 24,905,516 bytes before and after (zero observed
-  delta). It is diagnostic evidence only, not a merged acceptance result.
+  delta). It is diagnostic evidence only, not a complete merged acceptance
+  result.
 - Isolated local browser rechecks repaired an actual viewport-controller
   initialization defect and the harness's cross-frame event sequence. The
   disposable 100-node run passed zoom/pan/minimap visual updates in 15.400 /
   27.500 / 116.400 ms; the disposable 300-node run passed them in 10.900 /
   62.100 / 30.500 ms. These local measurements remain diagnostic only and do
-  not supply the required merged 100/300 interaction, memory, or duplication
+  not supply the required complete memory or duplicate-resource acceptance
   evidence.
 
-The local regression verifier is green (637 Python tests, 81 Python AST files,
-112 JavaScript syntax files, 4 architecture guards, and clean diff check), but
-that result does not override the merged-evidence requirements above.
+The committed regression verifier is green (637 Python tests, 81 Python AST
+files, 112 JavaScript syntax files, 4 architecture guards, and clean diff
+check), but that result does not override the formal acceptance requirements
+above.
 
 ## Documentation
 
@@ -117,13 +120,13 @@ Update `AGENT_NEXT_TASK.md` after the card is actually verified.
 ## Final Ownership Evidence
 
 Before: R4-40's stable Canvas runtime and retired-flag state, with the R4-39 /
-R4-40 changes still present only in the local worktree.
+R4-40 changes not yet accepted by the formal R4 gate.
 
 After: no ownership change authorized by this acceptance-only card; R4 remains
 `in_progress` and R5 remains unauthorized.
 
-Duplicate owner removed: not asserted by this gate because the required merged
-integration and final duplicate-runtime evidence are absent.
+Duplicate owner removed: not asserted by this acceptance-only card until the
+Integration Owner completes the final duplicate-runtime evidence review.
 
 ## Next Recommended Card
 

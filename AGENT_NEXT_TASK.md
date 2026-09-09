@@ -9,11 +9,11 @@
   Activated 2026-09-09 after R4-40 passed independent Review. Its only
   dependency, R4-40, is DONE. Acceptance is BLOCKED: metadata writes were
   repaired to use `/meta`, but the formal checklist
-  requires merged-code evaluation and current 100/300-node, memory, and
-  duplicate-runtime evidence; the implementation remains uncommitted on
-  `main` (HEAD `a013582`). The metadata and interaction-array review findings
-  are now isolated behind dedicated seams, but the merged-code/performance
-  evidence blockers remain. Do not activate R5-01.
+  requires an Integration Owner evaluation of the merged commit `c201b0f` and
+  a complete per-item 100/300-node, memory, and duplicate-runtime evidence
+  record. The metadata and interaction-array review findings are isolated
+  behind dedicated seams, but the formal acceptance blockers remain. Do not
+  activate R5-01.
 - Execute exactly this one card. Do not start R5-01 or later work.
 
 ## Completed Predecessor
