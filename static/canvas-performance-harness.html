@@ -116,13 +116,27 @@
         const render = targetWindow?.render;
         if (!memory || !Number.isFinite(memory.usedJSHeapSize)) return { supported: false, reason: 'heap-metric-unavailable' };
         if (typeof render !== 'function') return { supported: false, reason: 'render-unavailable' };
+        // Let the initial Canvas post-render work (including icon hydration)
+        // settle before treating the DOM count as a re-render baseline.
+        await nextPaint();
         const beforeBytes = memory.usedJSHeapSize;
+        const beforeDomElements = targetWindow.document.querySelectorAll('*').length;
         for (let cycle = 0; cycle < memoryCycles; cycle += 1) {
           render();
           await nextPaint();
         }
         const afterBytes = memory.usedJSHeapSize;
-        return { supported: true, renderPasses: memoryCycles, beforeBytes, afterBytes, deltaBytes: afterBytes - beforeBytes };
+        const afterDomElements = targetWindow.document.querySelectorAll('*').length;
+        return {
+          supported: true,
+          renderPasses: memoryCycles,
+          beforeBytes,
+          afterBytes,
+          deltaBytes: afterBytes - beforeBytes,
+          beforeDomElements,
+          afterDomElements,
+          deltaDomElements: afterDomElements - beforeDomElements,
+        };
       };
       const memoryLines = (result) => {
         if (!result) return [];
@@ -134,6 +148,9 @@
           `memory_before_bytes=${result.beforeBytes}`,
           `memory_after_bytes=${result.afterBytes}`,
           `memory_delta_bytes=${result.deltaBytes}`,
+          `memory_dom_before=${result.beforeDomElements}`,
+          `memory_dom_after=${result.afterDomElements}`,
+          `memory_dom_delta=${result.deltaDomElements}`,
         ];
       };
 

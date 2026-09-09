@@ -6,11 +6,11 @@ status_schema: workbench.execution-status/2
 
 repository: local worktree (remote repository out of scope)
 verified_head: HEAD (local main)
-verified_commit: "R4 local integration and formal Gate review"
+verified_commit: "R4 local integration and completed R4-41 Gate evidence"
 branch: main
 remote_state: not checked; GitHub/remote synchronization is out of scope for this local task
-verified_at: 2026-09-09T21:20:00+08:00
-verification_source: local main merged range a013582...bf4383a; R4-39/R4-40 cutover integration plus R4-41 formal Gate regression PASS at 637 tests
+verified_at: 2026-09-09T22:35:00+08:00
+verification_source: local main R4-39/R4-40 cutover plus completed R4-41 E/G/H/J behavioral acceptance, K live-browser resource acceptance, and `./scripts/agent-verify.sh` PASS at 637 tests
 worktree_before_R0: clean
 worktree_at_R4_03: HEAD a1195c9 plus the R4-03 card's own pending additions only —
 the authority policy seam, the main.py guard wiring, focused policy/wiring tests,
@@ -32,19 +32,19 @@ silent_model_provider_executor_fallback_allowed: false
 
 active_round: R4
 active_round_name: Unified Canvas Cutover
-round_status: in_progress
-blocking_issues:
-  - R4-41 formal final gate evaluated merged local main and returned
-    `R4: NOT PASS`: E/G/H/J lack complete merged end-to-end behavioral
-    acceptance evidence.
-  - Gate K remains BLOCKED: 100/300-node samples and the 300-node five-render
-    heap observation are diagnostic only; a complete per-item duplication and
-    memory-growth acceptance record is absent.
+round_status: complete
+blocking_issues: []
 
-Active task: R4-41 — R4 Full Acceptance Gate, activated on 2026-09-09 after
-R4-40 passed independent Review. R4-41's formal Integration Owner evaluation
-returned `R4: NOT PASS` with concrete evidence blockers recorded in the final
-checklist. R4-40 is archived as DONE; R5+ remains unauthorized.
+R4-41 — R4 Full Acceptance Gate is complete on local `main`. The final
+Integration Owner checklist records `R4: PASS`: E/G/H/J have a 27-test merged
+behavioral acceptance record plus a five-test media-selection supplement; K
+has disposable live-browser 100/300-node acceptance with ten actual rerenders,
+zero observed settled-DOM and Chromium heap growth, and a listener/timer/
+observer audit. Full `./scripts/agent-verify.sh` passes (637 tests, 81 Python
+AST files, 112 JavaScript files, 4 architecture guards, clean diff check).
+
+R4 is complete. R5 is not active and must not be implemented until a separate
+task-activation step selects it.
 
 R4-41 acceptance/fix attempt (2026-09-09): title/icon metadata writes were
 moved to the dedicated `/meta` boundary and covered by a regression contract.

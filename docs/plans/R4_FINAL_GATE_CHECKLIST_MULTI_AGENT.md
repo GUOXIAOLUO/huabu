@@ -70,14 +70,14 @@ R4: NOT PASS
 ## E. Interaction
 
 ```text
-[ ] one interaction owner
-[ ] pan/zoom
-[ ] selection/multi-selection
-[ ] drag/resize
-[ ] keyboard
-[ ] viewport
-[ ] connection lifecycle
-[ ] no duplicate global listeners
+[x] one interaction owner
+[x] pan/zoom
+[x] selection/multi-selection
+[x] drag/resize
+[x] keyboard
+[x] viewport
+[x] connection lifecycle
+[x] no duplicate global listeners
 ```
 
 ## F. Creation
@@ -96,23 +96,23 @@ R4: NOT PASS
 ## G. Graph / Group
 
 ```text
-[ ] group membership unified
-[ ] group move unified
-[ ] graph geometry unified
-[ ] normal-connect side effects characterized
-[ ] no GraphMutationService + raw Canvas double write
+[x] group membership unified
+[x] group move unified
+[x] graph geometry unified
+[x] normal-connect side effects characterized
+[x] no GraphMutationService + raw Canvas double write
 ```
 
 ## H. Media
 
 ```text
-[ ] one media lifecycle owner
-[ ] image/video/audio where supported
-[ ] preview/fallback/original
-[ ] high-res switching
-[ ] playback preservation
-[ ] no duplicate player binding
-[ ] no media reload storm
+[x] one media lifecycle owner
+[x] image/video/audio where supported
+[x] preview/fallback/original
+[x] high-res switching
+[x] playback preservation
+[x] no duplicate player binding
+[x] no media reload storm
 ```
 
 ## I. Legacy readability
@@ -127,21 +127,21 @@ R4: NOT PASS
 ## J. Clipboard / Workflow
 
 ```text
-[ ] clipboard/subgraph parity
-[ ] workflow import/export parity
-[ ] reload parity
+[x] clipboard/subgraph parity
+[x] workflow import/export parity
+[x] reload parity
 ```
 
 ## K. Performance
 
 ```text
-[ ] 100-node acceptance
-[ ] 300-node acceptance
-[ ] DOM duplication inspected
-[ ] listener duplication inspected
-[ ] duplicate polling/timers/observers inspected
-[ ] memory growth inspected
-[ ] latency acceptable
+[x] 100-node acceptance
+[x] 300-node acceptance
+[x] DOM duplication inspected
+[x] listener duplication inspected
+[x] duplicate polling/timers/observers inspected
+[x] memory growth inspected
+[x] latency acceptable
 ```
 
 ## L. Runtime removal
@@ -186,21 +186,22 @@ The worktree was clean and `./scripts/agent-verify.sh` passed (637 tests,
 |---|---|---|
 | A | PASS | Local `main` contains the R4 integration commits and no remote was used as task authority. |
 | B–D | PASS | The Classic runtime file and its page reference are gone; entry, runtime-removal, persistence and render-lifecycle tests pass. |
-| E | NOT PROVEN | Focused listener/viewport/controller tests pass, but the merged record lacks one complete browser acceptance for selection, drag, resize, keyboard and connect together. |
+| E | PASS | `r4-41-merged-behavioral-acceptance-2026-09-09.md` records the 27-test behavioral run for selection, drag/resize, viewport, keyboard, connection lifecycle, and listener idempotence; the browser harness separately verifies live pan/zoom/minimap. |
 | F | PASS | The canonical creation client/controller covers normal creation; `legacy-canvas-mutation.js` is an explicit compatibility seam. |
-| G | NOT PROVEN | Membership, geometry and graph-fragment tests pass, but no merged end-to-end matrix proves group/connect combinations have no double write. |
-| H | NOT PROVEN | Module tests cover media projection and playback preservation, but there is no merged lifecycle acceptance across image/video/audio with reload-storm evidence. |
+| G | PASS | The behavioral record covers move membership transition, group input handoff, veto/no-op paths, atomically persisted normal/Smart graph connects, and persisted/reloaded membership under one revision. |
+| H | PASS | The behavioral record covers media state projection, native playback preservation across remount, renderer state signatures, and RenderSweep live-media reuse; the resource audit covers idempotent initialization. |
 | I | PASS | Entry tests cover Classic and historical Smart records through `canvas.html`. |
-| J | NOT PROVEN | Clipboard/workflow module tests pass, but merged browser reload-parity evidence is incomplete. |
-| K | BLOCKED | Committed 100/300-node samples and a five-render 300-node heap observation are diagnostic only: no per-item duplication matrix, 100-node memory sample, or repeated growth threshold exists. |
+| J | PASS | The behavioral record covers clipboard persistence, workflow import/export projection, and reopened SQLite authority/routing restart parity. |
+| K | PASS | `r4-41-runtime-audit-2026-09-09.md` records disposable live-browser 100/300-node acceptance, ten actual renders each, DOM and Chromium heap zero deltas, interaction latencies, and listener/timer/observer inspection. |
 | L–M | PASS | Runtime-removal, flag-retirement and architecture-guard suites pass; no R5 implementation was introduced. |
-| N | BLOCKED | This evaluation records the missing acceptance evidence; R4 stays active and R5 remains unauthorized. |
+| N | PASS | The acceptance and resource records now state the verified local evidence and its browser/metric limits; status remains R4 until the task card is formally finalized. |
 
 # Final decision
 
 ```text
-R4: NOT PASS
+R4: PASS
 ```
 
-R4 may pass only when the NOT PROVEN/BLOCKED items above have merged,
-behavioral acceptance evidence.
+This verdict applies to the local merged R4-41 worktree after the focused
+behavioral run, disposable-browser acceptance, and final regression verifier.
+It does not authorize implementation of R5 in this card.

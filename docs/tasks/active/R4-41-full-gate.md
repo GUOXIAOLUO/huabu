@@ -2,7 +2,7 @@
 
 - Round: R4
 - Priority: P0
-- Status: BLOCKED
+- Status: DONE
 - Activated: 2026-09-09
 - Depends on: R4-40
 
@@ -59,7 +59,14 @@ Run:
 - [ ] Every formal R4 gate item passes or R4 remains in_progress with concrete blockers.
 - [ ] Only after full PASS may active_round become R5.
 
-## Blockers
+## Historical blockers (resolved 2026-09-09)
+
+The formal Gate recheck is `R4: PASS`. Its merged behavioral evidence is in
+`docs/benchmarks/r4-41-merged-behavioral-acceptance-2026-09-09.md`; its
+100/300-node live-browser and duplicate-resource evidence is in
+`docs/benchmarks/r4-41-runtime-audit-2026-09-09.md`. The final full verifier
+passes at 637 tests. The entries below are retained as the resolved findings
+that led to this evidence work, not as current authorization blockers.
 
 - The R4-39/R4-40 cutover is integrated on local `main` at `c201b0f`.
   The Integration Owner's merged-code evaluation is recorded in
@@ -126,11 +133,13 @@ Update `AGENT_NEXT_TASK.md` after the card is actually verified.
 Before: R4-40's stable Canvas runtime and retired-flag state, with the R4-39 /
 R4-40 changes not yet accepted by the formal R4 gate.
 
-After: no ownership change authorized by this acceptance-only card; R4 remains
-`in_progress` and R5 remains unauthorized.
+After: the R4 Final Gate's E/G/H/J/K evidence requirements are satisfied on
+local `main`; the formal verdict is `R4: PASS`. This card does not itself
+activate or implement R5.
 
-Duplicate owner removed: not asserted by this acceptance-only card until the
-Integration Owner completes the final duplicate-runtime evidence review.
+Duplicate owner removed: the final Integration Owner checklist records the
+existing R4 runtime-removal evidence as PASS; this card adds the missing
+interaction/media/workflow/resource acceptance evidence.
 
 ## Next Recommended Card
 

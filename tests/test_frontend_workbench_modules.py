@@ -6301,10 +6301,14 @@ console.log(JSON.stringify({
         self.assertIn("const runMemoryInspection = async () => {", harness)
         self.assertIn("const render = targetWindow?.render;", harness)
         self.assertIn("if (typeof render !== 'function') return { supported: false, reason: 'render-unavailable' };", harness)
+        self.assertIn("await nextPaint();", harness)
         self.assertIn("render();", harness)
         self.assertIn("memory_result=UNSUPPORTED", harness)
         self.assertIn("memory_render_passes=${result.renderPasses}", harness)
         self.assertIn("memory_result=OBSERVED", harness)
+        self.assertIn("const beforeDomElements = targetWindow.document.querySelectorAll('*').length;", harness)
+        self.assertIn("const afterDomElements = targetWindow.document.querySelectorAll('*').length;", harness)
+        self.assertIn("memory_dom_delta=${result.deltaDomElements}", harness)
 
     def test_classic_minimap_updates_the_viewport_box_without_rebuilding_nodes(self):
         classic = read_canvas_app_source(ROOT)
