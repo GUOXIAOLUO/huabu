@@ -62,14 +62,18 @@ Run:
 ## Blockers
 
 - The R4-39/R4-40 cutover is integrated on local `main` at `c201b0f`.
-  The Integration Owner must still evaluate every A–N checklist item against
-  that commit; all checklist boxes remain open, so integration state is not
-  yet an acceptance decision.
+  The Integration Owner's merged-code evaluation is recorded in
+  `docs/plans/R4_FINAL_GATE_CHECKLIST_MULTI_AGENT.md` and returns `R4: NOT
+  PASS`; every checklist box remains open until its evidence is complete.
 - The committed evidence contains 100/300-node interaction samples, a source
   audit and one five-render 300-node heap observation. It is not a complete
   merged Gate-K record: it has no explicit per-item acceptance matrix, no
   100-node memory observation and no repeated growth threshold. It therefore
   cannot close DOM/listener/timer/observer/memory acceptance by itself.
+- The formal evaluation additionally records missing merged end-to-end evidence
+  for the combined interaction, graph/group, media lifecycle and
+  clipboard/workflow reload-parity gates. These are concrete blockers, not an
+  authorization to begin R5.
 - `docs/plans/R4_FINAL_GATE_CHECKLIST_MULTI_AGENT.md` remains `R4: NOT PASS`
   with all required acceptance items unchecked.
 - Review finding repaired in this run: title/icon edits in

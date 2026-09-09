@@ -5,12 +5,12 @@ status_schema: workbench.execution-status/2
 ## Repository
 
 repository: local worktree (remote repository out of scope)
-verified_head: c201b0f
-verified_commit: "feat: integrate R4 unified canvas cutover"
+verified_head: HEAD (local main)
+verified_commit: "R4 local integration and formal Gate review"
 branch: main
 remote_state: not checked; GitHub/remote synchronization is out of scope for this local task
 verified_at: 2026-09-09T21:20:00+08:00
-verification_source: local main at c201b0f; R4-39/R4-40 cutover integration plus R4-41 merged-code regression gate PASS at 637 tests
+verification_source: local main merged range a013582...bf4383a; R4-39/R4-40 cutover integration plus R4-41 formal Gate regression PASS at 637 tests
 worktree_before_R0: clean
 worktree_at_R4_03: HEAD a1195c9 plus the R4-03 card's own pending additions only —
 the authority policy seam, the main.py guard wiring, focused policy/wiring tests,
@@ -34,26 +34,26 @@ active_round: R4
 active_round_name: Unified Canvas Cutover
 round_status: in_progress
 blocking_issues:
-  - R4-41 formal final gate is BLOCKED: local main is integrated at c201b0f,
-    but the Integration Owner has not completed the required merged A–N
-    checklist evaluation.
-  - R4-41's committed 100/300-node samples and 300-node five-render heap
-    observation are diagnostic only; a complete per-item merged evidence
-    record for resource duplication and memory-growth acceptance is absent.
+  - R4-41 formal final gate evaluated merged local main and returned
+    `R4: NOT PASS`: E/G/H/J lack complete merged end-to-end behavioral
+    acceptance evidence.
+  - Gate K remains BLOCKED: 100/300-node samples and the 300-node five-render
+    heap observation are diagnostic only; a complete per-item duplication and
+    memory-growth acceptance record is absent.
 
 Active task: R4-41 — R4 Full Acceptance Gate, activated on 2026-09-09 after
-R4-40 passed independent Review. R4-41 is BLOCKED on the formal merged
-Integration Owner evaluation and complete acceptance-evidence requirements
-recorded in its card. R4-40 is archived as DONE; R5+ remains unauthorized.
+R4-40 passed independent Review. R4-41's formal Integration Owner evaluation
+returned `R4: NOT PASS` with concrete evidence blockers recorded in the final
+checklist. R4-40 is archived as DONE; R5+ remains unauthorized.
 
 R4-41 acceptance/fix attempt (2026-09-09): title/icon metadata writes were
 moved to the dedicated `/meta` boundary and covered by a regression contract.
 Local `./scripts/agent-verify.sh` passed (637 tests, 81 Python AST files, 112 JavaScript files, 4 architecture
 guards, clean diff check). The formal checklist remains `R4: NOT PASS`: the
-R4-39/R4-40 implementation is integrated on local `main` at `c201b0f`, but no
-Integration Owner has recorded its required A–N merged-code evaluation, and
-the gate lacks a complete per-item resource-duplication and memory-growth
-acceptance record. Git Review also
+R4-39/R4-40 implementation is integrated on local `main`; the Integration
+Owner's merged A–N review is recorded as `R4: NOT PASS` because E/G/H/J lack
+complete behavioral acceptance and K lacks a complete resource-duplication and
+memory-growth record. Git Review also
 confirmed the compatibility-only graph-array projections are now isolated
 behind `legacy-canvas-mutation.js`; no direct array writes remain in
 `canvas-app-interaction.js`. Interaction blur and metadata/crop resize cleanup
@@ -70,7 +70,7 @@ viewport-controller initialization defect and the harness's cross-frame event
 sequence. The 100-node run passed zoom/pan/minimap visual updates in 15.400 /
 27.500 / 116.400 ms; the 300-node run passed them in 10.900 / 62.100 /
 30.500 ms. This is diagnostic local evidence only, so R4 remains blocked
-until the Integration Owner completes the merged-gate evidence review.
+until its documented merged-gate evidence blockers are resolved.
 No ownership change or R5 activation is authorized.
 
 R4-40 completion evidence (2026-09-09): the six R4 query flags

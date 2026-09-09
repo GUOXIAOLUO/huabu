@@ -9,11 +9,11 @@
   Activated 2026-09-09 after R4-40 passed independent Review. Its only
   dependency, R4-40, is DONE. Acceptance is BLOCKED: metadata writes were
   repaired to use `/meta`, but the formal checklist
-  requires an Integration Owner evaluation of the merged commit `c201b0f` and
-  a complete per-item 100/300-node, memory, and duplicate-runtime evidence
-  record. The metadata and interaction-array review findings are isolated
-  behind dedicated seams, but the formal acceptance blockers remain. Do not
-  activate R5-01.
+  has received its Integration Owner evaluation and is formally `R4: NOT
+  PASS`: E/G/H/J lack complete merged end-to-end behavior evidence, while K
+  lacks a complete 100/300-node, memory and duplicate-resource record. The
+  metadata and interaction-array review findings remain isolated behind
+  dedicated seams. Do not activate R5-01.
 - Execute exactly this one card. Do not start R5-01 or later work.
 
 ## Completed Predecessor

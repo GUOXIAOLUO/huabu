@@ -176,10 +176,31 @@ R4: NOT PASS
 [ ] no future Round marked current
 ```
 
+## Integration Owner evaluation — 2026-09-09
+
+Evaluation target: local `main`, merged cutover range `a013582...bf4383a`.
+The worktree was clean and `./scripts/agent-verify.sh` passed (637 tests,
+81 Python AST files, 112 JavaScript files and 4 architecture guards).
+
+| Gate group | Decision | Merged evidence or concrete gap |
+|---|---|---|
+| A | PASS | Local `main` contains the R4 integration commits and no remote was used as task authority. |
+| B–D | PASS | The Classic runtime file and its page reference are gone; entry, runtime-removal, persistence and render-lifecycle tests pass. |
+| E | NOT PROVEN | Focused listener/viewport/controller tests pass, but the merged record lacks one complete browser acceptance for selection, drag, resize, keyboard and connect together. |
+| F | PASS | The canonical creation client/controller covers normal creation; `legacy-canvas-mutation.js` is an explicit compatibility seam. |
+| G | NOT PROVEN | Membership, geometry and graph-fragment tests pass, but no merged end-to-end matrix proves group/connect combinations have no double write. |
+| H | NOT PROVEN | Module tests cover media projection and playback preservation, but there is no merged lifecycle acceptance across image/video/audio with reload-storm evidence. |
+| I | PASS | Entry tests cover Classic and historical Smart records through `canvas.html`. |
+| J | NOT PROVEN | Clipboard/workflow module tests pass, but merged browser reload-parity evidence is incomplete. |
+| K | BLOCKED | Committed 100/300-node samples and a five-render 300-node heap observation are diagnostic only: no per-item duplication matrix, 100-node memory sample, or repeated growth threshold exists. |
+| L–M | PASS | Runtime-removal, flag-retirement and architecture-guard suites pass; no R5 implementation was introduced. |
+| N | BLOCKED | This evaluation records the missing acceptance evidence; R4 stays active and R5 remains unauthorized. |
+
 # Final decision
 
 ```text
-R4: PASS
+R4: NOT PASS
 ```
 
-only when all required items are supported by merged evidence.
+R4 may pass only when the NOT PROVEN/BLOCKED items above have merged,
+behavioral acceptance evidence.
