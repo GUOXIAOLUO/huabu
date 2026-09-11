@@ -13,6 +13,15 @@
     }
 
     function registerBuiltIns() {
+        if (global.WorkbenchCollectionRichNode && !hasRenderer('collection-gallery', '1')) {
+            registry.register({
+                id: 'collection-gallery', version: '1', priority: 120,
+                canRender: node => global.WorkbenchCollectionRichNode.isCompatible(node),
+                mount: (shell, node, options) => global.WorkbenchCollectionRichNode.mount(shell, node, {
+                    ...(options || {}), richNode: shell.collectionRichNode,
+                }),
+            });
+        }
         if (global.WorkbenchMediaRenderer && !hasRenderer('media', '1')) {
             registry.register({
                 id: 'media',

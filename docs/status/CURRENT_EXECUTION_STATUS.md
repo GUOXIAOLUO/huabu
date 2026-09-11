@@ -6,11 +6,11 @@ status_schema: workbench.execution-status/2
 
 repository: local worktree (remote repository out of scope)
 verified_head: HEAD (local main)
-verified_commit: "R4 local integration and completed R4-41 Gate evidence"
+verified_commit: "R5-03 Canonical Project API completion evidence"
 branch: main
 remote_state: not checked; GitHub/remote synchronization is out of scope for this local task
-verified_at: 2026-09-09T22:35:00+08:00
-verification_source: local main R4-39/R4-40 cutover plus completed R4-41 E/G/H/J behavioral acceptance, K live-browser resource acceptance, and `./scripts/agent-verify.sh` PASS at 637 tests
+verified_at: 2026-09-11T01:15:00+08:00
+verification_source: R6-05 independent Review PASS; R6-06 activated without implementation
 worktree_before_R0: clean
 worktree_at_R4_03: HEAD a1195c9 plus the R4-03 card's own pending additions only —
 the authority policy seam, the main.py guard wiring, focused policy/wiring tests,
@@ -30,10 +30,123 @@ silent_model_provider_executor_fallback_allowed: false
 
 ## Active Round
 
-active_round: R4
-active_round_name: Unified Canvas Cutover
-round_status: complete
+active_round: R6
+active_round_name: Port / Data + Definition + Prompt + Skill
+round_status: in_progress
 blocking_issues: []
+
+R5-01 — Project Repository is complete on local `main` and passed independent
+Review. Normal project API reads/writes and membership access now use
+`SqliteProjectRepository` backed by the canonical SQLite project tables.
+Legacy `data/projects.json` is a read-only compatibility source and is not
+written by the normal project path. Focused repository/API persistence tests
+pass (4 R5-01 tests); full `./scripts/agent-verify.sh` passes with 661 tests,
+86 Python AST files, 112 JavaScript files, 4 architecture guards, and clean
+diff check.
+
+R5-02 — Project Application Service is complete on local `main` and passed
+independent Review. `ProjectService` now owns project lifecycle validation,
+default-project creation, ordering, and archive orchestration; routes delegate
+to it without duplicating business logic. Focused service tests pass (2 R5-02
+tests); full `./scripts/agent-verify.sh` passes with 663 tests, 88 Python AST
+files, 112 JavaScript files, 4 architecture guards, and clean diff check.
+R5-03 remains unactivated.
+
+R5-03 — Canonical Project API is complete on local `main` and passed
+independent Review. `workbench/api/projects.py` owns the versioned list/get/
+create/update/archive transport and delegates lifecycle behavior to
+`ProjectService`; legacy routes remain compatibility-only. Focused API tests
+pass (3 R5-03 tests); full `./scripts/agent-verify.sh` passes with 666 tests,
+90 Python AST files, 112 JavaScript files, 4 architecture guards, and clean
+diff check.
+
+R5-04 — Project JSON Migration and Cutover is complete on local `main` and
+passed independent Git Review. `project_authority_state` now records the
+explicit SQLite project authority; the migration service/tool imports and
+compares project/member counts and preserves unknown source fields under
+`metadata.legacy.source`, while Legacy JSON compatibility reads are gated off
+after cutover. The real local migration report records 1 project = 1 project,
+1 member = 1 member, zero differences, and `project_authority=sqlite`.
+Focused project migration tests pass (4); full `./scripts/agent-verify.sh`
+passes with 670 tests, 93 Python AST files, 112 JavaScript files, 4
+architecture guards, and clean diff check.
+
+R5-05 — Project List UI Cutover is complete on local `main` and passed
+independent Git Review. `static/js/workbench/project-api-client.js` now owns
+versioned Project API transport for list/create/update/archive, while
+`canvas-list.js` retains UI state, rendering, and interaction only; no legacy
+`/api/projects` CRUD fetch remains in the page. Focused UI cutover tests pass
+(6); full `./scripts/agent-verify.sh` passes with 672 tests, 94 Python AST
+files, 113 JavaScript files, 4 architecture guards, and clean diff check.
+R5-06 — NodeShell V2 Contract is complete on local `main` and passed
+independent Git Review. NodeShell now exposes generic header/title/status/ports/
+content/actions/toolbar/footer/resize slots, emits interaction intent events,
+and contains no provider/industry logic; `contentHost`/`toolbarHost` aliases
+preserve existing renderer compatibility. Focused contract coverage and the
+full `./scripts/agent-verify.sh` pass with 673 tests, 95 Python AST files, 113
+JavaScript files, 4 architecture guards, and clean diff check.
+
+R5-07 — Floating Action Bar is complete on local `main` and passed independent
+Git Review. `WorkbenchFloatingActionBar` now owns contextual single/multi-
+selection action rendering and registry filtering, emitting `floating_action`
+intents; the Canvas adapter maps only the available open/copy/group/delete
+commands, with Collection semantics deferred to R6. Focused contract coverage
+and the full `./scripts/agent-verify.sh` pass with 674 tests, 96 Python AST
+files, 114 JavaScript files, 4 architecture guards, and clean diff check.
+R5-08 — Presentation State Model is complete on local `main` and passed
+independent Git Review. `WorkbenchPresentationState` owns the generic
+card/expanded/workspace/inspector state machine, valid transitions, snapshots,
+and adapter-backed presentation-only persistence. NodeShell projects the state
+without taking ownership of Canvas selection or business data. Focused tests
+pass (398); full `./scripts/agent-verify.sh` passes with 676 tests, 97 Python
+AST files, 115 JavaScript files, 4 architecture guards, and clean diff check.
+R5-09 — WorkspaceSession Runtime was re-executed, repaired, and passed
+independent Review on local `main`.
+`WorkbenchWorkspaceSession` owns transient generic workspace lifecycle and
+`WorkspaceRegistry` owns definition registration/lookup. The Canvas adapter is
+called by the existing open action and projects node, selection, canvas, and
+project context into the session; Canvas persistence and specialized workspaces
+remain outside this card. Focused tests pass (3); full
+`./scripts/agent-verify.sh` passes with 691 tests, 104 Python AST files, 121
+JavaScript files, 4 architecture guards, and clean diff check. R5-09 remains
+archived.
+
+R5-10 — Inspector Runtime was re-executed on local `main` and passed
+independent Review. `InspectorPanel` is
+the single right-side owner bound by the Canvas render flow, with generic
+metadata/history/version/execution sections and renderer-contributed sections
+through `NodeInspector`. Focused tests pass (3); full
+`./scripts/agent-verify.sh` passes with 692 tests, 104 Python AST files, 121
+JavaScript files, 4 architecture guards, and clean diff check. R5-10 is
+archived after independent Review PASS.
+
+R5-11 — Asset Rich Node was re-executed, repaired, and passed independent
+Review. `WorkbenchAssetRichNode` projects existing asset-compatible and legacy
+media payloads through all four presentation levels using the shared state
+model, without introducing AssetVersion, Resource Library, or new persistence
+ownership. Its media snapshot is immutable and NodeShell reuses the shared
+presentation owner. R5-11 is archived.
+
+R5-12 — Task Rich Node Skeleton has been re-executed and repaired; implementation
+is complete and independent Review is pending. `WorkbenchTaskRichNode` provides
+a generic task NodeKind with inputs, definition/skill placeholders, status,
+workspace, inspector, and four presentation levels; reload persists only
+declared generic task metadata. NodeShell reuses its single presentation
+controller when creating the task adapter. Skill Registry and model execution
+remain out of scope. Focused tests pass (4); full
+`./scripts/agent-verify.sh` passes with 694 tests, 104 Python AST files, 121
+JavaScript files, 4 architecture guards, and clean diff check.
+
+R5-13 — Artifact Rich Node Skeleton was re-executed, repaired, and passed
+independent Review.
+`WorkbenchArtifactRichNode` provides generic card/expanded/workspace/inspector
+presentation for existing output-compatible and legacy artifact data with
+stable id/kind/version metadata. NodeShell creates it for compatible records
+and reuses the shared presentation controller. Durable version persistence and
+approval lifecycle remain deferred. Focused tests pass (4); full
+`./scripts/agent-verify.sh` passes with 695 tests, 104 Python AST files, 121
+JavaScript files, 4 architecture guards, and clean diff check. R5-13 is
+archived.
 
 R4-41 — R4 Full Acceptance Gate is complete on local `main`. The final
 Integration Owner checklist records `R4: PASS`: E/G/H/J have a 27-test merged
@@ -43,8 +156,36 @@ zero observed settled-DOM and Chromium heap growth, and a listener/timer/
 observer audit. Full `./scripts/agent-verify.sh` passes (637 tests, 81 Python
 AST files, 112 JavaScript files, 4 architecture guards, clean diff check).
 
-R4 is complete. R5 is not active and must not be implemented until a separate
-task-activation step selects it.
+R6-01 — PortTypeRegistry was re-executed, its production seam repaired, and its
+independent Review passed. The card is archived in `docs/tasks/done/`.
+`NodeCreationService` now resolves definition port sets through an injected
+`PortTypeRegistry` before persistence; the localhost legacy wiring supplies the
+generic Core registry. Unknown port types fail without repository or audit
+mutation. The registry centrally owns namespaced registration, resolution,
+parent compatibility, generic Core types, and `asset.cad`; package extensions use
+the same seam without new Core NodeKinds. Full verification passed at 696 tests.
+R6-02 through R6-06 are archived after independent Review PASS. R6-07 is now
+the sole ACTIVE task and is not started.
+
+Process correction (2026-09-10): R5-08 through R5-13 and R6-01 were reopened
+because their cards had been archived before a separately recorded independent
+Review. Their previous implementations were retained for re-execution and
+review evidence; at that historical point R6-01 was the sole Active Task, and
+all later cards were back in dependency order.
+
+R5-08 is complete after re-execution and independent Review PASS. NodeShell
+exposes the shared presentation transition seam without taking over Canvas
+selection. Focused tests pass (400); the latest `./scripts/agent-verify.sh`
+passes with 690 tests, 104 Python AST files, 120 JavaScript files, 4
+architecture guards, and clean diff check.
+
+R5-09 through R5-13 and R6-01 are archived after independent Review PASS.
+R6-02 through R6-06 are archived after independent Review PASS. R6-07 is
+ACTIVE and not started.
+
+R4 is complete. R5-01 through R5-13 and R6-01 through R6-06 are complete and
+reviewed; R6-07 is now the sole active R6 card. Do not begin or activate R6-08
+or any later card before R6-07 implementation and independent Review PASS.
 
 R4-41 acceptance/fix attempt (2026-09-09): title/icon metadata writes were
 moved to the dedicated `/meta` boundary and covered by a regression contract.
@@ -71,7 +212,8 @@ sequence. The 100-node run passed zoom/pan/minimap visual updates in 15.400 /
 27.500 / 116.400 ms; the 300-node run passed them in 10.900 / 62.100 /
 30.500 ms. This is diagnostic local evidence only, so R4 remains blocked
 until its documented merged-gate evidence blockers are resolved.
-No ownership change or R5 activation is authorized.
+No ownership change is authorized by activation alone; R5-01 must establish
+and verify its repository boundary before ownership is considered changed.
 
 R4-40 completion evidence (2026-09-09): the six R4 query flags
 (`unified_canvas`, `node_shell`, `media_renderer`, `legacy_renderer`,
@@ -5986,3 +6128,33 @@ two-node Canvas; workflow modal open/close passed. Full
 `./scripts/agent-verify.sh`: PASS (630 tests, 80 Python AST files, 111
 JavaScript files, 4 architecture guards, clean diff check). R4-39 is DONE.
 R4-40 and R5+ were not started.
+
+Latest execution authority (2026-09-11): R5-09 through R5-13 and R6-01
+through R6-06 are archived after independent Review PASS. R6-07 Collection
+Gallery View is the sole ACTIVE task because its R6-06 dependency is satisfied.
+Its implementation and verification are complete; independent Review is
+pending. Do not begin or activate R6-08 or any later card in this execution.
+
+R6-06 implementation and independent Review evidence (2026-09-11): `Collection` aggregates are
+stored in canonical SQLite with project ownership, restart-safe lookup by id,
+project membership authorization, revision compare-and-swap updates, delete,
+and audit-outbox events. `CollectionService` and the versioned
+`/api/v1/collections` CRUD/query router are wired from `main.py` as thin
+composition only. Focused tests pass (3); full regression and
+`./scripts/agent-verify.sh` pass with 715 tests, 116 Python AST files, 121
+JavaScript files, 4 architecture guards, and clean diff check. R6-07 is
+ACTIVE and was not started.
+Independent Review: PASS. R6-07 was activated as the only next task after
+R6-06 close.
+
+R6-07 implementation evidence (2026-09-11): `WorkbenchCollectionRichNode`
+provides a generic Collection gallery renderer through the unified
+RendererRegistry and NodeShell. It orders Collection items, resolves mixed
+`asset_version`/`artifact_version` references through an injected resolver,
+filters invalid/non-visual references, renders image/video tiles, and emits
+selection/open intents without taking persistence ownership. Shared
+presentation state supports card/expanded/workspace/inspector and reload.
+Focused tests pass (2); full `./scripts/agent-verify.sh` passes with 717 tests,
+117 Python AST files, 122 JavaScript files, 4 architecture guards, and clean
+diff check. R6-07 remains ACTIVE pending independent Review; R6-08 was not
+started.

@@ -122,6 +122,21 @@ class CanonicalCanvasApiTests(unittest.TestCase):
         self.assertEqual(detail["canvas"]["id"], "canvas-1")
         self.assertEqual(detail["canvas"]["title"], "One")
 
+    def test_malformed_deleted_at_returns_422(self):
+        self._activate_sqlite_authority()
+        payload = dict(self._get_canvas("canvas-1")["canvas"])
+        payload["deleted_at"] = "not-a-timestamp"
+        with self.assertRaises(HTTPException) as caught:
+            self._put_canvas("canvas-1", payload, expected_revision=1)
+        self.assertEqual(caught.exception.status_code, 422)
+
+    def test_valid_deleted_at_still_works(self):
+        self._activate_sqlite_authority()
+        payload = dict(self._get_canvas("canvas-1")["canvas"])
+        payload["deleted_at"] = 1788000002000
+        saved = self._put_canvas("canvas-1", payload, expected_revision=1)
+        self.assertTrue(saved["deleted"])
+
     def test_canonical_transport_requires_sqlite_authority(self):
         main.canonical_project_canvas_repository()  # authority stays legacy_json
         with self.assertRaises(HTTPException) as get_error:

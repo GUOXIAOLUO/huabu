@@ -52,6 +52,18 @@ def _parse_iso(value: str | None) -> datetime | None:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
+def _legacy_order(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _project_order(record: ProjectRecord) -> int:
+    legacy = record.metadata.get("legacy") if isinstance(record.metadata, dict) else {}
+    return _legacy_order(legacy.get("order")) if isinstance(legacy, dict) else 0
+
+
 @dataclass(frozen=True)
 class LegacyIdentityResolution:
     project_id: str
@@ -103,6 +115,7 @@ class SqliteProjectCanvasRepository:
         self._database_path.parent.mkdir(parents=True, exist_ok=True)
         connection = sqlite3.connect(self._database_path)
         connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys = ON")
         try:
             yield connection
             connection.commit()
@@ -127,6 +140,9 @@ class SqliteProjectCanvasRepository:
                     created_at TEXT NOT NULL, PRIMARY KEY (project_id, actor_id),
                     FOREIGN KEY (project_id) REFERENCES projects(id)
                 );
+                CREATE TABLE IF NOT EXISTS legacy_project_exclusions (
+                    project_id TEXT PRIMARY KEY
+                );
                 CREATE TABLE IF NOT EXISTS canvases (
                     id TEXT PRIMARY KEY, project_id TEXT NOT NULL, title TEXT NOT NULL,
                     viewport_json TEXT NOT NULL, payload_json TEXT NOT NULL,
@@ -143,8 +159,14 @@ class SqliteProjectCanvasRepository:
                     singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
                     canvas_authority TEXT NOT NULL, updated_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS project_authority_state (
+                    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+                    project_authority TEXT NOT NULL, updated_at TEXT NOT NULL
+                );
                 INSERT OR IGNORE INTO schema_migrations(version) VALUES (1);
                 INSERT OR IGNORE INTO authority_state(singleton, canvas_authority, updated_at)
+                    VALUES (1, 'legacy_json', CURRENT_TIMESTAMP);
+                INSERT OR IGNORE INTO project_authority_state(singleton, project_authority, updated_at)
                     VALUES (1, 'legacy_json', CURRENT_TIMESTAMP);
                 """
             )
@@ -164,6 +186,7 @@ class SqliteProjectCanvasRepository:
                 "INSERT INTO project_members VALUES (?, ?, ?, ?)",
                 (member.project_id, member.actor_id, member.role, _iso(member.created_at)),
             )
+            self._append_audit(connection, "project.created", record.id, None, member.actor_id, {"revision": record.revision})
         return record
 
     def add_member(self, member: ProjectMember) -> None:
@@ -173,12 +196,107 @@ class SqliteProjectCanvasRepository:
                 "INSERT INTO project_members VALUES (?, ?, ?, ?) ON CONFLICT(project_id, actor_id) DO UPDATE SET role=excluded.role",
                 (member.project_id, member.actor_id, member.role, _iso(member.created_at)),
             )
+            self._append_audit(connection, "project.member_added", member.project_id, None, member.actor_id, {"role": member.role})
 
     def member_role(self, project_id: str, actor_id: str) -> str | None:
         self.migrate()
         with self._connection() as connection:
             row = connection.execute("SELECT role FROM project_members WHERE project_id=? AND actor_id=?", (project_id, actor_id)).fetchone()
         return str(row["role"]) if row else None
+
+    def list_project_members(self, project_id: str) -> list[dict[str, str]]:
+        self.migrate()
+        with self._connection() as connection:
+            rows = connection.execute(
+                "SELECT actor_id, role FROM project_members WHERE project_id=? ORDER BY actor_id",
+                (project_id,),
+            ).fetchall()
+        return [{"actor_id": str(row["actor_id"]), "role": str(row["role"])} for row in rows]
+
+    def import_legacy_projects(self, projects: list[dict[str, Any]], *, now: datetime) -> None:
+        self.migrate()
+        seen_ids: set[str] = set()
+        for source in projects:
+            if not isinstance(source, dict) or not str(source.get("id") or "").strip():
+                raise CanonicalRepositoryError("legacy project must have an id")
+            project_id = str(source["id"]).strip()
+            if project_id in seen_ids:
+                raise CanonicalRepositoryError(f"duplicate legacy project id: {project_id}")
+            seen_ids.add(project_id)
+            created_at = _parse_legacy_time(source.get("created_at")) or now
+            updated_at = _parse_legacy_time(source.get("updated_at")) or created_at
+            metadata = {"legacy": {"order": _legacy_order(source.get("order")), "source": deepcopy(source)}}
+            record = ProjectRecord(
+                id=project_id, name=str(source.get("name") or "未命名项目")[:500],
+                workspace_id=LOCAL_WORKSPACE_ID, created_by=LOCAL_WORKSPACE_ACTOR_ID,
+                created_at=created_at, updated_at=updated_at, metadata=metadata,
+            )
+            try:
+                current = self.load_project(project_id)
+            except CanonicalNotFoundError:
+                self.create_project(record)
+            else:
+                if current.name != record.name or _project_order(current) != _project_order(record):
+                    self.update_project(project_id, name=record.name, order=_legacy_order(source.get("order")))
+                with self._connection() as connection:
+                    connection.execute(
+                        "UPDATE projects SET created_at=?, updated_at=?, metadata_json=? WHERE id=?",
+                        (_iso(created_at), _iso(updated_at), json.dumps(metadata, ensure_ascii=False, sort_keys=True), project_id),
+                    )
+            members = source.get("members", [])
+            if not isinstance(members, list):
+                raise CanonicalRepositoryError(f"legacy members must be a list: {project_id}")
+            for member in members:
+                if not isinstance(member, dict) or not str(member.get("actor_id") or "").strip():
+                    raise CanonicalRepositoryError(f"legacy member must have actor_id: {project_id}")
+                self.add_member(ProjectMember(
+                    project_id=project_id, actor_id=str(member["actor_id"]).strip(),
+                    role=member.get("role", "viewer"), created_at=now,
+                ))
+
+    def compare_legacy_projects(self, projects: list[dict[str, Any]]) -> tuple[str, ...]:
+        self.migrate()
+        differences: list[str] = []
+        source_ids = {str(item.get("id") or "").strip() for item in projects if isinstance(item, dict) and str(item.get("id") or "").strip()}
+        canonical = {record.id: record for record in self.list_projects()}
+        if source_ids != set(canonical):
+            differences.append("project_ids")
+        for source in projects:
+            project_id = str(source.get("id") or "").strip()
+            record = canonical.get(project_id)
+            if record is None:
+                continue
+            if record.name != str(source.get("name") or "未命名项目")[:500]:
+                differences.append(f"{project_id}.name")
+            if _project_order(record) != _legacy_order(source.get("order")):
+                differences.append(f"{project_id}.order")
+            expected_members = sorted(
+                (str(member.get("actor_id")).strip(), str(member.get("role", "viewer")))
+                for member in source.get("members", [{"actor_id": LOCAL_WORKSPACE_ACTOR_ID, "role": "owner"}])
+                if isinstance(member, dict) and member.get("actor_id")
+            )
+            actual_members = sorted((member["actor_id"], member["role"]) for member in self.list_project_members(project_id))
+            if expected_members != actual_members:
+                differences.append(f"{project_id}.members")
+            if record.metadata.get("legacy", {}).get("source") != source:
+                differences.append(f"{project_id}.payload")
+        return tuple(sorted(set(differences)))
+
+    def project_authority(self) -> str:
+        self.migrate()
+        with self._connection() as connection:
+            row = connection.execute("SELECT project_authority FROM project_authority_state WHERE singleton=1").fetchone()
+        return str(row["project_authority"])
+
+    def activate_sqlite_project_authority(self, projects: list[dict[str, Any]]) -> None:
+        differences = self.compare_legacy_projects(projects)
+        if differences:
+            raise CanonicalRepositoryError(f"Legacy project comparison failed: {', '.join(differences)}")
+        with self._connection() as connection:
+            connection.execute(
+                "UPDATE project_authority_state SET project_authority='sqlite', updated_at=? WHERE singleton=1",
+                (_iso(self._clock()),),
+            )
 
     def authorization(self) -> AuthorizationService:
         return AuthorizationService(self)
@@ -190,6 +308,54 @@ class SqliteProjectCanvasRepository:
         if not row:
             raise CanonicalNotFoundError("project not found")
         return ProjectRecord(id=row["id"], name=row["name"], workspace_id=row["workspace_id"], created_by=row["created_by"], created_at=_parse_iso(row["created_at"]), updated_at=_parse_iso(row["updated_at"]), revision=row["revision"], metadata=json.loads(row["metadata_json"]))
+
+    def list_projects(self) -> list[ProjectRecord]:
+        self.migrate()
+        with self._connection() as connection:
+            rows = connection.execute("SELECT * FROM projects").fetchall()
+        return [self.load_project(row["id"]) for row in rows]
+
+    def update_project(self, project_id: str, *, name: str | None = None, order: int | None = None) -> ProjectRecord:
+        current = self.load_project(project_id)
+        if name is not None and not str(name).strip():
+            raise CanonicalRepositoryError("project name is required")
+        if name is not None and len(str(name)) > 500:
+            raise CanonicalRepositoryError("project name is too long")
+        metadata = dict(current.metadata)
+        if order is not None:
+            legacy = metadata.get("legacy")
+            if not isinstance(legacy, dict):
+                legacy = {}
+                metadata["legacy"] = legacy
+            legacy["order"] = int(order)
+        with self._connection() as connection:
+            updated = connection.execute(
+                "UPDATE projects SET name=?, updated_at=?, revision=revision+1, metadata_json=? WHERE id=?",
+                (name if name is not None else current.name, _iso(self._clock()), json.dumps(metadata, sort_keys=True), project_id),
+            )
+            if updated.rowcount != 1:
+                raise CanonicalNotFoundError("project not found")
+            self._append_audit(connection, "project.updated", project_id, None, current.created_by, {"revision": current.revision + 1})
+        return self.load_project(project_id)
+
+    def delete_project(self, project_id: str) -> None:
+        self.migrate()
+        with self._connection() as connection:
+            row = connection.execute("SELECT created_by FROM projects WHERE id=?", (project_id,)).fetchone()
+            if not row:
+                raise CanonicalNotFoundError("project not found")
+            self._append_audit(connection, "project.deleted", project_id, None, row["created_by"], {})
+            connection.execute("INSERT OR IGNORE INTO legacy_project_exclusions(project_id) VALUES (?)", (project_id,))
+            connection.execute("DELETE FROM project_members WHERE project_id=?", (project_id,))
+            deleted = connection.execute("DELETE FROM projects WHERE id=?", (project_id,)).rowcount
+        if deleted != 1:
+            raise CanonicalNotFoundError("project not found")
+
+    def legacy_project_excluded(self, project_id: str) -> bool:
+        self.migrate()
+        with self._connection() as connection:
+            row = connection.execute("SELECT 1 FROM legacy_project_exclusions WHERE project_id=?", (project_id,)).fetchone()
+        return row is not None
 
     def load_canvas_record(self, canvas_id: str) -> CanvasRecord:
         row = self._canvas_row(canvas_id)
@@ -434,8 +600,11 @@ class _ConnectionMembershipReader:
 
 
 def _parse_legacy_time(value: Any) -> datetime | None:
-    if isinstance(value, (int, float)) and value:
-        return datetime.fromtimestamp(float(value) / 1000, tz=UTC)
-    if isinstance(value, str) and value:
-        return _parse_iso(value)
+    try:
+        if isinstance(value, (int, float)) and value:
+            return datetime.fromtimestamp(float(value) / 1000, tz=UTC)
+        if isinstance(value, str) and value:
+            return _parse_iso(value)
+    except (OverflowError, OSError, ValueError) as error:
+        raise CanonicalRepositoryError("invalid legacy timestamp") from error
     return None

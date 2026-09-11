@@ -1,10 +1,12 @@
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
 from threading import Lock
+from unittest.mock import patch
 
-from workbench.repositories.canvas_repository import CanvasDeletedError, CanvasNotFoundError, StaleCanvasRevisionError
+from workbench.repositories.canvas_repository import CanvasDeletedError, CanvasNotFoundError, CanvasValidationError, StaleCanvasRevisionError
 from workbench.repositories.legacy_json_canvas_repository import LegacyJsonCanvasRepository
 
 
@@ -58,6 +60,24 @@ class LegacyJsonCanvasRepositoryTests(unittest.TestCase):
         raw = json.loads(self.repository.path_for("canvas-1").read_text(encoding="utf-8"))
         self.assertEqual(raw["future_field"], {"opaque": [1, 2, 3]})
 
+    def test_successful_atomic_replace_writes_through_a_same_directory_temp_file(self):
+        with patch("workbench.repositories.legacy_json_canvas_repository.os.replace", wraps=os.replace) as replace:
+            self.repository.save(self.canvas())
+        source, destination = replace.call_args.args
+        self.assertEqual(Path(source).parent, self.directory)
+        self.assertEqual(Path(destination), self.repository.path_for("canvas-1"))
+        self.assertEqual(self.repository.load("canvas-1")["title"], "fixture")
+
+    def test_failed_atomic_replace_preserves_previous_file_and_cleans_temp(self):
+        self.repository.save(self.canvas())
+        replacement = self.canvas()
+        replacement["title"] = "replacement"
+        with patch("workbench.repositories.legacy_json_canvas_repository.os.replace", side_effect=OSError("replace failed")):
+            with self.assertRaises(OSError):
+                self.repository.save(replacement)
+        self.assertEqual(self.repository.load("canvas-1")["title"], "fixture")
+        self.assertEqual(list(self.directory.glob("*.tmp")), [])
+
     def test_list_diagnostics_marks_unreadable_source(self):
         self.repository.save(self.canvas())
         self.directory.mkdir(parents=True, exist_ok=True)
@@ -65,3 +85,9 @@ class LegacyJsonCanvasRepositoryTests(unittest.TestCase):
         payloads, unreadable = self.repository.list_payloads_with_diagnostics()
         self.assertEqual([payload["id"] for payload in payloads], ["canvas-1"])
         self.assertTrue(unreadable)
+
+    def test_rejects_canvas_ids_that_would_collide_after_filename_sanitization(self):
+        self.assertEqual(self.repository.path_for("ab"), self.directory / "ab.json")
+        for canvas_id in ("a/b", "a b", "a.b"):
+            with self.subTest(canvas_id=canvas_id), self.assertRaises(CanvasValidationError):
+                self.repository.path_for(canvas_id)

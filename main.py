@@ -26,6 +26,8 @@ import math
 import shlex
 import functools
 import html
+import ipaddress
+import socket
 import xml.etree.ElementTree as ET
 from typing import List, Dict, Any, Optional, Tuple
 from threading import Lock, Thread
@@ -46,7 +48,9 @@ from workbench.repositories.canvas_repository import (
 )
 from workbench.repositories.legacy_json_canvas_repository import LegacyJsonCanvasRepository
 from workbench.repositories.sqlite_canvas_compatibility_repository import SqliteCanvasCompatibilityRepository
-from workbench.repositories.sqlite_project_canvas_repository import LOCAL_WORKSPACE_ACTOR_ID, SqliteProjectCanvasRepository
+from workbench.repositories.sqlite_project_canvas_repository import CanonicalNotFoundError, LOCAL_WORKSPACE_ACTOR_ID, SqliteProjectCanvasRepository
+from workbench.domain.project.models import ProjectRecord
+from workbench.repositories.project_repository import SqliteProjectRepository
 from workbench.application.canvas_authority_policy import (
     CanvasAuthoritySplitBrainError,
     read_canvas_authority_state,
@@ -54,10 +58,17 @@ from workbench.application.canvas_authority_policy import (
     split_brain_error,
 )
 from workbench.application.project_canvas_migration import ProjectCanvasMigrationService
+from workbench.application.project_migration import ProjectMigrationService
+from workbench.application.project_service import ProjectNotFoundError, ProjectService, ProjectServiceError
 from workbench.api.canvases import create_canonical_canvases_router
 from workbench.api.canvas_nodes import create_canvas_nodes_router
+from workbench.api.projects import create_canonical_projects_router
+from workbench.api.collections import create_canonical_collections_router
+from workbench.application.collection_service import CollectionService
+from workbench.repositories.collection_repository import SqliteCollectionRepository
 from workbench.application.legacy_definitions import LegacyDefinitionRegistry, LegacyImageModelCompatibilityPolicy
 from workbench.application.node_creation import NodeCreationService
+from workbench.domain.canvas.port_type_registry import create_core_port_type_registry
 from workbench.application.node_mutation import NodeMutationService
 from workbench.application.graph_mutation import GraphMutationService
 from workbench.application.group_mutation import GroupMembershipService
@@ -157,7 +168,7 @@ app.add_middleware(
 class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
-        self.user_connections: Dict[str, WebSocket] = {}
+        self.user_connections: Dict[str, set[WebSocket]] = {}
         self.connection_clients: Dict[WebSocket, str] = {}
 
     async def connect(self, websocket: WebSocket, client_id: str = None):
@@ -165,18 +176,26 @@ class ConnectionManager:
         self.active_connections.append(websocket)
         self.connection_clients[websocket] = client_id or f"anon-{id(websocket)}"
         if client_id:
-            self.user_connections[client_id] = websocket
+            self.user_connections.setdefault(client_id, set()).add(websocket)
         print(f"WS Connected. Total: {len(self.active_connections)}, Online: {self.online_count()}")
         await self.broadcast_count()
 
     async def disconnect(self, websocket: WebSocket, client_id: str = None):
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
-        self.connection_clients.pop(websocket, None)
-        if client_id and self.user_connections.get(client_id) is websocket:
-            del self.user_connections[client_id]
+        self._remove_connection(websocket, client_id)
         print(f"WS Disconnected. Total: {len(self.active_connections)}, Online: {self.online_count()}")
         await self.broadcast_count()
+
+    def _remove_connection(self, websocket: WebSocket, client_id: str | None = None):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+        resolved_client_id = client_id or self.connection_clients.pop(websocket, None)
+        if client_id:
+            self.connection_clients.pop(websocket, None)
+        if resolved_client_id and resolved_client_id in self.user_connections:
+            sockets = self.user_connections[resolved_client_id]
+            sockets.discard(websocket)
+            if not sockets:
+                del self.user_connections[resolved_client_id]
 
     def online_count(self):
         visible_clients = {
@@ -193,7 +212,7 @@ class ConnectionManager:
                 await connection.send_text(data)
             except Exception as e:
                 print(f"Broadcast error: {e}")
-                self.active_connections.remove(connection)
+                self._remove_connection(connection)
 
     async def broadcast_new_image(self, image_data: dict):
         data = json.dumps({"type": "new_image", "data": image_data})
@@ -202,7 +221,7 @@ class ConnectionManager:
                 await connection.send_text(data)
             except Exception as e:
                 print(f"Broadcast image error: {e}")
-                self.active_connections.remove(connection)
+                self._remove_connection(connection)
 
     async def broadcast_canvas_updated(self, canvas_id: str, updated_at: int, client_id: str = "", revision: int = 0):
         data = json.dumps({
@@ -217,7 +236,7 @@ class ConnectionManager:
                 await connection.send_text(data)
             except Exception as e:
                 print(f"Broadcast canvas error: {e}")
-                self.active_connections.remove(connection)
+                self._remove_connection(connection)
 
     async def broadcast_asset_library_updated(self, updated_at: int = 0):
         data = json.dumps({
@@ -229,15 +248,15 @@ class ConnectionManager:
                 await connection.send_text(data)
             except Exception as e:
                 print(f"Broadcast asset library error: {e}")
-                self.active_connections.remove(connection)
+                self._remove_connection(connection)
 
     async def send_personal_message(self, message: dict, client_id: str):
-        ws = self.user_connections.get(client_id)
-        if ws:
+        for ws in list(self.user_connections.get(client_id, set())):
             try:
                 await ws.send_text(json.dumps(message))
             except Exception as e:
                 print(f"Personal message error for {client_id}: {e}")
+                self._remove_connection(ws, client_id)
 
 manager = ConnectionManager()
 GLOBAL_LOOP = None
@@ -609,6 +628,14 @@ load_env_file()
 
 COMFYUI_INSTANCES = [s.strip() for s in os.getenv("COMFYUI_INSTANCES", "127.0.0.1:8188").split(",") if s.strip()]
 COMFYUI_ADDRESS = COMFYUI_INSTANCES[0]
+UPLOAD_CHUNK_BYTES = 1024 * 1024
+UPLOAD_FILE_MAX_BYTES = int(os.getenv("UPLOAD_FILE_MAX_BYTES", str(50 * 1024 * 1024)))
+UPLOAD_REQUEST_MAX_BYTES = int(os.getenv("UPLOAD_REQUEST_MAX_BYTES", str(100 * 1024 * 1024)))
+WORKFLOW_ZIP_MAX_BYTES = 50 * 1024 * 1024
+WORKFLOW_ZIP_MAX_ENTRIES = 1000
+WORKFLOW_ZIP_MAX_ENTRY_BYTES = 50 * 1024 * 1024
+WORKFLOW_ZIP_MAX_TOTAL_BYTES = 100 * 1024 * 1024
+WORKFLOW_ZIP_MAX_COMPRESSION_RATIO = 100
 
 AI_BASE_URL = os.getenv("COMFLY_BASE_URL", "https://ai.comfly.chat").rstrip("/")
 AI_API_KEY = os.getenv("COMFLY_API_KEY", "")
@@ -2707,6 +2734,16 @@ def project_canvas_migration_service():
     """Expose R3 backfill/compare orchestration without adding it to Legacy route handlers."""
     return ProjectCanvasMigrationService(canonical_project_canvas_repository())
 
+def project_migration_service():
+    """Expose explicit project JSON migration without coupling it to HTTP routes."""
+    return ProjectMigrationService(project_repository())
+
+def collection_repository():
+    return SqliteCollectionRepository(WORKBENCH_DATABASE_PATH)
+
+def collection_service(actor_id: str) -> CollectionService:
+    return CollectionService(collection_repository(), actor_id=actor_id)
+
 def local_node_creation_service(actor_id: str) -> NodeCreationService:
     """Build the explicitly localhost-only service for the first Legacy Image API."""
     repository = canvas_repository()
@@ -2718,6 +2755,7 @@ def local_node_creation_service(actor_id: str) -> NodeCreationService:
         repository=LegacyJsonNodeCreationRepository(repository),
         audit_sink=JsonlAuditSink(CANVAS_NODE_AUDIT_PATH, lock=CANVAS_NODE_AUDIT_LOCK),
         node_id_factory=lambda: uuid.uuid4().hex,
+        port_types=create_core_port_type_registry(),
     )
 
 def local_node_lookup() -> LegacyJsonNodeLookup:
@@ -2915,61 +2953,39 @@ def normalize_canvas_kind(kind="classic"):
 PROJECTS_PATH = os.path.join(DATA_DIR, "projects.json")
 DEFAULT_PROJECT_ID = "default"
 
-def load_projects():
-    try:
-        with open(PROJECTS_PATH, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        projects = data.get("projects") if isinstance(data, dict) else data
-        if isinstance(projects, list):
-            return [p for p in projects if isinstance(p, dict) and p.get("id")]
-    except Exception:
-        pass
-    return []
+def project_repository():
+    """Route normal project reads/writes through the canonical repository."""
+    return SqliteProjectRepository(WORKBENCH_DATABASE_PATH, legacy_projects_path=PROJECTS_PATH)
 
-def save_projects(projects):
-    with CANVAS_LOCK:
-        with open(PROJECTS_PATH, 'w', encoding='utf-8') as f:
-            json.dump({"projects": projects}, f, ensure_ascii=False, indent=2)
+def project_service(*, with_canvas_reassigner: bool = False):
+    """Build the application boundary for Project lifecycle operations."""
+    reassigner = canvas_repository().reassign_project if with_canvas_reassigner else None
+    return ProjectService(project_repository(), canvas_reassigner=reassigner)
 
 def project_record(p):
+    order = SqliteProjectRepository.project_order(p)
     return {
-        "id": p.get("id"),
-        "name": (p.get("name") or "未命名项目")[:60],
-        "order": int(p.get("order") or 0),
-        "created_at": p.get("created_at", 0),
-        "updated_at": p.get("updated_at", 0),
+        "id": p.id,
+        "name": p.name[:60],
+        "order": order,
+        "created_at": int(p.created_at.timestamp() * 1000),
+        "updated_at": int(p.updated_at.timestamp() * 1000),
     }
 
 def ensure_default_project():
-    """保证存在一个“默认项目”，并把没有归属项目的画布迁移进去（一次性、幂等）。"""
-    projects = load_projects()
-    changed = False
-    if not any(p.get("id") == DEFAULT_PROJECT_ID for p in projects):
-        ts = now_ms()
-        projects.insert(0, {"id": DEFAULT_PROJECT_ID, "name": "默认项目", "order": 0, "created_at": ts, "updated_at": ts})
-        changed = True
-    if changed:
-        save_projects(projects)
-    return projects
+    return project_service().list_after_ensuring_default()
 
 def new_project(name="新项目"):
-    projects = ensure_default_project()
-    ts = now_ms()
-    clean = (str(name or "").strip() or "新项目")[:60]
-    order = max([int(p.get("order") or 0) for p in projects], default=0) + 1
-    proj = {"id": uuid.uuid4().hex, "name": clean, "order": order, "created_at": ts, "updated_at": ts}
-    projects.append(proj)
-    save_projects(projects)
-    return proj
+    return project_service().create(name)
 
 def list_projects():
-    projects = ensure_default_project()
+    projects = project_service().list_after_ensuring_default()
     counts = {}
     for rec in iter_canvas_records(include_deleted=False):
         pid = rec.get("project") or DEFAULT_PROJECT_ID
         counts[pid] = counts.get(pid, 0) + 1
     out = []
-    for p in sorted(projects, key=lambda x: (int(x.get("order") or 0), x.get("created_at") or 0)):
+    for p in projects:
         rec = project_record(p)
         rec["canvas_count"] = counts.get(rec["id"], 0)
         out.append(rec)
@@ -10195,6 +10211,62 @@ def runninghub_entry_config_from_model(provider, model):
         "workflowJson": {},
     }
 
+RUNNINGHUB_REMOTE_ASSET_MAX_BYTES = int(os.getenv("RUNNINGHUB_REMOTE_ASSET_MAX_BYTES", str(50 * 1024 * 1024)))
+RUNNINGHUB_REMOTE_ASSET_MAX_REDIRECTS = 3
+
+
+def _validate_runninghub_remote_asset_url(url: str) -> urllib.parse.SplitResult:
+    parsed = urllib.parse.urlsplit(str(url or "").strip())
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
+        raise HTTPException(status_code=400, detail="远程素材地址必须是公开 http/https URL")
+    try:
+        port = parsed.port or (443 if parsed.scheme.lower() == "https" else 80)
+        addresses = socket.getaddrinfo(parsed.hostname, port, type=socket.SOCK_STREAM)
+    except (OSError, ValueError) as error:
+        raise HTTPException(status_code=400, detail="远程素材地址无法安全解析") from error
+    if not addresses:
+        raise HTTPException(status_code=400, detail="远程素材地址无法安全解析")
+    for address in addresses:
+        try:
+            ip = ipaddress.ip_address(address[4][0])
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail="远程素材地址解析无效") from error
+        if ip.is_loopback or ip.is_private or ip.is_link_local or ip.is_multicast or ip.is_unspecified or ip.is_reserved:
+            raise HTTPException(status_code=400, detail="远程素材地址不能指向本机、内网或保留地址")
+    return parsed
+
+
+async def _download_runninghub_remote_asset(client, url: str) -> tuple[bytes, str, str]:
+    current_url = str(url or "").strip()
+    for redirect_count in range(RUNNINGHUB_REMOTE_ASSET_MAX_REDIRECTS + 1):
+        parsed = _validate_runninghub_remote_asset_url(current_url)
+        request = client.build_request("GET", current_url)
+        response = await client.send(request, follow_redirects=False, stream=True)
+        try:
+            if response.status_code in {301, 302, 303, 307, 308}:
+                location = response.headers.get("location")
+                if not location:
+                    raise HTTPException(status_code=502, detail="远程素材重定向缺少目标地址")
+                if redirect_count >= RUNNINGHUB_REMOTE_ASSET_MAX_REDIRECTS:
+                    raise HTTPException(status_code=400, detail="远程素材重定向次数过多")
+                current_url = urllib.parse.urljoin(current_url, location)
+                continue
+            response.raise_for_status()
+            declared_size = int(response.headers.get("content-length") or 0)
+            if declared_size > RUNNINGHUB_REMOTE_ASSET_MAX_BYTES:
+                raise HTTPException(status_code=413, detail="远程素材超过下载大小限制")
+            content = bytearray()
+            async for chunk in response.aiter_bytes():
+                content.extend(chunk)
+                if len(content) > RUNNINGHUB_REMOTE_ASSET_MAX_BYTES:
+                    raise HTTPException(status_code=413, detail="远程素材超过下载大小限制")
+            filename = os.path.basename(parsed.path) or "asset.bin"
+            return bytes(content), response.headers.get("content-type") or "application/octet-stream", filename
+        finally:
+            await response.aclose()
+    raise HTTPException(status_code=400, detail="远程素材重定向次数过多")
+
+
 async def runninghub_upload_local_to_filename(client, provider, url, use_wallet=False):
     """把本地/远程素材上传到 RunningHub /task/openapi/upload，返回 fileName（供 nodeInfoList 使用）。"""
     text = str(url or "").strip()
@@ -10207,11 +10279,7 @@ async def runninghub_upload_local_to_filename(client, provider, url, use_wallet=
         with open(path, "rb") as fh:
             content = fh.read()
     elif text.startswith(("http://", "https://")):
-        response = await client.get(text, follow_redirects=True)
-        response.raise_for_status()
-        content = response.content
-        content_type = response.headers.get("content-type") or "application/octet-stream"
-        filename = os.path.basename(urllib.parse.urlsplit(text).path) or "asset.bin"
+        content, content_type, filename = await _download_runninghub_remote_asset(client, text)
     else:
         return ""
     if not content:
@@ -11145,28 +11213,37 @@ async def export_minimax_timeline(payload: MiniMaxTimelineExportRequest):
 @app.post("/api/upload")
 async def upload_image(files: List[UploadFile] = File(...)):
     uploaded_files = []
-    files_content = []
+    total_size = 0
     for file in files:
-        content = await file.read()
-        files_content.append((file, content))
-
-    for file, content in files_content:
-        success_count = 0
-        last_result = None
-        for addr in COMFYUI_INSTANCES:
-            try:
-                files_data = {'image': (file.filename, content, file.content_type)}
-                response = requests.post(f"http://{addr}/upload/image", files=files_data, timeout=5)
-                if response.status_code == 200:
-                    last_result = response.json()
-                    success_count += 1
-            except Exception as e:
-                print(f"Upload error for {addr}: {e}")
-
-        if success_count > 0 and last_result:
-            uploaded_files.append({"comfy_name": last_result.get("name", file.filename)})
-        else:
-            raise HTTPException(status_code=500, detail="Failed to upload to any backend")
+        size = 0
+        temporary = tempfile.SpooledTemporaryFile(max_size=UPLOAD_CHUNK_BYTES, mode="w+b")
+        try:
+            while chunk := await file.read(UPLOAD_CHUNK_BYTES):
+                size += len(chunk)
+                total_size += len(chunk)
+                if size > UPLOAD_FILE_MAX_BYTES or total_size > UPLOAD_REQUEST_MAX_BYTES:
+                    raise HTTPException(status_code=413, detail="上传文件超过大小限制")
+                temporary.write(chunk)
+            temporary.seek(0)
+            if not size:
+                raise HTTPException(status_code=400, detail="上传文件为空")
+            success_count = 0
+            last_result = None
+            for addr in COMFYUI_INSTANCES:
+                try:
+                    files_data = {'image': (file.filename, temporary, file.content_type)}
+                    response = requests.post(f"http://{addr}/upload/image", files=files_data, timeout=5)
+                    if response.status_code == 200:
+                        last_result = response.json()
+                        success_count += 1
+                except Exception as e:
+                    print(f"Upload error for {addr}: {e}")
+            if success_count > 0 and last_result:
+                uploaded_files.append({"comfy_name": last_result.get("name", file.filename)})
+            else:
+                raise HTTPException(status_code=500, detail="Failed to upload to any backend")
+        finally:
+            temporary.close()
 
     return {"files": uploaded_files}
 
@@ -15404,16 +15481,17 @@ async def create_project(payload: ProjectCreateRequest):
 
 @app.post("/api/projects/{project_id}")
 async def update_project(project_id: str, payload: ProjectUpdateRequest):
-    projects = ensure_default_project()
-    target = next((p for p in projects if p.get("id") == project_id), None)
-    if not target:
+    service = project_service()
+    try:
+        target = service.update(
+            project_id,
+            name=(str(payload.name).strip() or "未命名项目")[:60] if payload.name is not None else None,
+            order=payload.order,
+        )
+    except ProjectNotFoundError:
         raise HTTPException(status_code=404, detail="项目不存在")
-    if payload.name is not None:
-        target["name"] = (str(payload.name).strip() or target.get("name") or "未命名项目")[:60]
-    if payload.order is not None:
-        target["order"] = int(payload.order)
-    target["updated_at"] = now_ms()
-    save_projects(projects)
+    except ProjectServiceError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
     return {"project": project_record(target)}
 
 @app.delete("/api/projects/{project_id}")
@@ -15421,14 +15499,13 @@ async def delete_project(project_id: str):
     """删除项目：默认项目不可删除；其余项目删除后，其下画布回归默认项目（不删画布）。"""
     if project_id == DEFAULT_PROJECT_ID:
         raise HTTPException(status_code=400, detail="默认项目不可删除")
-    projects = ensure_default_project()
-    if not any(p.get("id") == project_id for p in projects):
+    try:
+        result = project_service(with_canvas_reassigner=True).archive(project_id)
+    except ProjectNotFoundError:
         raise HTTPException(status_code=404, detail="项目不存在")
-    projects = [p for p in projects if p.get("id") != project_id]
-    save_projects(projects)
-    # 把该项目下的画布迁回默认项目
-    moved = canvas_repository().reassign_project(source_project_id=project_id, target_project_id=DEFAULT_PROJECT_ID)
-    return {"ok": True, "moved": moved}
+    except ProjectServiceError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return {"ok": True, "moved": result.moved_canvas_count}
 
 @app.get("/api/canvases/trash")
 async def trashed_canvases():
@@ -15709,6 +15786,16 @@ async def import_canvas_workflow(file: UploadFile = File(...)):
     try:
         if name.endswith(".zip") or raw[:2] == b"PK":
             with zipfile.ZipFile(BytesIO(raw), "r") as zf:
+                infos = zf.infolist()
+                if len(raw) > WORKFLOW_ZIP_MAX_BYTES or len(infos) > WORKFLOW_ZIP_MAX_ENTRIES:
+                    raise HTTPException(status_code=413, detail="工作流压缩包超过安全限制")
+                total_uncompressed = 0
+                for info in infos:
+                    total_uncompressed += info.file_size
+                    ratio = info.file_size / max(1, info.compress_size)
+                    if (info.file_size > WORKFLOW_ZIP_MAX_ENTRY_BYTES or total_uncompressed > WORKFLOW_ZIP_MAX_TOTAL_BYTES
+                            or ratio > WORKFLOW_ZIP_MAX_COMPRESSION_RATIO):
+                        raise HTTPException(status_code=413, detail="工作流压缩包超过安全限制")
                 candidates = [n for n in zf.namelist() if n.lower().endswith("workflow.json")]
                 workflow_name = "workflow.json" if "workflow.json" in zf.namelist() else (candidates[0] if candidates else "")
                 if not workflow_name:
@@ -18429,6 +18516,8 @@ if WORKBENCH_NODE_API_ENABLED:
         authority_decision_factory=canvas_authority_decision,
         canvas_updated_broadcast=broadcast_canonical_canvas_update,
     ))
+    app.include_router(create_canonical_projects_router(project_service_factory=project_service))
+    app.include_router(create_canonical_collections_router(service_factory=collection_service))
     app.include_router(create_canvas_nodes_router(
         service_for_actor=local_node_creation_service,
         mutation_service_for_actor=local_node_mutation_service,

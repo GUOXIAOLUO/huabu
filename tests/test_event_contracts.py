@@ -16,13 +16,39 @@ class RecordingSocket:
     async def send_text(self, message):
         self.messages.append(message)
 
+    async def accept(self):
+        return None
+
 
 class FailingSocket:
     async def send_text(self, _message):
         raise RuntimeError("closed")
 
+    async def accept(self):
+        return None
+
 
 class EventContractTests(unittest.IsolatedAsyncioTestCase):
+    async def test_same_client_two_sockets_disconnect_and_send_failure_keep_indexes_consistent(self):
+        manager = main.ConnectionManager()
+        first, second = RecordingSocket(), RecordingSocket()
+        with patch("builtins.print"):
+            await manager.connect(first, "client-1")
+            await manager.connect(second, "client-1")
+            await manager.disconnect(first, "client-1")
+        self.assertEqual(manager.user_connections["client-1"], {second})
+        self.assertEqual(manager.online_count(), 1)
+        await manager.send_personal_message({"type": "notice"}, "client-1")
+        self.assertEqual(json.loads(second.messages[-1]), {"type": "notice"})
+
+        failed = FailingSocket()
+        await manager.connect(failed, "client-1")
+        with patch("builtins.print"):
+            await manager.send_personal_message({"type": "notice"}, "client-1")
+        self.assertNotIn(failed, manager.active_connections)
+        self.assertNotIn(failed, manager.connection_clients)
+        self.assertEqual(manager.user_connections["client-1"], {second})
+
     async def test_canvas_invalidation_message_has_stable_payload(self):
         manager = main.ConnectionManager()
         receiver = RecordingSocket()

@@ -21,6 +21,8 @@
         const source = node && typeof node === 'object' ? node : {};
         const nodeType = String(source.type || 'unknown');
         const assetType = nodeType === 'image' || nodeType === 'smart-image';
+        const collectionType = nodeType === 'collection';
+        const collection = source.collection || source.config?.collection || source.extensions?.collection?.payload || source.extensions?.legacy?.payload?.collection;
         const stateChangedAt = source.state_changed_at || source.stateChangedAt || source.status_updated_at || source.statusUpdatedAt || null;
         const inputBindings = Array.isArray(source.input_bindings)
             ? source.input_bindings.filter(binding => binding && typeof binding === 'object').map(binding => ({...binding}))
@@ -35,7 +37,7 @@
             id: String(source.id || ''),
             project_id: String((context && context.projectId) || ''),
             canvas_id: String((context && context.canvasId) || ''),
-            kind: assetType ? 'asset' : 'legacy',
+            kind: assetType ? 'asset' : collectionType ? 'collection' : 'legacy',
             definition_ref: {type: 'legacy', id: nodeType, version: '0'},
             renderer: {id: 'legacy', version: '1'},
             state: STATES.includes(source.state) ? source.state : 'ready',
@@ -49,6 +51,7 @@
             output_refs: outputRefs,
             metadata: {inspector_origin_label: '兼容画布', state_changed_at: stateChangedAt},
             extensions: {legacy: {payload: source}},
+            ...(collection ? {collection} : {}),
         };
     }
 

@@ -9,12 +9,6 @@
         return normalized || fallback;
     }
 
-    function modelLabel(node) {
-        const binding = node && node.model_binding;
-        if (!binding || !binding.provider_id || !binding.model_id) return '';
-        return `${binding.provider_id} / ${binding.model_id}`;
-    }
-
     function emit(onIntent, type, node, detail) {
         if (typeof onIntent === 'function') onIntent({type, nodeId: node.id, detail: detail || {}});
     }
@@ -41,6 +35,22 @@
 
         const onIntent = settings.onIntent;
         const portVisibility = settings.ports || {};
+        const presentationController = global.WorkbenchPresentationState
+            ? global.WorkbenchPresentationState.create({initial: settings.viewState && settings.viewState.presentation})
+            : null;
+        const assetRichNode = global.WorkbenchAssetRichNode?.isCompatible(node)
+            ? global.WorkbenchAssetRichNode.create({node, presentation: presentationController})
+            : null;
+        const taskRichNode = global.WorkbenchTaskRichNode?.compatible(node)
+            ? global.WorkbenchTaskRichNode.create({node, presentationController})
+            : null;
+        const artifactRichNode = global.WorkbenchArtifactRichNode?.compatible(node)
+            ? global.WorkbenchArtifactRichNode.create({node, presentation: presentationController})
+            : null;
+        const collectionRichNode = global.WorkbenchCollectionRichNode?.isCompatible(node)
+            ? global.WorkbenchCollectionRichNode.create({node, presentation: presentationController})
+            : null;
+        let selectedState = Boolean(settings.viewState && settings.viewState.selected);
         const root = documentRef.createElement('article');
         root.className = 'workbench-node-shell';
         root.dataset.nodeId = node.id;
@@ -130,18 +140,46 @@
         function update(nextNode, viewState) {
             if (!nextNode || nextNode.id !== node.id) throw new TypeError('NodeShell update requires the same node id');
             const state = VALID_STATES.has(nextNode.state) ? nextNode.state : 'ready';
-            const selected = Boolean(viewState && viewState.selected);
+            if (viewState && Object.prototype.hasOwnProperty.call(viewState, 'selected')) selectedState = Boolean(viewState.selected);
+            const selected = selectedState;
+            const presentation = presentationController
+                ? presentationController.state()
+                : (global.WorkbenchPresentationState
+                    ? global.WorkbenchPresentationState.normalize(viewState && viewState.presentation)
+                    : 'card');
             root.dataset.state = state;
+            root.dataset.presentationState = presentation;
+            root.classList.remove('is-presentation-card', 'is-presentation-expanded', 'is-presentation-workspace', 'is-presentation-inspector');
+            root.classList.add(`is-presentation-${presentation}`);
             root.classList.toggle('is-selected', selected);
             root.setAttribute('aria-label', `${text(nextNode.title, 'Untitled node')}, ${state}`);
             title.textContent = text(nextNode.title, 'Untitled node');
             status.textContent = state;
-            footer.dataset.model = modelLabel(nextNode);
-            footer.title = modelLabel(nextNode);
+            footer.dataset.nodeId = nextNode.id;
+        }
+
+        function transitionPresentation(next) {
+            if (!presentationController) throw new Error('presentation state model is unavailable');
+            const state = presentationController.transition(next);
+            update(node, {selected: selectedState, presentation: state});
+            return state;
         }
 
         update(node, settings.viewState);
-        return Object.freeze({element: root, contentHost: content, toolbarHost: toolbar, update, destroy: () => root.remove()});
+        const slots = Object.freeze({
+            header, title, status, ports: Object.freeze({input: inputPort, output: outputPort}),
+            content, actions, toolbar, footer, resize,
+        });
+        return Object.freeze({
+            element: root, slots,
+            contentHost: content, toolbarHost: toolbar,
+            presentationState: () => assetRichNode?.state() || taskRichNode?.state().presentation || artifactRichNode?.state() || collectionRichNode?.state() || root.dataset.presentationState || 'card',
+            assetRichNode,
+            taskRichNode,
+            artifactRichNode,
+            collectionRichNode,
+            transitionPresentation, update, destroy: () => root.remove(),
+        });
     }
 
     global.WorkbenchNodeShell = Object.freeze({create: createNodeShell});

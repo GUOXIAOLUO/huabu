@@ -648,6 +648,20 @@
             .map(connection => byId.get(connection.from)).filter(Boolean);
     }
 
+    const TYPED_INPUT_SOURCE_TYPES = new Set(['asset_version', 'artifact_version', 'entity_ref', 'entity_version', 'collection', 'literal']);
+    function inputBindingNodes(bindings, nodes) {
+        if (!Array.isArray(bindings)) return null;
+        const typed = bindings.filter(binding => binding && binding.enabled !== false
+            && TYPED_INPUT_SOURCE_TYPES.has(binding.source_type)
+            && String(binding.source_ref || '').trim())
+            .sort((left, right) => (Number(left.order) || 0) - (Number(right.order) || 0)
+                || String(left.id || '').localeCompare(String(right.id || '')));
+        if (!typed.length) return null;
+        const list = Array.isArray(nodes) ? nodes : [];
+        return typed.map(binding => list.find(node => node?.id === binding.source_ref
+            || (Array.isArray(node?.output_refs) && node.output_refs.some(reference => reference?.id === binding.source_ref)))).filter(Boolean);
+    }
+
     function generatedMediaRefs(node, options = {}) {
         if (!node) return [];
         const outputValue = typeof options.outputUrlValue === 'function' ? options.outputUrlValue : outputUrlValue;
@@ -798,10 +812,11 @@
         if (raw.startsWith('data:') || raw.startsWith('blob:') || raw.startsWith('/api/download-output')) return raw;
         return `/api/download-output?url=${encodeURIComponent(raw)}&name=${encodeURIComponent(filename || outputDownloadName(raw))}`;
     }
-    function generatorSourceProjection(gen, connections, nodes, options = {}) {
+    function generatorSourceProjectionInternal(gen, connections, nodes, options = {}, allowLegacyEdgeFallback = false) {
         if (!gen) return [];
         const find = id => (nodes || []).find(node => node?.id === id);
-        const sources = connectedInputNodes(gen.id, connections, nodes).map(node => {
+        const boundNodes = inputBindingNodes(gen.input_bindings, nodes);
+        const sources = (boundNodes === null && allowLegacyEdgeFallback ? connectedInputNodes(gen.id, connections, nodes) : (boundNodes || [])).map(node => {
             if (node.type === 'output' && (node.images || []).length) {
                 const latest = latestOutputReference(node, {outputUrlValue:options.outputUrlValue, mediaKindForOutputItem:options.mediaKindForOutputItem, label:'上游输出', name:'output.png'});
                 if (latest) return latest;
@@ -826,6 +841,12 @@
             return null;
         });
         return sources.flat().filter(Boolean);
+    }
+    function generatorSourceProjection(gen, connections, nodes, options = {}) {
+        return generatorSourceProjectionInternal(gen, connections, nodes, options, false);
+    }
+    function legacyGeneratorSourceProjection(gen, connections, nodes, options = {}) {
+        return generatorSourceProjectionInternal(gen, connections, nodes, options, true);
     }
     function outputDownloadName(url, timestamp = Date.now()) {
         const clean = String(url || '').split('?')[0];
@@ -1203,6 +1224,7 @@
         archiveDownloadPayload,
         downloadHref,
         generatorSourceProjection,
+        legacyGeneratorSourceProjection,
         outputPromptProjection,
         outputRerunAvailable,
         outputDownloadName,

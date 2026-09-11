@@ -73,9 +73,59 @@ function finishSelection(){
     render();
     if(workflowTransferModal?.classList.contains('open')) updateWorkflowTransferMeta();
 }
+let floatingActionBar = null;
+let canvasWorkspaceSession = null;
+function ensureCanvasWorkspaceSession(){
+    if(canvasWorkspaceSession || !window.WorkbenchCanvasWorkspaceSession) return canvasWorkspaceSession;
+    canvasWorkspaceSession = window.WorkbenchCanvasWorkspaceSession.create({
+        getSelection:() => [...selected],
+        getCanvas:() => canvas,
+    });
+    return canvasWorkspaceSession;
+}
+function openSelectedWorkspace(nodeId){
+    const session = ensureCanvasWorkspaceSession();
+    if(!session) return false;
+    session.openFromSelection(nodeId);
+    return true;
+}
+function ensureFloatingActionBar(){
+    if(floatingActionBar || !window.WorkbenchFloatingActionBar || !selectionHub) return floatingActionBar;
+    floatingActionBar = window.WorkbenchFloatingActionBar.create({
+        document,
+        container: selectionHub,
+        actions: [
+            {id:'open', label:langIsEn() ? 'Open' : '打开', icon:'external-link', order:10, when:context => context.count === 1},
+            {id:'copy', label:langIsEn() ? 'Copy' : '复制', icon:'copy', order:20, when:context => context.count > 0},
+            {id:'group', label:langIsEn() ? 'Group' : '分组', icon:'folder-plus', order:30, when:context => context.count > 1},
+            {id:'delete', label:langIsEn() ? 'Delete' : '删除', icon:'trash-2', order:40, when:context => context.count > 0},
+        ],
+        onIntent: intent => {
+            if(intent.actionId === 'open') {
+                openSelectedWorkspace(intent.nodeIds[0]);
+                exitZoomPreviewToNode(intent.nodeIds[0]);
+            }
+            else if(intent.actionId === 'copy') copySelectedNodes();
+            else if(intent.actionId === 'group') groupSelectedImages();
+            else if(intent.actionId === 'delete') deleteSelectedNodes();
+        },
+    });
+    return floatingActionBar;
+}
 function renderSelectionHub(){
-    selectionHub.innerHTML = '';
-    selectionHub.classList.remove('open');
+    const bar = ensureFloatingActionBar();
+    if(!bar) return;
+    const selectedNodes = [...selected].map(id => nodes.find(node => node.id === id)).filter(Boolean);
+    const result = bar.update({nodeIds:selectedNodes.map(node => node.id), nodes:selectedNodes});
+    if(!result.visible.length) return;
+    const boardRect = board.getBoundingClientRect();
+    const rects = selectedNodes.map(node => nodesEl.querySelector(`.node[data-id="${CSS.escape(node.id)}"]`)?.getBoundingClientRect()).filter(Boolean);
+    if(!rects.length) return;
+    const left = Math.max(12, Math.min(boardRect.width - selectionHub.offsetWidth - 12, rects.reduce((sum, rect) => sum + rect.left, 0) / rects.length - boardRect.left));
+    const top = Math.max(12, Math.min(boardRect.height - selectionHub.offsetHeight - 12, Math.min(...rects.map(rect => rect.top - boardRect.top)) - selectionHub.offsetHeight - 10));
+    selectionHub.style.left = `${Math.round(left)}px`;
+    selectionHub.style.top = `${Math.round(top)}px`;
+    refreshIcons();
 }
 function startSelectionLink(e, kind){
     e.preventDefault();

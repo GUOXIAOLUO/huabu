@@ -12,6 +12,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class FrontendWorkbenchModulesTests(unittest.TestCase):
+    def test_canvas_page_explains_file_protocol_instead_of_failing_as_raw_html(self):
+        source = (ROOT / "static" / "canvas.html").read_text(encoding="utf-8")
+        self.assertIn("window.location.protocol === 'file:'", source)
+        self.assertIn("document.documentElement.classList.add('file-protocol')", source)
+        self.assertIn("http://127.0.0.1:3000/", source)
+        self.assertIn("html.file-protocol .shell { visibility: hidden; }", source)
+
     def test_renderer_admission_is_a_pure_declared_policy_boundary(self):
         admission = (ROOT / "static" / "js" / "workbench" / "canvas" / "renderer-admission.js").read_text(encoding="utf-8")
         self.assertIn("function admits(policy, node)", admission)
@@ -5067,11 +5074,56 @@ const sandbox = {{window: {{}}}};
 vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
 const api = sandbox.window.WorkbenchCanvasMediaTools;
 const nodes = [{{id:'img',type:'image',url:'/a.png',name:'A'}},{{id:'p',type:'prompt',text:'prompt'}}];
-const out = api.generatorSourceProjection({{id:'gen'}}, [{{from:'img',to:'gen'}},{{from:'p',to:'gen'}}], nodes, {{mediaKindForNode:()=> 'image'}});
-console.log(JSON.stringify(out.map(item => item.type)));
+const legacy = api.legacyGeneratorSourceProjection({{id:'gen'}}, [{{from:'img',to:'gen'}},{{from:'p',to:'gen'}}], nodes, {{mediaKindForNode:()=> 'image'}});
+const normal = api.generatorSourceProjection({{id:'gen'}}, [{{from:'img',to:'gen'}},{{from:'p',to:'gen'}}], nodes, {{mediaKindForNode:()=> 'image'}});
+console.log(JSON.stringify({{legacy:legacy.map(item => item.type), normal}}));
 """
         result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
-        self.assertEqual(json.loads(result.stdout), ["image", "prompt"])
+        self.assertEqual(json.loads(result.stdout), {"legacy": ["image", "prompt"], "normal": []})
+
+    def test_media_tools_generator_source_projection_prefers_typed_bindings_over_edges(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasMediaTools;
+const nodes = [
+  {{id:'typed-source',type:'image',url:'/typed.png',output_refs:[{{type:'asset_version',id:'asset-1'}}]}},
+  {{id:'edge-source',type:'image',url:'/edge.png'}}
+];
+const out = api.generatorSourceProjection(
+  {{id:'gen',input_bindings:[{{id:'binding-1',target:'image',source_type:'asset_version',source_ref:'asset-1',order:0}}]}},
+  [{{from:'edge-source',to:'gen'}}], nodes, {{mediaKindForNode:()=> 'image'}}
+);
+console.log(JSON.stringify(out.flatMap(item => item.refs || []).map(ref => ref.url)));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), ["/typed.png"])
+
+    def test_loop_input_projection_prefers_typed_bindings_over_edges(self):
+        module = ROOT / "static" / "js" / "workbench" / "canvas" / "loop-input-projection.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const sandbox = {{window: {{}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))}, 'utf8'), sandbox);
+const api = sandbox.window.WorkbenchCanvasLoopInputProjection;
+const typed = {{id:'typed-source', type:'image', url:'/typed.png', output_refs:[{{type:'asset_version', id:'asset-1'}}]}};
+const edge = {{id:'edge-source', type:'image', url:'/edge.png'}};
+const node = {{id:'loop', imageInput:true, input_bindings:[{{id:'binding-1', source_type:'asset_version', source_ref:'asset-1', order:0}}]}};
+const connections = [{{from:'edge-source', to:'loop'}}];
+const resolve = id => id === 'asset-1' ? [{{url:typed.url}}] : [{{url:edge.url}}];
+const refs = api.connectedBatch(node, connections, resolve, 1, 1, 1);
+const legacyRefs = api.legacyConnectedBatch({{id:'loop', imageInput:true}}, connections, resolve, 1, 1, 1);
+const prompts = api.promptItems(
+  {{id:'loop', showPrompt:true, input_bindings:[{{id:'binding-2', source_type:'entity_ref', source_ref:'prompt-1', order:0}}]}},
+  [{{from:'edge-prompt', to:'loop'}}],
+  [{{id:'prompt-1', type:'prompt', text:'typed prompt'}}, {{id:'edge-prompt', type:'prompt', text:'edge prompt'}}]
+);
+console.log(JSON.stringify({{refs:refs.map(ref => ref.url), legacyRefs:legacyRefs.map(ref => ref.url), prompts}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, text=True, capture_output=True)
+        self.assertEqual(json.loads(result.stdout), {"refs": ["/typed.png"], "legacyRefs": ["/edge.png"], "prompts": ["typed prompt"]})
 
     def test_media_tools_module_owns_generated_image_node_projection(self):
         module = ROOT / "static" / "js" / "workbench" / "canvas" / "media-tools.js"
@@ -6135,7 +6187,8 @@ console.log(JSON.stringify({afterRun, afterRefresh, afterFallback, emptyCaptures
         # projections (builder, live-media test, per-mode capture/restore,
         # post-passes and the output-grid fast-path).
         self.assertIn("WorkbenchCanvasRenderSweep.create", render_flow)
-        self.assertIn("return ensureCanvasRenderSweep().run();", render_flow)
+        self.assertIn("const result = ensureCanvasRenderSweep().run();", render_flow)
+        self.assertIn("return result;", render_flow)
         self.assertIn("return ensureCanvasRenderSweep().refresh(ids);", render_flow)
         self.assertIn(
             "refreshFastPath: node => node.type === 'output' && ensureClassicOutputGrid().refreshOutputNodeContent({node})",

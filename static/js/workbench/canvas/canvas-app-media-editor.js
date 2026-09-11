@@ -1841,7 +1841,15 @@ function ensureCanvasRenderSweep(){
     return canvasRenderSweep;
 }
 function render(){
-    return ensureCanvasRenderSweep().run();
+    const result = ensureCanvasRenderSweep().run();
+    if(window.WorkbenchInspectorPanel && window.WorkbenchNodeInspector){
+        if(!window.canvasInspectorPanel){
+            window.canvasInspectorPanel = window.WorkbenchInspectorPanel.create({element:document.getElementById('canvasInspectorPanel')});
+        }
+        const selectedNodes = (nodes || []).filter(node => selected.has(node.id));
+        window.canvasInspectorPanel.render(selectedNodes, {connections});
+    }
+    return result;
 }
 function refreshNodes(ids=[]){
     return ensureCanvasRenderSweep().refresh(ids);
@@ -1971,6 +1979,7 @@ function isNodeDragSurface(target){
 }
 function canUseCanvasMediaRenderer(node){
     if(!window.WorkbenchNodeClient?.isLoopback?.() || !window.WorkbenchMediaRenderer) return false;
+    if(node?.type === 'collection') return Boolean(node.collection || node.config?.collection || node.extensions?.collection?.payload || node.extensions?.legacy?.payload?.collection);
     if(node?.type === 'image') return Boolean(node.url);
     return node?.type === 'group' && (node.items || []).some(id => {
         const item = nodes.find(candidate => candidate.id === id);
@@ -2084,6 +2093,7 @@ const canvasNodeShellIntentAdapter = window.WorkbenchUnifiedRenderHost.createInt
 function handleCanvasNodeShellIntent(intent){ canvasNodeShellIntentAdapter(intent); }
 function canvasMediaRecord(node){
     const record = window.WorkbenchCanvas.legacyNodeView(node, {projectId:canvas?.project, canvasId:canvas?.id});
+    if(node?.type === 'collection') record.collection = node.collection || node.config?.collection || node.extensions?.collection?.payload || node.extensions?.legacy?.payload?.collection;
     if(node?.type === 'group') {
         record.output_refs = (node.items || []).map(id => nodes.find(candidate => candidate.id === id))
             .filter(item => item?.type === 'image' && item.url)
@@ -2453,7 +2463,7 @@ function renderNode(node){
         startNodeDrag(e, node);
     };
     const canInput = ['generator','midjourney','comfy','ltxDirector','output','llm','msgen','video','rh','minimax'].includes(node.type) || (node.type === 'loop' && (node.imageInput || node.showPrompt));
-    const canOutput = ['image','prompt','loop','group','promptGroup','generator','midjourney','comfy','ltxDirector','llm','msgen','video','rh','minimax','output'].includes(node.type);
+    const canOutput = ['image','prompt','loop','group','collection','promptGroup','generator','midjourney','comfy','ltxDirector','llm','msgen','video','rh','minimax','output'].includes(node.type);
     if(canInput) el.insertAdjacentHTML('beforeend', `<div class="port in" title="${tr('canvas.connectHere')}"></div>`);
     if(canOutput) el.insertAdjacentHTML('beforeend', `<div class="port out" title="${tr('canvas.dragConnect')}"></div>`);
     el.insertAdjacentHTML('beforeend', `<div class="resize-handle" title="${tr('canvas.resize')}"></div>`);
@@ -2497,7 +2507,7 @@ const loopPromptVisiting = new Set();
 function loopInputPromptItems(node){
     if(loopPromptVisiting.has(node?.id)) return [];
     loopPromptVisiting.add(node?.id);
-    try { return WorkbenchCanvasLoopInputProjection.promptItems(node, connections, nodes, renderLoopPrompt); }
+    try { return WorkbenchCanvasLoopInputProjection.legacyPromptItems(node, connections, nodes, renderLoopPrompt, node?.input_bindings); }
     finally { loopPromptVisiting.delete(node?.id); }
 }
 function loopInputPrompt(node, ctx=loopContext){
@@ -2512,14 +2522,18 @@ function renderLoopPrompt(node, ctx=loopContext){
 function imageRefsFromNode(node){
     return WorkbenchCanvasLoopInputProjection.nodeMediaRefs(node, 'image', {nodes, mediaKindForNode, outputValue:outputUrlValue, kindOfOutput:mediaKindForOutputItem, nameForUrl:outputImageName, generatedTypes:CANVAS_IMAGE_OUTPUT_TYPES, generatedRefs:generatedImageRefs, excludeUrl:url => isVideoUrl(url) || isAudioUrl(url)});
 }
+function inputSourceNode(sourceRef){
+    return nodes.find(node => node?.id === sourceRef
+        || (Array.isArray(node?.output_refs) && node.output_refs.some(reference => reference?.id === sourceRef)));
+}
 function loopInputImageRefs(node, ctx=loopContext){
-    return WorkbenchCanvasLoopInputProjection.connectedBatch(node, connections, id => imageRefsFromNode(nodes.find(n => n.id === id)), node?.loopStart, node?.imageBatchSize, ctx?.index, node?.imageInput);
+    return WorkbenchCanvasLoopInputProjection.legacyConnectedBatch(node, connections, id => imageRefsFromNode(inputSourceNode(id)), node?.loopStart, node?.imageBatchSize, ctx?.index, node?.imageInput, node?.input_bindings);
 }
 function videoRefsFromNode(node){
     return WorkbenchCanvasLoopInputProjection.nodeMediaRefs(node, 'video', {nodes, mediaKindForNode, outputValue:outputUrlValue, kindOfOutput:mediaKindForOutputItem, nameForUrl:outputImageName, generatedTypes:CANVAS_MEDIA_OUTPUT_TYPES, generatedRefs:generatedImageRefs});
 }
 function loopInputVideoRefs(node, ctx=loopContext){
-    return WorkbenchCanvasLoopInputProjection.connectedBatch(node, connections, id => videoRefsFromNode(nodes.find(n => n.id === id)), node?.loopStart, node?.videoBatchSize, ctx?.index, node?.videoInput);
+    return WorkbenchCanvasLoopInputProjection.legacyConnectedBatch(node, connections, id => videoRefsFromNode(inputSourceNode(id)), node?.loopStart, node?.videoBatchSize, ctx?.index, node?.videoInput, node?.input_bindings);
 }
 function loopTokenLabel(token){
     return WorkbenchCanvasLoopPromptRenderer.tokenLabel(token, {

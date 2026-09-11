@@ -7,6 +7,8 @@ from typing import Protocol
 class Action(StrEnum):
     PROJECT_READ = "project.read"
     CANVAS_EDIT = "canvas.edit"
+    COLLECTION_READ = "collection.read"
+    COLLECTION_EDIT = "collection.edit"
 
 
 class AuthorizationError(PermissionError):
@@ -25,9 +27,9 @@ class AuthorizationService:
 
     def allows(self, actor_id: str, action: Action, project_id: str) -> bool:
         role = self._memberships.member_role(project_id, actor_id)
-        if action == Action.PROJECT_READ:
+        if action in {Action.PROJECT_READ, Action.COLLECTION_READ}:
             return role in {"owner", "editor", "viewer"}
-        if action == Action.CANVAS_EDIT:
+        if action in {Action.CANVAS_EDIT, Action.COLLECTION_EDIT}:
             return role in {"owner", "editor"}
         return False
 

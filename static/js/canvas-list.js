@@ -178,13 +178,12 @@ function canvasesInProject(pid){ return canvases.filter(c => (c.project || 'defa
 
 async function loadAll(){
     try {
-        const [pRes, cRes] = await Promise.all([
-            fetch('/api/projects'),
+        const [pData, cRes] = await Promise.all([
+            WorkbenchProjectApiClient.list(),
             fetch('/api/canvases')
         ]);
-        const pData = pRes.ok ? await pRes.json() : { projects: [] };
         const cData = cRes.ok ? await cRes.json() : { canvases: [] };
-        projects = (pData.projects || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+        projects = (Array.isArray(pData) ? pData : []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
         if(!projects.length) projects = [{ id: 'default', name: L('默认项目','Default'), order: 0, canvas_count: 0 }];
         canvases = cData.canvases || [];
         // pick first project (prefer default / order 0)
@@ -304,14 +303,7 @@ async function createProject(){
     const name = newProjectInput.value.trim() || L('新项目','New project');
     closeNewProject();
     try {
-        const res = await fetch('/api/projects', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name })
-        });
-        if(!res.ok) throw new Error('create project failed');
-        const data = await res.json();
-        const proj = data.project;
+        const proj = await WorkbenchProjectApiClient.create(name);
         if(proj){
             projects.push(proj);
             projects.sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -328,19 +320,13 @@ async function renameProject(pid, name){
     renderProjects();
     if(pid === currentProjectId) updateBoardHeader();
     try {
-        const res = await fetch(`/api/projects/${encodeURIComponent(pid)}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name })
-        });
-        if(!res.ok) throw new Error('rename project failed');
+        await WorkbenchProjectApiClient.update(pid, { name });
     } catch(e){ console.error(e); setStatus(L('重命名失败','Rename failed')); loadAll(); }
 }
 async function deleteProject(pid){
     pendingDeleteProjectId = null;
     try {
-        const res = await fetch(`/api/projects/${encodeURIComponent(pid)}`, { method: 'DELETE' });
-        if(!res.ok) throw new Error('delete project failed');
+        await WorkbenchProjectApiClient.archive(pid);
         // canvases of deleted project move back to default
         canvases.forEach(c => { if((c.project || 'default') === pid) c.project = 'default'; });
         projects = projects.filter(p => p.id !== pid);

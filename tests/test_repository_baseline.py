@@ -110,3 +110,21 @@ class RepositoryBaselineTests(unittest.TestCase):
         )
         self.assertEqual(imported["nodes"], nodes)
         self.assertEqual(imported["connections"], connections)
+
+    def test_workflow_zip_limits_reject_excessive_entries_and_compression(self):
+        def archive(entries):
+            buffer = BytesIO()
+            with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as package:
+                for name, value in entries.items():
+                    package.writestr(name, value)
+            return buffer.getvalue()
+
+        too_many = archive({f"part-{index}.json": "{}" for index in range(3)})
+        with patch.object(main, "WORKFLOW_ZIP_MAX_ENTRIES", 2), self.assertRaises(main.HTTPException) as entries_error:
+            asyncio.run(main.import_canvas_workflow(main.UploadFile(filename="many.zip", file=BytesIO(too_many))))
+        self.assertEqual(entries_error.exception.status_code, 413)
+
+        compressed = archive({"workflow.json": "x" * 1000})
+        with patch.object(main, "WORKFLOW_ZIP_MAX_COMPRESSION_RATIO", 2), self.assertRaises(main.HTTPException) as ratio_error:
+            asyncio.run(main.import_canvas_workflow(main.UploadFile(filename="ratio.zip", file=BytesIO(compressed))))
+        self.assertEqual(ratio_error.exception.status_code, 413)

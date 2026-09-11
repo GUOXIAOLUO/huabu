@@ -1386,7 +1386,7 @@ vm.runInNewContext(fs.readFileSync({json.dumps(str(script))}, 'utf8'), sandbox);
 const T=sandbox.window.WorkbenchCanvasLoopInputProjection;
 const nodes=[{{id:'target',showPrompt:true}},{{id:'p',type:'prompt',text:'  hello  '}},{{id:'g',type:'promptGroup',items:['p2']}},{{id:'p2',type:'prompt',text:'world'}},{{id:'llm',type:'llm',outputText:'answer'}}];
 const connections=[{{to:'target',from:'p'}},{{to:'target',from:'g'}},{{to:'target',from:'llm'}}];
-console.log(JSON.stringify(T.promptItems(nodes[0],connections,nodes,()=>'')));
+console.log(JSON.stringify(T.legacyPromptItems(nodes[0],connections,nodes,()=>'')));
 """], check=True, text=True, capture_output=True)
         self.assertEqual(json.loads(result.stdout), ['hello','world','answer'])
 
@@ -1832,7 +1832,7 @@ vm.runInNewContext(fs.readFileSync({json.dumps(str(script))}, 'utf8'), sandbox);
 const T=sandbox.window.WorkbenchCanvasLoopInputProjection;
 const node={{id:'loop',imageInput:true}}, connections=[{{to:'loop',from:'a'}},{{to:'loop',from:'b'}}];
 const resolve=id=>id==='a'?[{{url:'a1'}},{{url:'a2'}}]:[{{url:'b1'}}];
-console.log(JSON.stringify([T.connectedBatch(node,connections,resolve,1,2,1,true),T.connectedBatch(node,connections,resolve,1,2,1,false)]));
+console.log(JSON.stringify([T.legacyConnectedBatch(node,connections,resolve,1,2,1,true),T.legacyConnectedBatch(node,connections,resolve,1,2,1,false)]));
 """], check=True, text=True, capture_output=True)
         self.assertEqual(json.loads(result.stdout), [[{"url":"a1"},{"url":"a2"}],[]])
 

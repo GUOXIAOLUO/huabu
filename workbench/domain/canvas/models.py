@@ -5,13 +5,14 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .input_bindings import InputBindingValue
 from .ports import PortSet
 from .states import NodeState
 
 
 NODE_SCHEMA_VERSION = "workbench.node/1"
 EDGE_SCHEMA_VERSION = "workbench.edge/1"
-NodeKind = Literal["asset", "skill", "artifact", "entity", "task", "approval", "group", "composite", "legacy"]
+NodeKind = Literal["asset", "skill", "artifact", "entity", "task", "approval", "group", "collection", "composite", "legacy"]
 
 
 OpaqueId = Annotated[str, Field(min_length=1, max_length=255)]
@@ -85,7 +86,7 @@ class NodeRecord(BaseModel):
     position: Position
     size: Size
     ports: PortSet = Field(default_factory=PortSet)
-    input_bindings: list[dict[str, Any]] = Field(default_factory=list)
+    input_bindings: list[InputBindingValue] = Field(default_factory=list)
     output_refs: list[ArtifactOrAssetVersionRef] = Field(default_factory=list)
     model_binding: ModelBinding | None = None
     config: dict[str, Any] = Field(default_factory=dict)

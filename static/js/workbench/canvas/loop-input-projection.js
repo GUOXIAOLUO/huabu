@@ -16,15 +16,39 @@
         const current = Math.max(1, Number(index) || base);
         return values[(current - 1) % values.length] || '';
     }
-    function promptItems(node, connections = [], nodes = [], renderLoop) {
+    const TYPED_INPUT_SOURCE_TYPES = new Set(['asset_version', 'artifact_version', 'entity_ref', 'entity_version', 'collection', 'literal']);
+    function inputBindingSourceIds(bindings, nodes) {
+        if (!Array.isArray(bindings)) return null;
+        const typed = bindings.filter(binding => binding && binding.enabled !== false
+            && TYPED_INPUT_SOURCE_TYPES.has(binding.source_type)
+            && String(binding.source_ref || '').trim())
+            .sort((left, right) => (Number(left.order) || 0) - (Number(right.order) || 0)
+                || String(left.id || '').localeCompare(String(right.id || '')));
+        if (!typed.length) return null;
+        const list = Array.isArray(nodes) ? nodes : [];
+        if (!list.length) return typed.map(binding => binding.source_ref);
+        return typed.map(binding => list.find(candidate => candidate?.id === binding.source_ref
+            || (Array.isArray(candidate?.output_refs) && candidate.output_refs.some(reference => reference?.id === binding.source_ref))))
+            .filter(Boolean).map(candidate => candidate.id);
+    }
+    function sourceNodes(node, connections, nodes, bindings, allowLegacyEdgeFallback = false) {
+        const boundIds = inputBindingSourceIds(bindings, nodes);
+        if (boundIds !== null) {
+            const byId = new Map((Array.isArray(nodes) ? nodes : []).map(candidate => [candidate?.id, candidate]));
+            return boundIds.map(id => byId.get(id)).filter(Boolean);
+        }
+        if (!allowLegacyEdgeFallback) return [];
+        const list = Array.isArray(nodes) ? nodes : [];
+        const byId = new Map(list.map(candidate => [candidate?.id, candidate]));
+        return (Array.isArray(connections) ? connections : []).filter(connection => connection?.to === node?.id)
+            .map(connection => byId.get(connection.from)).filter(Boolean);
+    }
+    function promptItems(node, connections = [], nodes = [], renderLoop, bindings = node?.input_bindings, allowLegacyEdgeFallback = false) {
         if (!node?.showPrompt) return [];
         const visited = new Set([node.id]);
-        const findNode = id => nodes.find(candidate => candidate?.id === id);
+        const findNode = id => (Array.isArray(nodes) ? nodes : []).find(candidate => candidate?.id === id);
         const items = [];
-        connections.filter(connection => connection?.to === node.id)
-            .map(connection => findNode(connection.from))
-            .filter(Boolean)
-            .forEach(source => {
+        sourceNodes(node, connections, nodes, bindings, allowLegacyEdgeFallback).forEach(source => {
                 if (visited.has(source.id)) return;
                 visited.add(source.id);
                 if (source.type === 'prompt') {
@@ -46,12 +70,19 @@
             });
         return items;
     }
-    function connectedBatch(node, connections = [], resolve, start, batchSize, index, enabled = true) {
+    function legacyPromptItems(node, connections = [], nodes = [], renderLoop, bindings = node?.input_bindings) {
+        return promptItems(node, connections, nodes, renderLoop, bindings, true);
+    }
+    function connectedBatch(node, connections = [], resolve, start, batchSize, index, enabled = true, bindings = node?.input_bindings, allowLegacyEdgeFallback = false) {
         if (!enabled || !node?.id || typeof resolve !== 'function') return [];
-        const refs = connections.filter(connection => connection?.to === node.id)
-            .flatMap(connection => resolve(connection.from))
+        const sourceIds = inputBindingSourceIds(bindings, undefined);
+        const refs = (sourceIds === null && allowLegacyEdgeFallback ? connections.filter(connection => connection?.to === node.id).map(connection => connection.from) : (sourceIds || []))
+            .flatMap(sourceId => resolve(sourceId))
             .filter(ref => ref?.url);
         return batch(refs, start, batchSize, index);
+    }
+    function legacyConnectedBatch(node, connections = [], resolve, start, batchSize, index, enabled = true, bindings = node?.input_bindings) {
+        return connectedBatch(node, connections, resolve, start, batchSize, index, enabled, bindings, true);
     }
     function outputMediaRefs(items = [], kind, outputValue, kindOfOutput, nameForUrl, nodeId, extension = 'png', useOriginalIndex = true) {
         const value = typeof outputValue === 'function' ? outputValue : (item => item?.url || '');
@@ -92,5 +123,5 @@
         const prompts = Math.max(0, Number(promptItemCount) || 0);
         return Object.freeze({imageInputCount:images, promptItemCount:prompts, hasUpstreamPrompt:prompts > 0});
     }
-    global.WorkbenchCanvasLoopInputProjection = Object.freeze({batch, select, promptItems, connectedBatch, outputMediaRefs, nodeMediaRefs, config, summary});
+    global.WorkbenchCanvasLoopInputProjection = Object.freeze({batch, select, promptItems, legacyPromptItems, connectedBatch, legacyConnectedBatch, outputMediaRefs, nodeMediaRefs, config, summary});
 }(window));

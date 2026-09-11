@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from .models import EdgeRecord, NodeRecord, Position, RendererRef, Size
+from .input_bindings import InputBindingAdapter
 from .ports import InputPort, OutputPort, PortSet
 from .states import NodeState
 
@@ -22,6 +23,8 @@ def _legacy_kind(node_type: str) -> str:
         return "asset"
     if node_type == "output":
         return "artifact"
+    if node_type == "collection":
+        return "collection"
     if node_type in {"group", "promptGroup", "smart-group"}:
         return "group"
     return "legacy"
@@ -64,6 +67,7 @@ class LegacyCanvasAdapter:
             position=Position(x=float(node.get("x") or 0), y=float(node.get("y") or 0)),
             size=Size(width=width, height=height),
             ports=cls.DEFAULT_PORTS.model_copy(deep=True),
+            input_bindings=InputBindingAdapter.from_payloads(node.get("input_bindings", [])),
             created_by=str(canvas.get("owner") or "legacy-user"),
             created_at=created_at,
             updated_at=updated_at,

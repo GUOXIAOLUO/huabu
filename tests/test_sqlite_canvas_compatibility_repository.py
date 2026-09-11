@@ -117,7 +117,7 @@ class SqliteCanvasCompatibilityRepositoryTests(unittest.TestCase):
         self.assertFalse(self.repository.purge("canvas-1"))
         with self.assertRaises(CanvasNotFoundError):
             self.repository.load("canvas-1")
-        self.assertEqual([event["event_type"] for event in self.canonical.outbox_events()], ["canvas.created", "canvas.purged"])
+        self.assertEqual([event["event_type"] for event in self.canonical.outbox_events()], ["project.created", "canvas.created", "canvas.purged"])
 
     def test_metadata_save_keeps_legacy_timestamp_but_advances_canonical_revision(self):
         self.repository.save(self.canvas())

@@ -5,13 +5,21 @@
 
 ## Active Task
 
-No task is active. `R4-41` is complete on local `main`: its formal checklist
-is `R4: PASS`, with behavioral acceptance in
-`docs/benchmarks/r4-41-merged-behavioral-acceptance-2026-09-09.md` and
-100/300-node resource acceptance in
-`docs/benchmarks/r4-41-runtime-audit-2026-09-09.md`.
+- Active Task: `R6-07`
+- Task Card: `docs/tasks/active/R6-07-collection-gallery-view.md`
+- Status: `ACTIVE — not started`
+- Depends on: `R6-06` (DONE, independent Review PASS)
 
-Do not activate or implement `R5-01` until an explicit task-activation step.
+R6-01 through R6-06 are archived after independent Review PASS. Continue in dependency order.
+
+## Task Lifecycle
+
+1. Activate exactly one card.
+2. Implement or re-execute, test, and perform the developer Git Review.
+3. Leave the card `ACTIVE` with implementation complete; do not archive it.
+4. Run the independent Review against that still-active card.
+5. Only after independent Review PASS, archive the card, sync status, and
+   activate the next dependency-satisfied card.
 
 ## Completed Predecessor
 
@@ -1124,5 +1132,5 @@ After implementation / verification:
 
 ## Recommended Successor
 
-`R4-41` is the next backlog card. It is recommended only and must not be
-activated or executed by an R4-40 run.
+`R5-02` is the next backlog card after `R5-01`. It is recommended only and
+must not be activated or executed by an `R5-01` run.

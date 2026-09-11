@@ -1163,12 +1163,13 @@ function mediaRefsFromNode(node){
     });
 }
 function generatorSources(gen){
-    return WorkbenchCanvasMediaTools.generatorSourceProjection(gen, connections, nodes, {
+    return WorkbenchCanvasMediaTools.legacyGeneratorSourceProjection(gen, connections, nodes, {
         outputUrlValue,
         mediaKindForOutputItem,
         mediaKindForNode,
         generatedImageRefs,
         mediaOutputTypes:CANVAS_MEDIA_OUTPUT_TYPES,
+        inputBindings:gen.input_bindings,
         loopContext,
         renderLoopPrompt,
         loopInputImageRefs,

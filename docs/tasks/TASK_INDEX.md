@@ -46,26 +46,26 @@
 | `R4-39` | R4 | P0 | IN_PROGRESS | R4-38 | Remove Legacy canvas.js Product Runtime |
 | `R4-40` | R4 | P1 | BACKLOG | R4-39 | Retire R4 Feature Flags |
 | `R4-41` | R4 | P0 | BACKLOG | R4-40 | R4 Full Acceptance Gate |
-| `R5-01` | R5 | P0 | BACKLOG | R4-41 | Project Repository |
-| `R5-02` | R5 | P0 | BACKLOG | R5-01 | Project Application Service |
-| `R5-03` | R5 | P0 | BACKLOG | R5-02 | Canonical Project API |
-| `R5-04` | R5 | P0 | BACKLOG | R5-03 | Project JSON Migration and Cutover |
-| `R5-05` | R5 | P0 | BACKLOG | R5-04 | Project List UI Cutover |
-| `R5-06` | R5 | P1 | BACKLOG | R5-05 | NodeShell V2 Contract |
-| `R5-07` | R5 | P1 | BACKLOG | R5-06 | Floating Action Bar |
-| `R5-08` | R5 | P1 | BACKLOG | R5-07 | Presentation State Model |
-| `R5-09` | R5 | P1 | BACKLOG | R5-08 | WorkspaceSession Runtime |
-| `R5-10` | R5 | P1 | BACKLOG | R5-09 | Inspector Runtime |
-| `R5-11` | R5 | P1 | BACKLOG | R5-10 | Asset Rich Node |
-| `R5-12` | R5 | P1 | BACKLOG | R5-11 | Task Rich Node Skeleton |
-| `R5-13` | R5 | P1 | BACKLOG | R5-12 | Artifact Rich Node Skeleton |
-| `R6-01` | R6 | P0 | BACKLOG | R5-13 | PortTypeRegistry |
-| `R6-02` | R6 | P0 | BACKLOG | R6-01 | Typed InputBinding Model |
-| `R6-03` | R6 | P0 | BACKLOG | R6-02 | Binding Resolver |
-| `R6-04` | R6 | P0 | BACKLOG | R6-03 | Edge / InputBinding Separation |
-| `R6-05` | R6 | P0 | BACKLOG | R6-04 | Collection Domain Model |
-| `R6-06` | R6 | P0 | BACKLOG | R6-05 | Collection Persistence and API |
-| `R6-07` | R6 | P1 | BACKLOG | R6-06 | Collection Gallery View |
+| `R5-01` | R5 | P0 | DONE | R4-41 | Project Repository |
+| `R5-02` | R5 | P0 | DONE | R5-01 | Project Application Service |
+| `R5-03` | R5 | P0 | DONE | R5-02 | Canonical Project API |
+| `R5-04` | R5 | P0 | DONE | R5-03 | Project JSON Migration and Cutover |
+| `R5-05` | R5 | P0 | DONE | R5-04 | Project List UI Cutover |
+| `R5-06` | R5 | P1 | DONE | R5-05 | NodeShell V2 Contract |
+| `R5-07` | R5 | P1 | DONE | R5-06 | Floating Action Bar |
+| `R5-08` | R5 | P1 | DONE | R5-07 | Presentation State Model |
+| `R5-09` | R5 | P1 | DONE | R5-08 | WorkspaceSession Runtime |
+| `R5-10` | R5 | P1 | DONE | R5-09 | Inspector Runtime |
+| `R5-11` | R5 | P1 | DONE | R5-10 | Asset Rich Node |
+| `R5-12` | R5 | P1 | DONE | R5-11 | Task Rich Node Skeleton |
+| `R5-13` | R5 | P1 | DONE | R5-12 | Artifact Rich Node Skeleton |
+| `R6-01` | R6 | P0 | DONE | R5-13 | PortTypeRegistry |
+| `R6-02` | R6 | P0 | DONE | R6-01 | Typed InputBinding Model |
+| `R6-03` | R6 | P0 | DONE | R6-02 | Binding Resolver |
+| `R6-04` | R6 | P0 | DONE | R6-03 | Edge / InputBinding Separation |
+| `R6-05` | R6 | P0 | DONE | R6-04 | Collection Domain Model |
+| `R6-06` | R6 | P0 | DONE | R6-05 | Collection Persistence and API |
+| `R6-07` | R6 | P1 | ACTIVE | R6-06 | Collection Gallery View |
 | `R6-08` | R6 | P1 | BACKLOG | R6-07 | Collection Grid and List Views |
 | `R6-09` | R6 | P0 | BACKLOG | R6-08 | Collection Table Workspace |
 | `R6-10` | R6 | P1 | BACKLOG | R6-09 | Quick Collection |

@@ -5,7 +5,7 @@
         const type = node?.type;
         if (type === 'image') return node.title || 'Image';
         const labels = {
-            prompt: 'Prompt', loop: 'canvas.loopNode', promptGroup: 'Prompts', group: 'Group', output: 'Output',
+            prompt: 'Prompt', loop: 'canvas.loopNode', promptGroup: 'Prompts', group: 'Group', collection: 'Collection', output: 'Output',
             llm: 'LLM', comfy: 'ComfyUI', ltxDirector: 'canvas.ltxDirector', rh: 'RunningHub', minimax: 'MiniMax H3',
             midjourney: 'Midjourney', msgen: 'canvas.modelscopeGenerate', video: 'canvas.videoGenerateNode',
         };
@@ -35,7 +35,7 @@
     function defaultSize(type) {
         const sizes = {
             image: [260, 336], prompt: [310, 0], loop: [336, 0], llm: [420, 590], generator: [380, 0],
-            midjourney: [380, 0], msgen: [380, 0], video: [400, 0], minimax: [980, 720], rh: [430, 0],
+            midjourney: [380, 0], msgen: [380, 0], video: [400, 0], collection: [320, 260], minimax: [980, 720], rh: [430, 0],
             comfy: [420, 460], ltxDirector: [1000, 800], output: [460, 0],
         };
         const [w, h] = sizes[type] || [260, 0];

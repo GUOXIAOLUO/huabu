@@ -99,7 +99,7 @@
     function cardShellView(options) {
         const settings = options || {};
         return Object.freeze({
-            viewState: Object.freeze({selected: Boolean(settings.selected)}),
+            viewState: Object.freeze({selected: Boolean(settings.selected), presentation: settings.presentation || 'card'}),
             onIntent: settings.onIntent,
             showDelete: settings.showDelete !== false,
             ...(settings.ports ? {ports: settings.ports} : {}),

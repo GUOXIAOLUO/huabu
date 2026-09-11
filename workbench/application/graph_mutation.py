@@ -40,6 +40,10 @@ class ConnectNodesCommand:
     The application boundary owns request validity, authorization, and
     optimistic concurrency; endpoint existence, duplicate edges, and the
     retained adapter edge shapes stay behind the repository port.
+
+    ``edge_kind`` is a Legacy persistence/display discriminator. It does not
+    create, resolve, or imply a typed ``InputBinding``; those are independent
+    domain records and are owned by the binding modules.
     """
 
     actor_id: str

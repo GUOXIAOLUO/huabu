@@ -18,7 +18,7 @@
     "position": {"$ref": "#/$defs/position"},
     "size": {"$ref": "#/$defs/size"},
     "ports": {"$ref": "#/$defs/ports"},
-    "input_bindings": {"type": "array", "items": {"type": "object"}},
+    "input_bindings": {"type": "array", "items": {"oneOf": [{"$ref": "#/$defs/input_binding"}, {"$ref": "#/$defs/legacy_input_binding"}]}},
     "output_refs": {"type": "array", "items": {"$ref": "#/$defs/output_ref"}},
     "model_binding": {"type": ["object", "null"]},
     "config": {"type": "object"},
@@ -34,6 +34,8 @@
     "reference": {"type": "object", "additionalProperties": false, "required": ["id", "version"], "properties": {"type": {"type": "string", "minLength": 1}, "id": {"type": "string", "minLength": 1}, "version": {"type": "string", "minLength": 1}}},
     "position": {"type": "object", "additionalProperties": false, "required": ["x", "y"], "properties": {"x": {"type": "number"}, "y": {"type": "number"}}},
     "size": {"type": "object", "additionalProperties": false, "required": ["width", "height"], "properties": {"width": {"type": "number", "exclusiveMinimum": 0}, "height": {"type": "number", "exclusiveMinimum": 0}}},
+    "input_binding": {"type": "object", "additionalProperties": false, "required": ["id", "target", "source_type", "source_ref"], "properties": {"id": {"type": "string", "minLength": 1}, "target": {"type": "string", "minLength": 1}, "source_type": {"enum": ["asset_version", "artifact_version", "entity_ref", "entity_version", "collection", "literal"]}, "source_ref": {"type": "string", "minLength": 1}, "role": {"type": "string", "minLength": 1}, "order": {"type": "integer", "minimum": 0}, "enabled": {"type": "boolean"}, "metadata": {"type": "object"}}},
+    "legacy_input_binding": {"type": "object", "additionalProperties": true},
     "ports": {"type": "object"},
     "output_ref": {"type": "object", "additionalProperties": false, "required": ["type", "id"], "properties": {"type": {"enum": ["asset_version", "artifact_version"]}, "id": {"type": "string", "minLength": 1}}}
   }

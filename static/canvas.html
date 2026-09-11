@@ -5,6 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/static/images/logo.png" type="image/png">
     <title>无限画布</title>
+    <style>
+        html.file-protocol body::before {
+            content: '请通过 http://127.0.0.1:3000/ 打开工作台，不要直接双击画布 HTML 文件。';
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            display: grid;
+            place-items: center;
+            padding: 32px;
+            background: #f7f8fa;
+            color: #18202a;
+            font: 600 18px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            text-align: center;
+            white-space: pre-wrap;
+        }
+        html.file-protocol .shell { visibility: hidden; }
+    </style>
+    <script>
+        if (window.location.protocol === 'file:') {
+            document.documentElement.classList.add('file-protocol');
+        }
+    </script>
     <script>
         (function(){
             try {
@@ -110,6 +132,7 @@
                 <div id="canvasAssetDropZone" class="canvas-asset-drop">拖入图片或输出保存到当前分组</div>
                 <div id="canvasAssetGrid" class="canvas-asset-grid"></div>
             </aside>
+            <aside id="canvasInspectorPanel" class="workbench-inspector" hidden></aside>
             <aside id="workflowTransferModal" class="workflow-transfer-panel">
                 <div class="workflow-transfer-head">
                     <div>
@@ -358,6 +381,7 @@
     <script src="/static/js/workbench/canvas/records.js?v=2026.08.28.1788439786"></script>
     <script src="/static/js/workbench/canvas/canvas-entry-compatibility.js?v=2026.09.05.2"></script>
     <script src="/static/js/workbench/canvas/node-inspector.js?v=2026.08.28.1788441997"></script>
+    <script src="/static/js/workbench/canvas/inspector-panel.js?v=2026.09.10.1"></script>
     <script src="/static/js/workbench/canvas/canvas-persistence-client.js?v=2026.09.05.1"></script>
     <script src="/static/js/workbench/canvas/canvas-save-scheduler.js?v=2026.09.06.1"></script>
     <script src="/static/js/workbench/canvas/canvas-http-error.js?v=2026.09.05.1"></script>
@@ -391,6 +415,13 @@
     <script src="/static/js/workbench/canvas/viewport-recovery.js?v=2026.08.28.1788488257"></script>
     <script src="/static/js/workbench/canvas/renderer-registry.js?v=2026.08.28.1788486840"></script>
     <script src="/static/js/workbench/canvas/renderer-admission.js?v=2026.09.06.1"></script>
+    <script src="/static/js/workbench/canvas/presentation-state.js?v=2026.09.10.1"></script>
+    <script src="/static/js/workbench/canvas/asset-rich-node.js?v=2026.09.10.1"></script>
+    <script src="/static/js/workbench/canvas/task-rich-node.js?v=2026.09.10.1"></script>
+    <script src="/static/js/workbench/canvas/artifact-rich-node.js?v=2026.09.10.1"></script>
+    <script src="/static/js/workbench/canvas/collection-rich-node.js?v=2026.09.11.1"></script>
+    <script src="/static/js/workbench/canvas/workspace-session.js?v=2026.09.10.1"></script>
+    <script src="/static/js/workbench/canvas/canvas-workspace-session.js?v=2026.09.10.1"></script>
     <script src="/static/js/workbench/canvas/node-shell.js?v=2026.09.04.2"></script>
     <script src="/static/js/workbench/canvas/legacy-renderer.js?v=2026.08.28.1788438695"></script>
     <script src="/static/js/workbench/canvas/media-renderer.js?v=2026.08.28.1788438695"></script>
@@ -407,6 +438,7 @@
     <script src="/static/js/workbench/canvas/semantic-zoom.js?v=2026.08.28.1788370356"></script>
     <script src="/static/js/workbench/canvas/semantic-zoom-apply.js?v=2026.09.06.1"></script>
     <script src="/static/js/workbench/canvas/screen-space-controls.js?v=2026.08.28.1788362721"></script>
+    <script src="/static/js/workbench/canvas/floating-action-bar.js?v=2026.09.10.1"></script>
     <script src="/static/js/workbench/canvas/legacy-graph-compatibility.js?v=2026.09.08.2"></script>
 <script src="/static/js/workbench/canvas/provider-controls.js?v=2026.09.07.1"></script>
 <script src="/static/js/workbench/canvas/classic-node-factories.js?v=2026.09.07.1"></script>

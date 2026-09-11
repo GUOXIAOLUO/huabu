@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import tempfile
 from pathlib import Path
 from typing import Any, Callable
 
@@ -24,8 +25,8 @@ class LegacyJsonCanvasRepository(CanvasRepository):
         self._lock = lock
 
     def path_for(self, canvas_id: str) -> Path:
-        cleaned = re.sub(r"[^a-zA-Z0-9_-]", "", str(canvas_id or ""))
-        if not cleaned:
+        cleaned = str(canvas_id or "")
+        if not re.fullmatch(r"[a-zA-Z0-9_-]+", cleaned):
             raise CanvasValidationError("invalid canvas id")
         return self._directory / f"{cleaned}.json"
 
@@ -58,8 +59,7 @@ class LegacyJsonCanvasRepository(CanvasRepository):
         with self._lock:
             if not path.exists():
                 raise CanvasNotFoundError("canvas not found")
-            with path.open("w", encoding="utf-8") as handle:
-                json.dump(canvas, handle, ensure_ascii=False, indent=2)
+            self._write_payload(path, canvas)
         return canvas
 
     def list_payloads(self, *, include_deleted: bool = False) -> list[dict[str, Any]]:
@@ -131,6 +131,21 @@ class LegacyJsonCanvasRepository(CanvasRepository):
         current_updated_at = int(self._clock_ms())
         canvas["updated_at"] = max(current_updated_at, previous_updated_at + 1) if previous_updated_at else current_updated_at
         self._directory.mkdir(parents=True, exist_ok=True)
-        with path.open("w", encoding="utf-8") as handle:
-            json.dump(canvas, handle, ensure_ascii=False, indent=2)
+        self._write_payload(path, canvas)
         return canvas
+
+    @staticmethod
+    def _write_payload(path: Path, canvas: dict[str, Any]) -> None:
+        """Durably replace one Legacy JSON record without exposing a partial file."""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+        temporary_path = Path(temporary_name)
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+                json.dump(canvas, handle, ensure_ascii=False, indent=2)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary_path, path)
+        finally:
+            if temporary_path.exists():
+                temporary_path.unlink()

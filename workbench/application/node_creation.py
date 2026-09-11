@@ -6,6 +6,8 @@ from enum import StrEnum
 from typing import Any, Callable, Protocol
 
 from workbench.domain.canvas.models import DefinitionRef, ModelBinding, NodeRecord, Position, RendererRef, Size
+from workbench.domain.canvas.input_bindings import InputBindingAdapter, InputBindingValue
+from workbench.domain.canvas.port_type_registry import PortTypeRegistry, create_core_port_type_registry
 from workbench.domain.canvas.ports import PortSet
 from workbench.domain.canvas.states import NodeState
 
@@ -38,7 +40,7 @@ class NodeCreateCommand:
     position: Position
     expected_revision: int | None = None
     title: str | None = None
-    initial_bindings: tuple[dict[str, Any], ...] = ()
+    initial_bindings: tuple[InputBindingValue | dict[str, Any], ...] = ()
     initial_config: dict[str, Any] | None = None
     requested_model_binding: ModelBinding | None = None
     approval_id: str | None = None
@@ -112,6 +114,7 @@ class NodeCreationService:
         repository: AtomicNodeCreationRepository,
         audit_sink: AuditSink,
         node_id_factory: Callable[[], str],
+        port_types: PortTypeRegistry | None = None,
         clock: Callable[[], datetime] | None = None,
     ):
         self._authorizer = authorizer
@@ -120,6 +123,7 @@ class NodeCreationService:
         self._repository = repository
         self._audit_sink = audit_sink
         self._node_id_factory = node_id_factory
+        self._port_types = port_types or create_core_port_type_registry()
         self._clock = clock or (lambda: datetime.now(UTC))
 
     def create(self, command: NodeCreateCommand) -> NodeCreationPersistence:
@@ -146,6 +150,10 @@ class NodeCreationService:
             raise NodeCreationError("definition_disabled", "node definition is disabled")
         if definition.definition_ref != command.definition_ref:
             raise NodeCreationError("definition_mismatch", "resolved definition does not match the requested version")
+        try:
+            self._port_types.resolve_port_set(definition.ports)
+        except (LookupError, TypeError, ValueError) as error:
+            raise NodeCreationError("invalid_port_types", "node definition contains unknown port types") from error
 
         binding = command.requested_model_binding
         if definition.requires_model and binding is None:
@@ -166,7 +174,7 @@ class NodeCreationService:
             position=command.position,
             size=definition.default_size,
             ports=definition.ports,
-            input_bindings=[dict(binding) for binding in command.initial_bindings],
+            input_bindings=InputBindingAdapter.from_payloads(command.initial_bindings),
             model_binding=binding,
             config=dict(command.initial_config or {}),
             created_by=command.actor_id,

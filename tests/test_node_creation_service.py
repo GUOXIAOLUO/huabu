@@ -12,6 +12,7 @@ from workbench.application.node_creation import (
 )
 from workbench.domain.canvas.models import DefinitionRef, ModelBinding, Position, RendererRef, Size
 from workbench.domain.canvas.ports import InputPort, OutputPort, PortSet
+from workbench.domain.canvas.port_type_registry import PortTypeDefinition, PortTypeRegistry
 from workbench.domain.canvas.states import NodeState
 from workbench.repositories.canvas_repository import StaleCanvasRevisionError
 
@@ -93,6 +94,11 @@ class NodeCreationServiceTests(unittest.TestCase):
         self.compatibility = CompatibilityPolicy()
         self.repository = AtomicRepository()
         self.audit = AuditEvents()
+        self.port_types = PortTypeRegistry([
+            PortTypeDefinition("asset.image", "Image asset"),
+            PortTypeDefinition("artifact.example", "Example artifact"),
+            PortTypeDefinition("legacy.any", "Legacy compatible value"),
+        ])
         self.service = NodeCreationService(
             authorizer=self.authorizer,
             definitions=self.registry,
@@ -100,6 +106,7 @@ class NodeCreationServiceTests(unittest.TestCase):
             repository=self.repository,
             audit_sink=self.audit,
             node_id_factory=lambda: "node-created-1",
+            port_types=self.port_types,
             clock=lambda: datetime(2026, 9, 2, tzinfo=UTC),
         )
 
@@ -169,3 +176,12 @@ class NodeCreationServiceTests(unittest.TestCase):
     def test_requires_explicit_model_when_definition_requires_one(self):
         with self.assertRaisesRegex(NodeCreationError, "requires an explicit"):
             self.service.create(self.command(requested_model_binding=None))
+
+    def test_definition_ports_are_resolved_by_the_injected_registry(self):
+        self.registry.definition = ResolvedNodeDefinition(**{
+            **DEFINITION.__dict__,
+            "ports": PortSet(outputs=[OutputPort(id="result", produces=["unknown.type"])])
+        })
+        with self.assertRaisesRegex(NodeCreationError, "unknown port types"):
+            self.service.create(self.command(request_id="request-ports"))
+        self.assertFalse(self.repository.nodes)

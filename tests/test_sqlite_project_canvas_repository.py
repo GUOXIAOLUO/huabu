@@ -87,6 +87,18 @@ class SqliteProjectCanvasRepositoryTests(unittest.TestCase):
         with self.assertRaises(AuthorizationError):
             self.repository.mutate_canvas(actor_id="viewer", canvas_id="canvas-1", expected_revision=2, mutation=lambda _: None)
 
+    def test_sqlite_connections_enable_foreign_keys(self):
+        with self.repository._connection() as connection:
+            self.assertEqual(connection.execute("PRAGMA foreign_keys").fetchone()[0], 1)
+
+    def test_invalid_foreign_key_write_is_rejected(self):
+        with self.assertRaises(sqlite3.IntegrityError):
+            with self.repository._connection() as connection:
+                connection.execute(
+                    "INSERT INTO project_members VALUES (?, ?, ?, ?)",
+                    ("missing-project", "actor", "editor", "2026-09-10T00:00:00Z"),
+                )
+
     def test_mutation_rejects_a_write_that_loses_the_sqlite_compare_and_swap(self):
         self.repository.import_legacy_canvases([self.legacy_canvas()], self.mapper())
         connection = sqlite3.connect(self.path)
