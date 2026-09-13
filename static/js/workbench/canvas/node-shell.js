@@ -47,8 +47,11 @@
         const artifactRichNode = global.WorkbenchArtifactRichNode?.compatible(node)
             ? global.WorkbenchArtifactRichNode.create({node, presentation: presentationController})
             : null;
+        const collectionRichNodeOptions = settings.collectionRichNodeOptions && typeof settings.collectionRichNodeOptions === 'object'
+            ? settings.collectionRichNodeOptions
+            : {};
         const collectionRichNode = global.WorkbenchCollectionRichNode?.isCompatible(node)
-            ? global.WorkbenchCollectionRichNode.create({node, presentation: presentationController})
+            ? global.WorkbenchCollectionRichNode.create({...collectionRichNodeOptions, node, presentation: presentationController})
             : null;
         let selectedState = Boolean(settings.viewState && settings.viewState.selected);
         const root = documentRef.createElement('article');
@@ -92,6 +95,27 @@
         const content = documentRef.createElement('section');
         content.className = 'workbench-node-shell__content';
         content.setAttribute('data-node-shell-content', '');
+        const skillSelectorHost = taskRichNode && settings.skillSelectorOptions ? documentRef.createElement('section') : null;
+        const skillPresentationHost = taskRichNode && settings.skillPresentationOptions ? documentRef.createElement('section') : null;
+        const skillInspectorHost = taskRichNode && settings.skillInspectorOptions ? documentRef.createElement('section') : null;
+        const modelSelectorHost = taskRichNode && settings.modelSelectorOptions ? documentRef.createElement('section') : null;
+        const executionInputPreviewHost = taskRichNode && settings.executionInputPreviewOptions ? documentRef.createElement('section') : null;
+        const resultTrayHost = taskRichNode && settings.resultTrayOptions ? documentRef.createElement('section') : null;
+        const resultCompareHost = taskRichNode && settings.resultCompareOptions ? documentRef.createElement('section') : null;
+        const executionBranchHost = taskRichNode && settings.executionBranchOptions ? documentRef.createElement('section') : null;
+        const resultCollectionHost = taskRichNode && settings.resultCollectionOptions ? documentRef.createElement('section') : null;
+        const resultMaterializationHost = taskRichNode && settings.resultMaterializationOptions ? documentRef.createElement('section') : null;
+        skillSelectorHost?.setAttribute('data-task-skill-selector-host', '');
+        skillPresentationHost?.setAttribute('data-task-skill-presentation-host', '');
+        skillInspectorHost?.setAttribute('data-task-skill-inspector-host', '');
+        modelSelectorHost?.setAttribute('data-task-model-selector-host', '');
+        executionInputPreviewHost?.setAttribute('data-execution-input-preview-host', '');
+        resultTrayHost?.setAttribute('data-result-tray-host', '');
+        resultCompareHost?.setAttribute('data-result-compare-host', '');
+        executionBranchHost?.setAttribute('data-execution-branch-host', '');
+        resultCollectionHost?.setAttribute('data-result-collection-host', '');
+        resultMaterializationHost?.setAttribute('data-result-materialization-host', '');
+        content.append(...[skillSelectorHost, skillPresentationHost, skillInspectorHost, modelSelectorHost, executionInputPreviewHost, resultTrayHost, resultCompareHost, executionBranchHost, resultCollectionHost, resultMaterializationHost].filter(Boolean));
         const toolbar = documentRef.createElement('div');
         toolbar.className = 'workbench-node-shell__toolbar';
         toolbar.setAttribute('data-node-shell-toolbar', '');
@@ -107,6 +131,37 @@
             });
         });
         footer.append(resize);
+
+        const mountedSkillSelector = taskRichNode && settings.skillSelectorOptions
+            ? taskRichNode.mountSkillSelector(skillSelectorHost, settings.skillSelectorOptions)
+            : null;
+        const mountedSkillPresentation = taskRichNode && settings.skillPresentationOptions
+            ? taskRichNode.mountSkillPresentation(skillPresentationHost, settings.skillPresentationOptions)
+            : null;
+        const mountedSkillInspector = taskRichNode && settings.skillInspectorOptions
+            ? taskRichNode.mountSkillInspector(skillInspectorHost, settings.skillInspectorOptions)
+            : null;
+        const mountedModelSelector = taskRichNode && settings.modelSelectorOptions
+            ? taskRichNode.mountModelSelector(modelSelectorHost, settings.modelSelectorOptions)
+            : null;
+        const mountedExecutionInputPreview = taskRichNode && settings.executionInputPreviewOptions
+            ? taskRichNode.mountExecutionInputPreview(executionInputPreviewHost, settings.executionInputPreviewOptions)
+            : null;
+        const mountedResultTray = taskRichNode && settings.resultTrayOptions
+            ? taskRichNode.mountResultTray(resultTrayHost, settings.resultTrayOptions)
+            : null;
+        const mountedResultCompare = taskRichNode && settings.resultCompareOptions
+            ? taskRichNode.mountResultCompare(resultCompareHost, settings.resultCompareOptions)
+            : null;
+        const mountedExecutionBranch = taskRichNode && settings.executionBranchOptions
+            ? taskRichNode.mountExecutionBranch(executionBranchHost, settings.executionBranchOptions)
+            : null;
+        const mountedResultCollection = taskRichNode && settings.resultCollectionOptions
+            ? taskRichNode.mountResultCollection(resultCollectionHost, settings.resultCollectionOptions)
+            : null;
+        const mountedResultMaterialization = taskRichNode && settings.resultMaterializationOptions
+            ? taskRichNode.mountResultMaterialization(resultMaterializationHost, settings.resultMaterializationOptions)
+            : null;
 
         root.append(header);
         if (portVisibility.input !== false) root.append(inputPort);
@@ -176,9 +231,19 @@
             presentationState: () => assetRichNode?.state() || taskRichNode?.state().presentation || artifactRichNode?.state() || collectionRichNode?.state() || root.dataset.presentationState || 'card',
             assetRichNode,
             taskRichNode,
+            mountedSkillSelector,
+            mountedSkillPresentation,
+            mountedSkillInspector,
+            mountedModelSelector,
+            mountedExecutionInputPreview,
+            mountedResultTray,
+            mountedResultCompare,
+            mountedExecutionBranch,
+            mountedResultCollection,
+            mountedResultMaterialization,
             artifactRichNode,
             collectionRichNode,
-            transitionPresentation, update, destroy: () => root.remove(),
+            transitionPresentation, update, destroy: () => { mountedSkillSelector?.destroy?.(); mountedSkillPresentation?.destroy?.(); mountedSkillInspector?.destroy?.(); mountedModelSelector?.destroy?.(); mountedExecutionInputPreview?.destroy?.(); mountedResultTray?.destroy?.(); mountedResultCompare?.destroy?.(); mountedExecutionBranch?.destroy?.(); mountedResultCollection?.destroy?.(); mountedResultMaterialization?.destroy?.(); root.remove(); },
         });
     }
 

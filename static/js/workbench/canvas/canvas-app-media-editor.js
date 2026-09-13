@@ -2007,6 +2007,7 @@ function canUseCanvasNodeShellForMedia(node){
 function canUseCanvasNodeShellForLegacy(node){
     // Form/task nodes keep their source-owned body while the shared host owns
     // chrome, menu, resize, and their declared connection ports.
+    if(node?.type === 'task') return canvasLegacyRendererEnabled();
     return window.WorkbenchRendererAdmission?.admits({enabled:canvasLegacyRendererEnabled(), types:['prompt', 'loop', 'output', 'llm', 'generator', 'midjourney', 'msgen', 'video', 'comfy', 'rh', 'ltxDirector', 'minimax', 'promptGroup']}, node);
 }
 function canvasLegacyNodeShellPorts(node){
@@ -2017,6 +2018,7 @@ function canvasLegacyNodeShellPorts(node){
     // Output nodes are still valid sources for downstream composition in the
     // existing Canvas contract, so their two Legacy ports stay visible.
     if(node?.type === 'output') return {input:true, output:true};
+    if(node?.type === 'task') return {input:true, output:true};
     // LLM nodes retain their established graph contract: upstream context in,
     // generated text out.
     if(node?.type === 'llm') return {input:true, output:true};
@@ -2165,19 +2167,49 @@ function mountCanvasNodeShellForMedia(node, body, el){
     if(!canUseCanvasNodeShellForMedia(node)) return false;
     if(node.type === 'group') return mountCanvasGroupShell(node, body, el);
     const record = canvasMediaRecord(node);
-    if(!window.WorkbenchMediaRenderer.canRender(record)) return false;
+    const collectionGallery = window.WorkbenchCollectionRichNode?.isCompatible(record);
+    if(!collectionGallery && !window.WorkbenchMediaRenderer.canRender(record)) return false;
+    const rendererOptions = collectionGallery ? canvasCollectionRendererOptions(node) : null;
     const mounted = ensureRenderRuntime().mount({
         document, node:record, card:el, contentHost:body,
         preserveLegacyContent:false,
         legacyContentClassName:'canvas-node-shell-legacy-content',
         controlSettings:CANVAS_NODE_SHELL_LEGACY_CONTROLS,
         cardClasses:['node-shell-mounted', 'media-renderer-mounted'],
+        ...(rendererOptions ? {rendererOptions} : {}),
         ...window.WorkbenchUnifiedRenderHost.cardShellView({selected:selected.has(node.id), onIntent:handleCanvasNodeShellIntent}),
     });
     // Legacy Canvas keeps link anchors on the outer card. The shared host
     // preserves that geometry while NodeShell remains the interaction owner.
     return Boolean(mounted.shell);
 }
+
+let collectionGalleryCanvasAdapter = null;
+function canvasCollectionWorkspaceSession(){
+    return typeof ensureCanvasWorkspaceSession === 'function' ? ensureCanvasWorkspaceSession() : null;
+}
+function persistCanvasCollection(collection){
+    if(!window.WorkbenchCollectionApiClient) throw new Error('collection API client is unavailable');
+    return window.WorkbenchCollectionApiClient.update(collection, {actorId:CLIENT_ID});
+}
+function ensureCollectionGalleryCanvasAdapter(){
+    if(!collectionGalleryCanvasAdapter){
+        collectionGalleryCanvasAdapter = window.WorkbenchCollectionGalleryCanvasAdapter.create({
+            storage:localStorage,
+            getNodes:() => nodes,
+            outputUrlValue,
+            mediaKindForNode,
+            mediaKindForOutputItem,
+            outputImageName,
+            openOutputLightbox,
+            workspaceSession:canvasCollectionWorkspaceSession(),
+            persistCollection:persistCanvasCollection,
+        });
+    }
+    return collectionGalleryCanvasAdapter;
+}
+function canvasCollectionRendererOptions(node){ return ensureCollectionGalleryCanvasAdapter().optionsFor(node); }
+function openCanvasCollectionWorkspace(nodeId){ return ensureCollectionGalleryCanvasAdapter().openWorkspace(nodeId); }
 function mountCanvasGroupShell(node, body, el){
     const memberImages = (node.items || []).map(id => nodes.find(candidate => candidate.id === id))
         .filter(item => item?.type === 'image' && item.url)

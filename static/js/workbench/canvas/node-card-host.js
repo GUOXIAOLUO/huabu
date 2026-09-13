@@ -13,6 +13,13 @@
     }
 
     function registerBuiltIns() {
+        if (global.WorkbenchSkillNodeRenderer && !hasRenderer('skill-node', '1')) {
+            registry.register({
+                id: 'skill-node', version: '1', priority: 130,
+                canRender: node => global.WorkbenchSkillNodeRenderer.canRender(node),
+                mount: (shell, node, options) => global.WorkbenchSkillNodeRenderer.mount(shell, node, options),
+            });
+        }
         if (global.WorkbenchCollectionRichNode && !hasRenderer('collection-gallery', '1')) {
             registry.register({
                 id: 'collection-gallery', version: '1', priority: 120,
@@ -59,6 +66,25 @@
         const settings = options || {};
         const node = settings.node;
         const renderer = resolveRenderer(settings);
+        const resolvedRendererOptions = rendererOptions(settings);
+        const isTask = node.kind === 'task' || node.type === 'task';
+        const modelSelectorOptions = isTask
+            ? {
+                ...(resolvedRendererOptions.modelSelectorOptions || {}),
+                availabilities: resolvedRendererOptions.modelAvailabilities || resolvedRendererOptions.modelSelectorOptions?.availabilities || [],
+                requirements: resolvedRendererOptions.capabilityRequirements || resolvedRendererOptions.modelSelectorOptions?.requirements || [],
+            }
+            : null;
+        const executionInputPreviewOptions = isTask
+            ? {
+                projection: resolvedRendererOptions.executionInputProjection
+                    || node.executionInputProjection
+                    || node.execution_input_projection
+                    || {valid: node.executionValid !== false, inputs: Array.isArray(node.inputs) ? node.inputs : [], errors: Array.isArray(node.inputErrors) ? node.inputErrors : []},
+                policy: resolvedRendererOptions.executionPolicy || node.executionPolicy || node.execution_policy || {},
+                ...(resolvedRendererOptions.executionInputPreviewOptions || {}),
+            }
+            : null;
         const shell = global.WorkbenchNodeShell.create({
             document: settings.document || global.document,
             node,
@@ -66,8 +92,14 @@
             onIntent: settings.onIntent,
             showDelete: settings.showDelete,
             ports: settings.ports,
+            collectionRichNodeOptions: resolvedRendererOptions,
+            skillSelectorOptions: resolvedRendererOptions.skillSelectorOptions,
+            skillPresentationOptions: resolvedRendererOptions.skillPresentationOptions,
+            skillInspectorOptions: resolvedRendererOptions.skillInspectorOptions,
+            modelSelectorOptions,
+            executionInputPreviewOptions,
         });
-        const mountedRenderer = renderer.mount(shell, node, rendererOptions(settings));
+        const mountedRenderer = renderer.mount(shell, node, resolvedRendererOptions);
         shell.element.dataset.rendererId = renderer.id;
         shell.element.dataset.rendererVersion = renderer.version;
         return Object.freeze({

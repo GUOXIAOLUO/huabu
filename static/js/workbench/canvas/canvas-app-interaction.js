@@ -80,12 +80,14 @@ function ensureCanvasWorkspaceSession(){
     canvasWorkspaceSession = window.WorkbenchCanvasWorkspaceSession.create({
         getSelection:() => [...selected],
         getCanvas:() => canvas,
+        onSave:() => undefined,
     });
     return canvasWorkspaceSession;
 }
 function openSelectedWorkspace(nodeId){
     const session = ensureCanvasWorkspaceSession();
     if(!session) return false;
+    if(typeof openCanvasCollectionWorkspace === 'function' && openCanvasCollectionWorkspace(nodeId)) return true;
     session.openFromSelection(nodeId);
     return true;
 }
@@ -98,6 +100,7 @@ function ensureFloatingActionBar(){
             {id:'open', label:langIsEn() ? 'Open' : '打开', icon:'external-link', order:10, when:context => context.count === 1},
             {id:'copy', label:langIsEn() ? 'Copy' : '复制', icon:'copy', order:20, when:context => context.count > 0},
             {id:'group', label:langIsEn() ? 'Group' : '分组', icon:'folder-plus', order:30, when:context => context.count > 1},
+            {id:'quick-collection', label:langIsEn() ? 'Collection' : '集合', icon:'library', order:35, when:context => window.WorkbenchQuickCollection?.eligibleReferences(context.nodes).length > 1},
             {id:'delete', label:langIsEn() ? 'Delete' : '删除', icon:'trash-2', order:40, when:context => context.count > 0},
         ],
         onIntent: intent => {
@@ -107,10 +110,48 @@ function ensureFloatingActionBar(){
             }
             else if(intent.actionId === 'copy') copySelectedNodes();
             else if(intent.actionId === 'group') groupSelectedImages();
+            else if(intent.actionId === 'quick-collection') void createQuickCollectionFromSelection();
             else if(intent.actionId === 'delete') deleteSelectedNodes();
         },
     });
     return floatingActionBar;
+}
+
+async function createQuickCollectionFromSelection(){
+    if(!canvas || !window.WorkbenchQuickCollection || !canUseVersionedImageCreation()) return;
+    const selectedNodes = [...selected].map(id => nodes.find(node => node.id === id)).filter(Boolean);
+    const references = window.WorkbenchQuickCollection.eligibleReferences(selectedNodes);
+    if(references.length < 2) return;
+    const rects = selectedNodes.map(node => nodeRect(node)).filter(Boolean);
+    const position = rects.length ? {
+        x:Math.max(...rects.map(rect => rect.x + rect.w)) + 48,
+        y:Math.min(...rects.map(rect => rect.y)),
+    } : defaultPoint(120, 0);
+    try {
+        const result = await window.WorkbenchQuickCollection.create({
+            nodes:selectedNodes, projectId:canvas.project, canvasId:canvas.id, position,
+            prompt:(message, fallback) => window.prompt(langIsEn() ? message : '集合名称', fallback),
+            createCollection:payload => window.WorkbenchCollectionApiClient.create(payload, {actorId:CLIENT_ID}),
+            createNode:request => ensureCreationController().createNode({
+                canvasId:canvas.id, projectId:canvas.project, clientId:CLIENT_ID, source:'quick_collection',
+                definitionRef:{type:'legacy', id:'collection', version:'0'}, position:request.position,
+                expectedRevision:currentCanvasRevision(), title:request.title,
+                initialConfig:{collection:request.collection},
+                apply:{
+                    nodes, undoStack,
+                    undoSnapshot:{nodes:JSON.parse(JSON.stringify(serializableCanvasNodes())), connections:JSON.parse(JSON.stringify(connections))},
+                    undoLimit:UNDO_MAX, canvas,
+                    projectNode:created => ({id:created.id, type:'collection', x:request.position.x, y:request.position.y, w:created.size?.width || 420, h:created.size?.height || 300, title:created.title || request.title, collection:created.config?.collection || request.collection}),
+                    onRevision:revision => { adoptCanvasRevision(revision); },
+                    onSelected:created => { selected.clear(); selected.add(created.id); },
+                },
+            }),
+        });
+        if(result.created) { render(); setStatus(langIsEn() ? 'Collection created' : '集合已创建'); }
+    } catch(error) {
+        console.error('Quick Collection creation failed', error);
+        setStatus(error.message || (langIsEn() ? 'Collection creation failed' : '集合创建失败'));
+    }
 }
 function renderSelectionHub(){
     const bar = ensureFloatingActionBar();

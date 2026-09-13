@@ -59,6 +59,12 @@ let managedSelectionPointerGuard = null;
 let assetEditMode = false;
 let promptEditMode = false;
 let promptCreateMode = false;
+let resourcePrompts = [];
+let selectedResourcePromptId = '';
+let resourcePromptVersions = {};
+let resourcePromptVersion = 0;
+let resourcePromptEditor = null;
+let promptCompatibilityMode = false;
 let pendingDeleteAssetId = '';
 let pendingDeletePromptId = '';
 let pendingBatchDelete = '';
@@ -1071,6 +1077,37 @@ function currentPromptItems(){
         return [item.name, item.scene, item.positive, item.negative, item.category].join(' ').toLowerCase().includes(query);
     });
 }
+function resourcePromptProjectId(){
+    try { return decodeURIComponent(new URLSearchParams(window.location.search).get('project') || 'default') || 'default'; }
+    catch(_) { return 'default'; }
+}
+function resourcePromptHeaders(){ return {'X-User-ID':'local-workspace-actor'}; }
+function resourcePromptEntries(){ return resourcePrompts; }
+function selectedResourcePrompt(){ return resourcePrompts.find(entry => entry.prompt?.prompt_id === selectedResourcePromptId) || resourcePromptEntries()[0] || null; }
+async function loadResourcePromptVersions(entry){
+    if(!entry?.prompt?.prompt_id) return;
+    const id = entry.prompt.prompt_id;
+    const current = Number(entry.prompt.version || 1);
+    const versions = {};
+    for(let version = 1; version <= current; version++){
+        try { versions[version] = await apiJson(`/api/v1/prompts/${encodeURIComponent(id)}/versions/${version}`, {headers:resourcePromptHeaders()}); }
+        catch(_) { break; }
+    }
+    resourcePromptVersions[id] = versions;
+    resourcePromptVersion = versions[current] ? current : Number(Object.keys(versions).pop() || 0);
+    render();
+}
+async function loadResourcePrompts(query=promptQuery){
+    const data = await apiJson(`/api/v1/prompts?project_id=${encodeURIComponent(resourcePromptProjectId())}&q=${encodeURIComponent(String(query || '').trim())}`, {headers:resourcePromptHeaders()});
+    resourcePrompts = Array.isArray(data) ? data : [];
+    if(!selectedResourcePromptId || !resourcePrompts.some(entry => entry.prompt?.prompt_id === selectedResourcePromptId)) selectedResourcePromptId = resourcePrompts[0]?.prompt?.prompt_id || '';
+    const selected = selectedResourcePrompt();
+    if(selected) await loadResourcePromptVersions(selected);
+}
+async function loadLegacyPromptLibraries(){
+    const data = await apiJson('/api/prompt-libraries');
+    promptLibrary = data.library || {libraries:[]};
+}
 // 认证支持的平台键（与后端 AVATAR_SUPPORTED_PLATFORMS 保持一致；新增平台时同步）
 const AVATAR_SUPPORTED_PLATFORMS = ['apimart', 'volcengine'];
 const AVATAR_PLATFORM_LABELS = {apimart:'APIMart', volcengine:'火山引擎'};
@@ -1300,16 +1337,20 @@ async function refreshCanvasAssets(){
 }
 async function loadAll(){
     setStatus('加载中...');
-    const [assetData, promptData, providerData, canvasAssetData] = await Promise.all([
+    const [assetData, providerData, canvasAssetData, canonicalPromptData] = await Promise.all([
         apiJson('/api/asset-library'),
-        apiJson('/api/prompt-libraries'),
         apiJson('/api/providers').catch(() => ({providers:[]})),
         apiJson('/api/canvas-assets').catch(() => ({categories:[], canvases:[], items:[]})),
+        apiJson(`/api/v1/prompts?project_id=${encodeURIComponent(resourcePromptProjectId())}`, {headers:resourcePromptHeaders()}).catch(() => []),
         loadSharedFolders(),
         loadLocalAssets()
     ]);
     assetLibrary = assetData.library || {libraries:[], categories:[]};
-    promptLibrary = promptData.library || {libraries:[]};
+    resourcePrompts = Array.isArray(canonicalPromptData) ? canonicalPromptData : [];
+    selectedResourcePromptId = resourcePrompts[0]?.prompt?.prompt_id || '';
+    resourcePromptVersions = {};
+    resourcePromptVersion = 0;
+    if(resourcePrompts[0]) await loadResourcePromptVersions(resourcePrompts[0]);
     apiProviders = Array.isArray(providerData.providers) ? providerData.providers : [];
     canvasAssetsData = {
         categories:Array.isArray(canvasAssetData.categories) ? canvasAssetData.categories : [],
@@ -1375,6 +1416,19 @@ function scheduleSearchRender(id, pos=0, delay=140){
         render();
         requestAnimationFrame(() => {
             const input = document.getElementById(id);
+            input?.focus();
+            try { input?.setSelectionRange?.(pos, pos); } catch(_) {}
+        });
+    }, Math.max(0, delay));
+}
+function scheduleResourcePromptSearch(pos=0, delay=140){
+    clearTimeout(searchRenderTimer);
+    searchRenderTimer = setTimeout(async () => {
+        clearSearchSelection('promptSearch');
+        try { await loadResourcePrompts(promptQuery); }
+        catch(err) { setStatus(err.message || '搜索 Prompt 失败'); render(); }
+        requestAnimationFrame(() => {
+            const input = document.getElementById('promptSearch');
             input?.focus();
             try { input?.setSelectionRange?.(pos, pos); } catch(_) {}
         });
@@ -2313,59 +2367,70 @@ function renderAssetDetail(item){
     `;
 }
 function renderPromptManager(){
+    if(promptCompatibilityMode) return renderLegacyPromptManager();
+    const entries = resourcePromptEntries();
+    const entry = selectedResourcePrompt();
+    const promptId = entry?.prompt?.prompt_id || '';
+    const versions = resourcePromptVersions[promptId] || {};
+    const version = versions[resourcePromptVersion] || versions[entry?.prompt?.version] || null;
+    const editable = entry?.source === 'project';
+    const editor = resourcePromptEditor;
+    root.innerHTML = `
+        <aside class="asset-panel asset-nav">
+            <div class="panel-head">
+                <div class="panel-title"><strong>Prompts</strong><span>Resources</span></div>
+            </div>
+            <div class="nav-scroll">
+                <div class="prompt-resource-list">
+                    ${entries.length ? entries.map(item => `<button class="tree-row ${item.prompt?.prompt_id === promptId ? 'active' : ''}" type="button" data-resource-prompt="${escapeAttr(item.prompt?.prompt_id || '')}"><span class="tree-row-icon"><i data-lucide="text-cursor-input"></i></span><span class="tree-row-name">${escapeHtml(item.name)}</span><span class="tree-row-count">v${escapeHtml(item.prompt?.version || 1)}</span></button>`).join('') : '<div class="empty-state">暂无 Prompt</div>'}
+                </div>
+            </div>
+        </aside>
+        <section class="asset-panel asset-content">
+            <div class="content-toolbar">
+                <div class="content-heading">
+                    <strong>Prompt Resources</strong>
+                    <span>共 ${entries.length} 条</span>
+                </div>
+                <div class="asset-tools">
+                    <label class="asset-search-wrap"><i data-lucide="search"></i><input id="promptSearch" class="asset-search" type="search" value="${escapeAttr(promptQuery)}" placeholder="搜索 Prompt"></label>
+                    <button class="asset-btn primary" type="button" data-resource-prompt-new><i data-lucide="file-plus-2"></i><span>新增 Prompt</span></button>
+                    <button class="asset-btn" type="button" data-prompt-compatibility>旧版提示词库</button>
+                </div>
+            </div>
+            <div class="content-scroll">
+                ${entries.length ? `<div class="prompt-list">${entries.map(item => `<article class="prompt-row ${item.prompt?.prompt_id === promptId ? 'active' : ''}" data-resource-prompt="${escapeAttr(item.prompt?.prompt_id || '')}"><div class="prompt-row-main"><div class="prompt-row-title"><strong>${escapeHtml(item.name)}</strong><span class="prompt-tag">${escapeHtml(item.source || 'project')}</span></div><div class="prompt-row-scene">${escapeHtml(item.description || '未填写说明')}</div><div class="prompt-row-text">${escapeHtml((item.tags || []).join(' · ') || `当前版本 v${item.prompt?.version || 1}`)}</div></div></article>`).join('')}</div>` : '<div class="empty-state">当前项目暂无 Prompt，可点击“新增 Prompt”。</div>'}
+            </div>
+        </section>
+        <aside class="asset-panel asset-detail">
+            ${editor ? `<div class="panel-head"><div class="panel-title"><strong>${editor.id ? '创建新版本' : '新增 Prompt'}</strong><span>保存到 Resources</span></div><div class="panel-actions"><button class="asset-btn primary" type="button" data-resource-prompt-save>保存</button><button class="asset-icon-btn" type="button" data-resource-prompt-cancel title="取消"><i data-lucide="x"></i></button></div></div><div class="detail-scroll"><div class="inline-edit-form"><label class="inline-edit-field"><span>名称</span><input id="resourcePromptName" value="${escapeAttr(editor.name || '')}"></label><label class="inline-edit-field"><span>Prompt 内容</span><textarea id="resourcePromptContent" rows="14">${escapeHtml(editor.content || '')}</textarea></label></div></div>` : entry ? `<div class="panel-head"><div class="panel-title"><strong>${escapeHtml(entry.name)}</strong><span>${escapeHtml(entry.source || 'project')} · ${escapeHtml(entry.source_id || '')}</span></div><div class="panel-actions"><button class="asset-btn primary" type="button" data-resource-prompt-version ${editable ? '' : 'disabled'}>${editable ? '新版本' : '只读'}</button></div></div><div class="detail-scroll"><div class="detail-meta-grid"><div class="detail-meta"><span>来源</span><strong>${escapeHtml(entry.source || 'project')}</strong></div><div class="detail-meta"><span>版本</span><strong>v${escapeHtml(entry.prompt?.version || 1)}</strong></div></div><section class="prompt-block"><div class="prompt-block-head"><span>版本列表</span><span>${Object.keys(versions).length} 个</span></div><div class="asset-tools">${Object.keys(versions).sort((a,b)=>Number(a)-Number(b)).map(item => `<button class="asset-btn ${Number(item) === resourcePromptVersion ? 'primary' : ''}" type="button" data-resource-prompt-version-select="${item}">v${item}</button>`).join('')}</div></section><section class="prompt-block"><div class="prompt-block-head"><span>Prompt 内容</span><span>${version ? `${String(version.content || '').length} 字符` : '加载中'}</span></div><textarea class="prompt-block-body" readonly spellcheck="false">${escapeHtml(version?.content || '')}</textarea></section></div>` : '<div class="panel-head"><div class="panel-title"><strong>Prompt 预览</strong><span>选择一条 Prompt</span></div></div>'}
+        </aside>
+    `;
+}
+function renderLegacyPromptManager(){
     normalizePromptState();
     const libs = promptLibraries();
     const lib = activePromptLibrary();
     const readonly = Boolean(lib?.readonly);
-    const cats = activePromptCategories();
     const items = currentPromptItems();
     const detail = promptCreateMode ? null : selectedPrompt();
-    const promptEmptyText = (lib?.items || []).length
-        ? '当前条件下没有提示词。可以切换分类或清空搜索条件。'
-        : `${lib?.name || '当前提示词库'} 暂无提示词，点击「新增」添加。`;
+    const empty = (lib?.items || []).length ? '当前条件下没有提示词。' : `${lib?.name || '当前提示词库'} 暂无提示词。`;
     root.innerHTML = `
         <aside class="asset-panel asset-nav">
-            <div class="panel-head">
-                <div class="panel-title"><strong>提示词库</strong><span>可创建多个词库</span></div>
-                <div class="panel-actions compact-actions">
-                    ${promptTreeEdit?.placement === 'head' ? '' : '<button class="asset-icon-btn" type="button" data-prompt-lib-new title="新建提示词库"><i data-lucide="plus"></i></button>'}
-                    ${renderHeadTreeInlineEdit(promptTreeEdit, 'promptTreeEditInput', 'data-prompt-tree-edit-save', 'data-prompt-tree-edit-cancel')}
-                </div>
-            </div>
-            <div class="nav-scroll">
-                <div class="nav-tree">
-                    ${libs.map(item => renderPromptTreeBranch(item)).join('')}
-                </div>
-            </div>
+            <div class="panel-head"><div class="panel-title"><strong>旧版提示词库</strong><span>兼容视图</span></div><div class="panel-actions compact-actions"><button class="asset-icon-btn" type="button" data-prompt-lib-new title="新建提示词库"><i data-lucide="plus"></i></button></div></div>
+            <div class="nav-scroll"><div class="nav-tree">${libs.map(item => renderPromptTreeBranch(item)).join('')}</div></div>
         </aside>
-        <section class="asset-panel asset-content ${promptManageMode ? 'manage-on' : ''}">
-            <div class="content-toolbar">
-                <div class="content-heading">
-                    <strong>${escapeHtml(lib?.name || '提示词库')}</strong>
-                    <span>共 ${items.length} 条提示词</span>
-                </div>
-                <div class="asset-tools">
-                    <label class="asset-search-wrap"><i data-lucide="search"></i><input id="promptSearch" class="asset-search" type="search" value="${escapeAttr(promptQuery)}" placeholder="搜索名称、说明或正文"></label>
-                    <button class="asset-btn primary" type="button" data-prompt-new ${readonly ? 'disabled' : ''}><i data-lucide="file-plus-2"></i><span>新增</span></button>
-                    <button class="asset-btn ${promptManageMode ? 'primary' : ''}" type="button" data-prompt-manage><i data-lucide="list-checks"></i><span>${promptManageMode ? '完成管理' : '批量管理'}</span></button>
-                </div>
-            </div>
-            <div class="manage-tools">
-                <span>已选择 ${selectedPromptIds.size} 条提示词，支持拖拽框选或逐个勾选。</span>
-                <div class="asset-tools">
-                    <button class="asset-btn" type="button" data-prompt-select-all ${items.length && !readonly ? '' : 'disabled'}><i data-lucide="check-square"></i><span>全选</span></button>
-                    <button class="asset-btn" type="button" data-prompt-clear-selection ${selectedPromptIds.size ? '' : 'disabled'}><i data-lucide="square"></i><span>清空</span></button>
-                    <button class="asset-btn danger ${pendingBatchDelete === 'prompt' ? 'detail-confirm' : ''}" type="button" data-prompt-delete-selected ${readonly || !selectedPromptIds.size ? 'disabled' : ''}><i data-lucide="trash-2"></i><span>${pendingBatchDelete === 'prompt' ? '确认删除' : '删除所选'}</span></button>
-                </div>
-            </div>
-            <div class="content-scroll">
-                ${items.length ? `<div class="prompt-list">${items.map(item => renderPromptRow(item, readonly)).join('')}</div>` : `<div class="empty-state">${escapeHtml(promptEmptyText)}</div>`}
-            </div>
+        <section class="asset-panel asset-content">
+            <div class="content-toolbar"><div class="content-heading"><strong>${escapeHtml(lib?.name || '提示词库')}</strong><span>共 ${items.length} 条提示词</span></div><div class="asset-tools">
+                <label class="asset-search-wrap"><i data-lucide="search"></i><input id="promptSearch" class="asset-search" type="search" value="${escapeAttr(promptQuery)}" placeholder="搜索名称、说明或正文"></label>
+                <button class="asset-btn primary" type="button" data-prompt-new ${readonly ? 'disabled' : ''}>新增</button>
+                <button class="asset-btn ${promptManageMode ? 'primary' : ''}" type="button" data-prompt-manage>${promptManageMode ? '完成管理' : '批量管理'}</button>
+                <button class="asset-btn" type="button" data-prompt-compatibility>返回资源 Prompt</button>
+            </div></div>
+            ${promptManageMode ? `<div class="manage-tools"><span>已选择 ${selectedPromptIds.size} 条提示词</span><div class="asset-tools"><button class="asset-btn" type="button" data-prompt-select-all ${items.length && !readonly ? '' : 'disabled'}>全选</button><button class="asset-btn" type="button" data-prompt-clear-selection ${selectedPromptIds.size ? '' : 'disabled'}>清空</button><button class="asset-btn danger" type="button" data-prompt-delete-selected ${readonly || !selectedPromptIds.size ? 'disabled' : ''}>删除所选</button></div></div>` : ''}
+            <div class="content-scroll">${items.length ? `<div class="prompt-list">${items.map(item => renderPromptRow(item, readonly)).join('')}</div>` : `<div class="empty-state">${escapeHtml(empty)}</div>`}</div>
         </section>
-        <aside class="asset-panel asset-detail">
-            ${renderPromptDetail(detail, readonly)}
-        </aside>
-    `;
+        <aside class="asset-panel asset-detail">${renderPromptDetail(detail, readonly)}</aside>`;
 }
 function renderPromptTreeBranch(lib){
     const isActiveLib = lib.id === activePromptLibraryId;
@@ -3694,6 +3759,59 @@ async function handleClick(event){
         return;
     }
 
+    if(target.closest?.('[data-prompt-compatibility]')){
+        promptCompatibilityMode = !promptCompatibilityMode;
+        resourcePromptEditor = null;
+        promptCreateMode = false;
+        promptEditMode = false;
+        if(promptCompatibilityMode){
+            try { await loadLegacyPromptLibraries(); }
+            catch(err) { promptCompatibilityMode = false; setStatus(err.message || '加载旧版提示词库失败'); }
+        }
+        render();
+        return;
+    }
+    const resourcePrompt = target.closest?.('[data-resource-prompt]');
+    if(resourcePrompt){
+        selectedResourcePromptId = resourcePrompt.dataset.resourcePrompt || '';
+        resourcePromptEditor = null;
+        resourcePromptVersion = 0;
+        const entry = selectedResourcePrompt();
+        await loadResourcePromptVersions(entry);
+        return;
+    }
+    if(target.closest?.('[data-resource-prompt-new]')){
+        resourcePromptEditor = {id:'', name:'', content:''};
+        render();
+        return;
+    }
+    if(target.closest?.('[data-resource-prompt-version]')){
+        const entry = selectedResourcePrompt();
+        const current = resourcePromptVersions[entry?.prompt?.prompt_id]?.[entry?.prompt?.version];
+        resourcePromptEditor = {id:entry?.prompt?.prompt_id || '', name:entry?.name || '', content:current?.content || ''};
+        render();
+        return;
+    }
+    const resourcePromptVersionSelect = target.closest?.('[data-resource-prompt-version-select]');
+    if(resourcePromptVersionSelect){ resourcePromptVersion = Number(resourcePromptVersionSelect.dataset.resourcePromptVersionSelect || 0); render(); return; }
+    if(target.closest?.('[data-resource-prompt-cancel]')){ resourcePromptEditor = null; render(); return; }
+    if(target.closest?.('[data-resource-prompt-save]')){
+        const name = document.getElementById('resourcePromptName')?.value?.trim() || '';
+        const content = document.getElementById('resourcePromptContent')?.value?.trim() || '';
+        if(!name || !content){ setStatus('名称和 Prompt 内容不能为空'); return; }
+        const isVersion = Boolean(resourcePromptEditor?.id);
+        if(isVersion){
+            await apiJson(`/api/v1/prompts/${encodeURIComponent(resourcePromptEditor.id)}/versions`, {method:'POST', headers:{'Content-Type':'application/json', ...resourcePromptHeaders()}, body:JSON.stringify({content})});
+            selectedResourcePromptId = resourcePromptEditor.id;
+        } else {
+            const created = await apiJson('/api/v1/prompts', {method:'POST', headers:{'Content-Type':'application/json', ...resourcePromptHeaders()}, body:JSON.stringify({project_id:resourcePromptProjectId(), name, content, metadata:{source:'resource_library'}})});
+            selectedResourcePromptId = created.id || '';
+        }
+        resourcePromptEditor = null;
+        await loadResourcePrompts();
+        setStatus(isVersion ? 'Prompt 新版本已保存' : 'Prompt 已创建');
+        return;
+    }
     const promptEditSave = target.closest?.('[data-prompt-edit-save]');
     if(promptEditSave){ await savePromptEdit(promptEditSave.dataset.promptEditSave || ''); return; }
     if(target.closest?.('[data-prompt-create-save]')){ await savePromptCreate(); return; }
@@ -4624,6 +4742,10 @@ root.addEventListener('compositionend', event => {
     searchCompositionActive = false;
     lastSearchCompositionEndAt = Date.now();
     updateSearchQueryFromInput(id, event.target.value || '');
+    if(id === 'promptSearch' && !promptCompatibilityMode){
+        scheduleResourcePromptSearch(event.target.selectionStart || String(event.target.value || '').length, 0);
+        return;
+    }
     scheduleSearchRender(id, event.target.selectionStart || String(event.target.value || '').length, 0);
 });
 root.addEventListener('input', event => {
@@ -4632,6 +4754,10 @@ root.addEventListener('input', event => {
         updateSearchQueryFromInput(searchId, event.target.value || '');
         if(event.isComposing || searchCompositionActive) return;
         if(Date.now() - lastSearchCompositionEndAt < 40) return;
+        if(searchId === 'promptSearch' && !promptCompatibilityMode){
+            scheduleResourcePromptSearch(event.target.selectionStart || String(event.target.value || '').length);
+            return;
+        }
         scheduleSearchRender(searchId, event.target.selectionStart || 0);
         return;
     }
