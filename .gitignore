@@ -41,3 +41,6 @@ assets/output/
 assets/uploads/
 output/*
 !output/.gitkeep
+
+# Local agent/IDE session data (task notes, memory). Never delete, never commit.
+.workbuddy-ai/
