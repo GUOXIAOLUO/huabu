@@ -64,8 +64,34 @@ from workbench.api.canvases import create_canonical_canvases_router
 from workbench.api.canvas_nodes import create_canvas_nodes_router
 from workbench.api.projects import create_canonical_projects_router
 from workbench.api.collections import create_canonical_collections_router
+from workbench.api.prompts import create_canonical_prompts_router
+from workbench.api.execution_branches import create_execution_branches_router
+from workbench.api.execution_runs import create_execution_runs_router
+from workbench.api.execution_attempts import create_execution_attempts_router
+from workbench.api.execution_events import create_execution_events_router
+from workbench.api.result_selections import create_result_selections_router
+from workbench.api.result_collections import create_result_collections_router
+from workbench.api.result_materializations import create_result_materializations_router
 from workbench.application.collection_service import CollectionService
 from workbench.repositories.collection_repository import SqliteCollectionRepository
+from workbench.application.prompt_service import PromptService
+from workbench.application.prompt_registry import PromptRegistry
+from workbench.repositories.prompt_repository import SqlitePromptRepository
+from workbench.application.execution_branch_service import ExecutionBranchService
+from workbench.application.execution_run_service import ExecutionRunService
+from workbench.application.execution_attempt_service import ExecutionAttemptService
+from workbench.application.execution_event_service import ExecutionEventService
+from workbench.application.result_selection_service import ResultSelectionService
+from workbench.application.result_collection_service import ResultCollectionService
+from workbench.application.result_materialization_service import ResultMaterializationService
+from workbench.application.result_node_definitions import ResultNodeDefinitionRegistry, ResultNodeModelCompatibilityPolicy
+from workbench.repositories.canonical_json_node_repository import CanonicalJsonNodeCreationRepository
+from workbench.application.execution_service import ExecutionControlRegistry, ExecutionService
+from workbench.repositories.execution_branch_repository import SqliteExecutionBranchRepository
+from workbench.repositories.execution_run_repository import SqliteExecutionRunRepository
+from workbench.repositories.execution_attempt_repository import SqliteExecutionAttemptRepository
+from workbench.repositories.execution_event_repository import SqliteExecutionEventRepository
+from workbench.repositories.result_selection_repository import SqliteResultSelectionRepository
 from workbench.application.legacy_definitions import LegacyDefinitionRegistry, LegacyImageModelCompatibilityPolicy
 from workbench.application.node_creation import NodeCreationService
 from workbench.domain.canvas.port_type_registry import create_core_port_type_registry
@@ -2743,6 +2769,77 @@ def collection_repository():
 
 def collection_service(actor_id: str) -> CollectionService:
     return CollectionService(collection_repository(), actor_id=actor_id)
+
+def prompt_repository():
+    return SqlitePromptRepository(WORKBENCH_DATABASE_PATH)
+
+def prompt_service(actor_id: str) -> PromptService:
+    return PromptService(prompt_repository(), actor_id=actor_id)
+
+def prompt_registry(actor_id: str) -> PromptRegistry:
+    return PromptRegistry(prompt_repository(), actor_id=actor_id)
+
+def execution_run_repository():
+    return SqliteExecutionRunRepository(WORKBENCH_DATABASE_PATH)
+
+def execution_run_service(actor_id: str) -> ExecutionRunService:
+    return ExecutionRunService(execution_run_repository(), actor_id=actor_id)
+
+def execution_branch_repository():
+    return SqliteExecutionBranchRepository(WORKBENCH_DATABASE_PATH)
+
+def execution_branch_service(actor_id: str) -> ExecutionBranchService:
+    return ExecutionBranchService(execution_branch_repository(), execution_run_service(actor_id), actor_id=actor_id)
+
+def execution_attempt_repository():
+    return SqliteExecutionAttemptRepository(WORKBENCH_DATABASE_PATH)
+
+def execution_attempt_service(actor_id: str) -> ExecutionAttemptService:
+    return ExecutionAttemptService(execution_attempt_repository(), actor_id=actor_id)
+
+def execution_event_repository():
+    return SqliteExecutionEventRepository(WORKBENCH_DATABASE_PATH)
+
+def execution_event_service(actor_id: str) -> ExecutionEventService:
+    return ExecutionEventService(execution_event_repository(), actor_id=actor_id)
+
+def result_selection_repository():
+    return SqliteResultSelectionRepository(WORKBENCH_DATABASE_PATH)
+
+def result_selection_service(actor_id: str) -> ResultSelectionService:
+    return ResultSelectionService(result_selection_repository(), actor_id=actor_id)
+
+def result_collection_service(actor_id: str) -> ResultCollectionService:
+    return ResultCollectionService(collection_service(actor_id), result_selection_service(actor_id), execution_run_service(actor_id), actor_id=actor_id)
+
+def local_result_materialization_service(actor_id: str) -> ResultMaterializationService:
+    """Materialize a selected result as a canonical node on the localhost-only Canvas store."""
+    repository = canvas_repository()
+    return ResultMaterializationService(
+        node_creation=NodeCreationService(
+            authorizer=LegacyCanvasProjectAuthorizer(repository, allow_unowned_local=True),
+            definitions=ResultNodeDefinitionRegistry(),
+            model_policy=ResultNodeModelCompatibilityPolicy(),
+            repository=CanonicalJsonNodeCreationRepository(repository),
+            audit_sink=JsonlAuditSink(CANVAS_NODE_AUDIT_PATH, lock=CANVAS_NODE_AUDIT_LOCK),
+            node_id_factory=lambda: uuid.uuid4().hex,
+            port_types=create_core_port_type_registry(),
+        ),
+        selections=result_selection_service(actor_id),
+        runs=execution_run_service(actor_id),
+        actor_id=actor_id,
+    )
+
+EXECUTION_CONTROL_REGISTRY = ExecutionControlRegistry()
+
+def execution_service(actor_id: str) -> ExecutionService:
+    return ExecutionService(
+        execution_run_repository(),
+        execution_attempt_repository(),
+        actor_id=actor_id,
+        event_service=execution_event_service(actor_id),
+        control_registry=EXECUTION_CONTROL_REGISTRY,
+    )
 
 def local_node_creation_service(actor_id: str) -> NodeCreationService:
     """Build the explicitly localhost-only service for the first Legacy Image API."""
@@ -18518,6 +18615,14 @@ if WORKBENCH_NODE_API_ENABLED:
     ))
     app.include_router(create_canonical_projects_router(project_service_factory=project_service))
     app.include_router(create_canonical_collections_router(service_factory=collection_service))
+    app.include_router(create_canonical_prompts_router(service_factory=prompt_service, registry_factory=prompt_registry))
+    app.include_router(create_execution_runs_router(service_factory=execution_run_service, execution_service_factory=execution_service))
+    app.include_router(create_execution_branches_router(service_factory=execution_branch_service))
+    app.include_router(create_execution_attempts_router(service_factory=execution_attempt_service, execution_service_factory=execution_service))
+    app.include_router(create_execution_events_router(service_factory=execution_event_service))
+    app.include_router(create_result_selections_router(service_factory=result_selection_service))
+    app.include_router(create_result_collections_router(service_factory=result_collection_service))
+    app.include_router(create_result_materializations_router(service_factory=local_result_materialization_service))
     app.include_router(create_canvas_nodes_router(
         service_for_actor=local_node_creation_service,
         mutation_service_for_actor=local_node_mutation_service,

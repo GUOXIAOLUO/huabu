@@ -10,7 +10,7 @@
     "id": {"type": "string", "minLength": 1},
     "project_id": {"type": "string", "minLength": 1},
     "canvas_id": {"type": "string", "minLength": 1},
-    "kind": {"enum": ["asset", "skill", "artifact", "entity", "task", "approval", "group", "composite", "legacy"]},
+    "kind": {"enum": ["asset", "skill", "artifact", "entity", "task", "approval", "group", "collection", "composite", "result", "legacy"]},
     "definition_ref": {"$ref": "#/$defs/reference"},
     "renderer": {"$ref": "#/$defs/reference"},
     "state": {"enum": ["draft", "ready", "missing_input", "queued", "running", "waiting_user", "waiting_approval", "completed", "failed", "outdated", "frozen"]},
