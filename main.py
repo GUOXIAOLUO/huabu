@@ -180,6 +180,16 @@ def node_api_is_enabled_for_host(host: str) -> bool:
     return host.strip().lower() in {"127.0.0.1", "::1", "localhost"}
 
 
+def canonical_api_is_enabled_for_host(host: str) -> bool:
+    """Canonical product APIs remain available for every supported bind host."""
+    return bool(host.strip())
+
+
+def privileged_filesystem_is_enabled_for_host(host: str) -> bool:
+    """Host filesystem APIs require the existing local/loopback capability."""
+    return node_api_is_enabled_for_host(host)
+
+
 WORKBENCH_NODE_API_ENABLED = node_api_is_enabled_for_host(WORKBENCH_HOST)
 
 app.add_middleware(
@@ -6403,8 +6413,13 @@ def storage_file_item(kind, root, path):
         pass
     return item
 
+def require_privileged_filesystem_capability():
+    if not privileged_filesystem_is_enabled_for_host(WORKBENCH_HOST):
+        raise HTTPException(status_code=403, detail="host filesystem capability is local-only")
+
 @app.get("/api/storage-settings")
 async def get_storage_settings():
+    require_privileged_filesystem_capability()
     settings = load_storage_settings()
     return {
         "dirs": settings["dirs"],
@@ -6413,10 +6428,12 @@ async def get_storage_settings():
 
 @app.patch("/api/storage-settings")
 async def update_storage_settings(payload: Dict[str, str]):
+    require_privileged_filesystem_capability()
     return save_storage_settings(payload or {})
 
 @app.get("/api/storage-files")
 async def list_storage_files(kind: str = "generated", offset: int = 0, limit: int = 80):
+    require_privileged_filesystem_capability()
     root = storage_kind_dir(kind)
     os.makedirs(root, exist_ok=True)
     offset = max(0, int(offset or 0))
@@ -6447,6 +6464,7 @@ async def list_storage_files(kind: str = "generated", offset: int = 0, limit: in
 
 @app.get("/api/storage-files/{kind}/{rel_path:path}")
 async def get_storage_file(kind: str, rel_path: str):
+    require_privileged_filesystem_capability()
     path = storage_file_path(kind, rel_path)
     if not path or not os.path.isfile(path):
         raise HTTPException(status_code=404, detail="文件不存在")
@@ -6454,6 +6472,7 @@ async def get_storage_file(kind: str, rel_path: str):
 
 @app.post("/api/storage-files/delete")
 async def delete_storage_files(payload: Dict[str, Any]):
+    require_privileged_filesystem_capability()
     kind = str((payload or {}).get("kind") or "").strip()
     rels = [str(item or "").strip() for item in ((payload or {}).get("items") or []) if str(item or "").strip()]
     if not rels:
@@ -6623,10 +6642,14 @@ def filename_from_media_url(url: str, fallback: str = "download.bin") -> str:
 
 def fetch_remote_media_bytes(url: str, timeout: float = 30.0, max_bytes: int = 200 * 1024 * 1024):
     text = rewrite_runninghub_file_url(str(url or "").strip())
-    parsed = urllib.parse.urlparse(text)
-    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+    if urllib.parse.urlparse(text).scheme not in ("http", "https"):
         return None
-    with requests.get(text, stream=True, timeout=timeout, headers={"User-Agent": "ComfyUI-API-Modelscope/1.0"}) as response:
+    response = _safe_requests_get(
+        text, timeout=timeout,
+        headers={"User-Agent": "ComfyUI-API-Modelscope/1.0"},
+        max_bytes=max_bytes,
+    )
+    try:
         response.raise_for_status()
         content_type = response.headers.get("content-type") or "application/octet-stream"
         chunks = []
@@ -6639,6 +6662,8 @@ def fetch_remote_media_bytes(url: str, timeout: float = 30.0, max_bytes: int = 2
                 raise HTTPException(status_code=413, detail="文件太大，无法下载")
             chunks.append(chunk)
         return b"".join(chunks), content_type
+    finally:
+        response.close()
 
 def origin_from_url(value):
     parsed = urllib.parse.urlparse(str(value or ""))
@@ -10333,6 +10358,26 @@ def _validate_runninghub_remote_asset_url(url: str) -> urllib.parse.SplitResult:
     return parsed
 
 
+def _safe_requests_get(url: str, *, timeout, headers=None, max_redirects=3, max_bytes=None):
+    """Fetch a remote URL with DNS/IP checks and validation on every redirect."""
+    current_url = str(url or "").strip()
+    for redirect_count in range(max_redirects + 1):
+        _validate_runninghub_remote_asset_url(current_url)
+        response = requests.get(
+            current_url, stream=True, timeout=timeout, headers=headers or {}, allow_redirects=False,
+        )
+        if response.status_code not in {301, 302, 303, 307, 308}:
+            return response
+        try:
+            location = response.headers.get("location")
+            if not location or redirect_count >= max_redirects:
+                raise HTTPException(status_code=400, detail="远程地址重定向次数过多或缺少目标")
+            current_url = urllib.parse.urljoin(current_url, location)
+        finally:
+            response.close()
+    raise HTTPException(status_code=400, detail="远程地址重定向次数过多")
+
+
 async def _download_runninghub_remote_asset(client, url: str) -> tuple[bytes, str, str]:
     current_url = str(url or "").strip()
     for redirect_count in range(RUNNINGHUB_REMOTE_ASSET_MAX_REDIRECTS + 1):
@@ -11195,10 +11240,7 @@ def download_output(request: Request, url: str, name: str = "", inline: bool = F
         range_header = request.headers.get("range")
         if range_header:
             upstream_headers["Range"] = range_header
-        upstream = requests.get(
-            url, stream=True, timeout=(10, 60),
-            headers=upstream_headers,
-        )
+        upstream = _safe_requests_get(url, timeout=(10, 60), headers=upstream_headers)
         upstream.raise_for_status()
     except requests.RequestException as exc:
         raise HTTPException(status_code=502, detail=f"远程文件下载失败：{exc}")
@@ -11329,7 +11371,9 @@ async def upload_image(files: List[UploadFile] = File(...)):
             for addr in COMFYUI_INSTANCES:
                 try:
                     files_data = {'image': (file.filename, temporary, file.content_type)}
-                    response = requests.post(f"http://{addr}/upload/image", files=files_data, timeout=5)
+                    response = await asyncio.to_thread(
+                        requests.post, f"http://{addr}/upload/image", files=files_data, timeout=5,
+                    )
                     if response.status_code == 200:
                         last_result = response.json()
                         success_count += 1
@@ -11352,12 +11396,12 @@ async def upload_ai_reference(files: List[UploadFile] = File(...)):
     audio_exts = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac"}
     doc_exts = {".pdf", ".txt", ".md", ".markdown", ".doc", ".docx", ".xls", ".xlsx", ".csv", ".json", ".zip", ".yaml", ".yml", ".log"}
     max_upload_bytes = 50 * 1024 * 1024
+    total_size = 0
     for file in files:
-        content = await file.read()
+        content, size = await read_upload_file_limited(file, max_bytes=max_upload_bytes, total_bytes=total_size)
+        total_size += size
         if not content:
             continue
-        if len(content) > max_upload_bytes:
-            raise HTTPException(status_code=413, detail=f"{file.filename or '文件'} 超过 50MB，无法上传")
         ext = os.path.splitext(file.filename or "")[1].lower()
         content_type = (file.content_type or "").lower()
         kind = "image"
@@ -11403,6 +11447,8 @@ async def upload_ai_base64(payload: Base64UploadRequest):
         header, _, raw = raw.partition(",")
         if not ct:
             ct = header[5:].split(";", 1)[0].strip().lower()
+    if len(raw) > ((UPLOAD_FILE_MAX_BYTES + 2) // 3) * 4:
+        raise HTTPException(status_code=413, detail="超过 50MB")
     try:
         content = base64.b64decode(raw, validate=False)
     except Exception:
@@ -11429,6 +11475,8 @@ async def upload_comfyui_base64(payload: Base64UploadRequest):
         header, _, raw = raw.partition(",")
         if not ct:
             ct = header[5:].split(";", 1)[0].strip().lower()
+    if len(raw) > ((UPLOAD_FILE_MAX_BYTES + 2) // 3) * 4:
+        raise HTTPException(status_code=413, detail="超过 50MB")
     try:
         content = base64.b64decode(raw, validate=False)
     except Exception:
@@ -11440,8 +11488,10 @@ async def upload_comfyui_base64(payload: Base64UploadRequest):
     comfy_name = None
     for addr in COMFYUI_INSTANCES:
         try:
-            resp = requests.post(f"http://{addr}/upload/image",
-                                 files={'image': (filename, content, ct or 'image/png')}, timeout=10)
+            resp = await asyncio.to_thread(
+                requests.post, f"http://{addr}/upload/image",
+                files={'image': (filename, content, ct or 'image/png')}, timeout=10,
+            )
             if resp.status_code == 200:
                 comfy_name = resp.json().get("name", filename)
         except Exception as exc:
@@ -11724,13 +11774,30 @@ def migrate_mislabeled_image_extensions():
     if fixed:
         print(f"纠正图片扩展名(内容与后缀不符): {fixed} 个")
 
+async def read_upload_file_limited(file, *, max_bytes, total_bytes=0):
+    """Read an upload through a bounded spool before materializing its bytes."""
+    temporary = tempfile.SpooledTemporaryFile(max_size=UPLOAD_CHUNK_BYTES, mode="w+b")
+    size = 0
+    try:
+        while chunk := await file.read(UPLOAD_CHUNK_BYTES):
+            size += len(chunk)
+            if size > max_bytes or total_bytes + size > UPLOAD_REQUEST_MAX_BYTES:
+                raise HTTPException(status_code=413, detail="上传文件超过大小限制")
+            temporary.write(chunk)
+        temporary.seek(0)
+        return temporary.read(), size
+    finally:
+        temporary.close()
+
 @app.post("/api/local-assets/upload")
 async def upload_local_assets(files: List[UploadFile] = File(...), folder: str = Form("")):
     uploaded = []
     folder_rel, folder_abs = _local_upload_safe_folder(folder)
     os.makedirs(folder_abs, exist_ok=True)
+    total_size = 0
     for file in files:
-        content = await file.read()
+        content, size = await read_upload_file_limited(file, max_bytes=UPLOAD_FILE_MAX_BYTES, total_bytes=total_size)
+        total_size += size
         if not content:
             continue
         kind, ext = _local_upload_kind_ext(file.filename, file.content_type)
@@ -11782,10 +11849,8 @@ async def import_local_assets_from_urls(payload: LocalAssetUrlImportRequest):
                         raise HTTPException(status_code=400, detail="素材数据无法解码")
                     name_path = urllib.parse.urlparse(src_url).path
                 else:
-                    response = await client.get(src_url)
-                    response.raise_for_status()
-                    content_type = response.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
-                    content = response.content
+                    content, content_type, _filename = await _download_runninghub_remote_asset(client, src_url)
+                    content_type = content_type.split(";", 1)[0].strip().lower()
                     name_path = urllib.parse.urlparse(src_url).path
                 kind, ext = _local_upload_kind_ext(name_path, content_type)
                 if kind == "image":
@@ -15858,8 +15923,10 @@ async def upload_asset_library_workflows(
     lib = load_asset_library()
     _, cat = asset_library_workflow_category(lib, library_id, category_id)
     added = []
+    total_size = 0
     for file in files[:100]:
-        raw = await file.read()
+        raw, size = await read_upload_file_limited(file, max_bytes=WORKFLOW_ZIP_MAX_BYTES, total_bytes=total_size)
+        total_size += size
         filename = file.filename or "canvas-workflow.zip"
         lower = filename.lower()
         if not (lower.endswith(".json") or lower.endswith(".zip") or raw[:2] == b"PK"):
@@ -15874,7 +15941,7 @@ async def upload_asset_library_workflows(
 
 @app.post("/api/canvas-workflows/import")
 async def import_canvas_workflow(file: UploadFile = File(...)):
-    raw = await file.read()
+    raw, _size = await read_upload_file_limited(file, max_bytes=WORKFLOW_ZIP_MAX_BYTES)
     if not raw:
         raise HTTPException(status_code=400, detail="文件为空")
     name = str(file.filename or "").lower()
@@ -17726,6 +17793,7 @@ async def ms_generate(req: MsGenerateRequest):
 @app.post("/api/generate")
 def generate(req: GenerateRequest):
     global NEXT_TASK_ID
+    workflow_path = workflow_path_from_name(req.workflow_json)
     current_task = None
     target_backend = None
     with QUEUE_LOCK:
@@ -17771,7 +17839,6 @@ def generate(req: GenerateRequest):
                     except Exception as e:
                         print(f"Sync upload failed: {e}")
 
-        workflow_path = os.path.join(WORKFLOW_DIR, req.workflow_json)
         if not os.path.exists(workflow_path) and req.workflow_json == "Z-Image.json":
             workflow_path = WORKFLOW_PATH
         if not os.path.exists(workflow_path):
@@ -18601,13 +18668,7 @@ def run_workflow(name: str, payload: WorkflowRunRequest):
     return generate(req)
 
 
-if WORKBENCH_NODE_API_ENABLED:
-    try:
-        _node_lookup = local_node_lookup()
-    except CanvasAuthoritySplitBrainError as exc:
-        # R4 split-brain guard fires during import-time wiring: refuse cleanly.
-        print(f"ERROR: {exc}", file=sys.stderr)
-        raise SystemExit(1) from exc
+if canonical_api_is_enabled_for_host(WORKBENCH_HOST):
     app.include_router(create_canonical_canvases_router(
         canonical_repository_factory=canonical_project_canvas_repository,
         authority_decision_factory=canvas_authority_decision,
@@ -18623,6 +18684,14 @@ if WORKBENCH_NODE_API_ENABLED:
     app.include_router(create_result_selections_router(service_factory=result_selection_service))
     app.include_router(create_result_collections_router(service_factory=result_collection_service))
     app.include_router(create_result_materializations_router(service_factory=local_result_materialization_service))
+
+if WORKBENCH_NODE_API_ENABLED:
+    try:
+        _node_lookup = local_node_lookup()
+    except CanvasAuthoritySplitBrainError as exc:
+        # R4 split-brain guard fires during import-time wiring: refuse cleanly.
+        print(f"ERROR: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
     app.include_router(create_canvas_nodes_router(
         service_for_actor=local_node_creation_service,
         mutation_service_for_actor=local_node_mutation_service,

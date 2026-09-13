@@ -1,4 +1,7 @@
 import asyncio
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -45,6 +48,33 @@ class CanvasNodesRuntimeTests(unittest.TestCase):
         self.assertTrue(main.node_api_is_enabled_for_host("::1"))
         self.assertFalse(main.node_api_is_enabled_for_host("0.0.0.0"))
         self.assertFalse(main.node_api_is_enabled_for_host("192.168.1.5"))
+
+    def test_canonical_product_api_is_available_in_lan_bind_modes(self):
+        for host in ("127.0.0.1", "localhost", "0.0.0.0", "::"):
+            with self.subTest(host=host):
+                self.assertTrue(main.canonical_api_is_enabled_for_host(host))
+
+    def test_canonical_project_and_canvas_routes_are_registered_in_lan_modes(self):
+        probe = (
+            "import main; pending=list(main.app.routes); paths=set(); "
+            "\nwhile pending:\n r=pending.pop(); paths.add(getattr(r, 'path', None)); "
+            "pending.extend(getattr(r, 'routes', [])); "
+            "pending.extend(getattr(getattr(r, 'original_router', None), 'routes', [])); "
+            "print('/api/v1/projects' in paths, '/api/v1/canvases/{canvas_id}' in paths, "
+            "'/api/v1/canvases/{canvas_id}/nodes' in paths)"
+        )
+        for host in ("0.0.0.0", "::"):
+            with self.subTest(host=host):
+                environment = dict(os.environ, WORKBENCH_HOST=host)
+                result = subprocess.run(
+                    [sys.executable, "-c", probe],
+                    cwd=Path(__file__).parents[1],
+                    env=environment,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(result.stdout.strip().splitlines()[-1], "True True False")
 
     def test_registered_local_route_creates_and_persists_one_legacy_image(self):
         canvas = main.new_canvas("node API test", kind="classic", project="default")

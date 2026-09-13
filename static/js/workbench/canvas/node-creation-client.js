@@ -36,7 +36,6 @@
             if (Number.isInteger(limit) && limit > 0 && settings.undoStack.length > limit) settings.undoStack.shift();
         }
         const revision = Number(result && result.canvas_revision);
-        if (settings.canvas && Number.isFinite(revision) && revision > 0) settings.canvas.updated_at = revision;
         if (typeof settings.onRevision === 'function' && Number.isFinite(revision) && revision > 0) settings.onRevision(revision);
         if (typeof settings.onSelected === 'function') settings.onSelected(node);
         return node;
@@ -73,7 +72,6 @@
             if (Number.isInteger(limit) && limit > 0 && settings.undoStack.length > limit) settings.undoStack.shift();
         }
         const revision = Number(result && result.canvas_revision);
-        if (settings.canvas && Number.isFinite(revision) && revision > 0) settings.canvas.updated_at = revision;
         if (typeof settings.onRevision === 'function' && Number.isFinite(revision) && revision > 0) settings.onRevision(revision);
         if (typeof settings.onSelected === 'function') settings.onSelected(node);
         if (typeof settings.onAfterCommit === 'function') settings.onAfterCommit(node, edge);
@@ -103,7 +101,6 @@
         }
         settings.connections.push(edge);
         const revision = Number(result && result.canvas_revision);
-        if (settings.canvas && Number.isFinite(revision) && revision > 0) settings.canvas.updated_at = revision;
         if (typeof settings.onRevision === 'function' && Number.isFinite(revision) && revision > 0) settings.onRevision(revision);
         if (typeof settings.onAfterCommit === 'function') settings.onAfterCommit(edge);
         return edge;
