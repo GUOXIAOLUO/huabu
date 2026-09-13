@@ -180,6 +180,17 @@ class LegacyNodeAdaptersTests(unittest.TestCase):
         self.assertTrue(result.created)
         self.assertEqual((node["type"], node["images"], node["w"], node["h"]), ("output", [], 460, 180))
 
+    def test_creates_collection_node_through_the_versioned_creation_boundary(self):
+        collection = {"id": "collection-1", "project_id": "project-1", "name": "Shots", "schema": {"id": "schema-1", "name": "Shots", "columns": []}, "items": []}
+        result = self.service.create(self.command(
+            request_id="collection-request", source=NodeCreationSource.QUICK_COLLECTION,
+            definition_ref=LegacyDefinitionRegistry.COLLECTION, title="Shots", initial_config={"collection": collection},
+        ))
+        node = self.canvas_repository.load("canvas-1")["nodes"][0]
+        self.assertTrue(result.created)
+        self.assertEqual(result.node.kind, "collection")
+        self.assertEqual((node["type"], node["title"], node["collection"]["id"]), ("collection", "Shots", "collection-1"))
+
     def test_unowned_can_be_explicitly_limited_to_local_policy(self):
         self.canvas_repository.save({"id": "unowned", "project": "project-1", "owner": "", "nodes": [], "updated_at": 100})
         strict = LegacyCanvasProjectAuthorizer(self.canvas_repository)

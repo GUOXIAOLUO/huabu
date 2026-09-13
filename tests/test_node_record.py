@@ -1,11 +1,12 @@
 import json
 import unittest
 from pathlib import Path
+from typing import get_args
 
 from pydantic import ValidationError
 
 from workbench.domain.canvas import LegacyCanvasAdapter, NodeState, can_transition
-from workbench.domain.canvas.models import EdgeRecord, NodeRecord
+from workbench.domain.canvas.models import EdgeRecord, NodeKind, NodeRecord
 
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures" / "canvas"
@@ -59,3 +60,13 @@ class NodeRecordTests(unittest.TestCase):
         self.assertEqual(edge_schema["properties"]["schema_version"]["const"], "workbench.edge/1")
         self.assertFalse(node_schema.get("additionalProperties", True))
         self.assertFalse(edge_schema.get("additionalProperties", True))
+
+    def test_published_node_kinds_are_exactly_the_domain_closed_set(self):
+        # A consumer validating against the published schema must be able to
+        # accept every node the domain can produce. Checking only the schema
+        # version let `collection` and `result` drift out of this enum.
+        node_schema = json.loads((SCHEMA_DIR / "node-record.v1.schema.json").read_text(encoding="utf-8"))
+        published = node_schema["properties"]["kind"]["enum"]
+        declared = list(get_args(NodeKind))
+        self.assertEqual(sorted(published), sorted(declared))
+        self.assertEqual(len(published), len(set(published)), msg="published node kinds must not repeat")

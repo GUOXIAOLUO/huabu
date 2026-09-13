@@ -7299,7 +7299,7 @@ console.log(JSON.stringify({{shellApplied, fullVisible, statusHiddenInFull, cont
         self.assertIn(".canvas-semantic-zoom-indicator", styles)
         self.assertIn(".workbench-node-shell__port--input { left:-25px; }", styles)
         self.assertIn(".workbench-node-shell__port--output { right:-21px; }", styles)
-        self.assertIn("canvas.css?v=2026.09.04.1", page)
+        self.assertIn("canvas.css?v=2026.09.11.1", page)
         self.assertIn("command-registry.js?v=2026.09.06.6", page)
         self.assertIn("creation-catalog.js?v=2026.09.04.1", page)
         self.assertIn("generation-intent.js?v=2026.09.04.1", page)
