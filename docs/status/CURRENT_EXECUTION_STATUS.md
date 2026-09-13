@@ -6,10 +6,10 @@ status_schema: workbench.execution-status/2
 
 repository: local worktree (remote repository out of scope)
 verified_head: HEAD (local main)
-verified_commit: "HEAD (local main; R9-02 independent Review PASS and archived; R9-03 activated, implementation not started)"
+verified_commit: "dee3a77 (local main; R6-13 through R9-02 committed locally in six commits; R9-02 independent Review PASS and archived; R9-03 activated, implementation not started)"
 branch: main
 remote_state: not checked; GitHub/remote synchronization is out of scope for this local task
-verified_at: 2026-09-13T08:28:00+08:00
+verified_at: 2026-09-13T09:34:54+08:00
 verification_source: R8-20 independent Review PASS (two disjoint mutation sets: developer 34 probes at 33/34, reviewer 26 probes raised from 5/26 to 22/26 after four blocking findings were fixed; every source restored byte-identical by sha256; DoD proven through the real main.app across two OS processes: 201/201/422/403, lineage_root run-1, run_count 3, source_revision 1; final gate 1053 tests, 216 Python AST files, 142 JavaScript files, 4 architecture guards, clean diff check); R8-20 archived in docs/tasks/done/; R8-21 implementation complete and developer-verified (gate 1078 tests, 219 Python AST files, 144 JavaScript files, 4 architecture guards, clean diff; 33-probe mutation review 25/33 then 32/33 after seven pins, every source restored byte-identical by sha256; DoD proven through the real main.app across two OS processes: 200 with 2 items, stranger 403, zero revision 422, canvas_count 0); R8-21 independent Review PASS (two disjoint mutation sets: developer 33 probes at 32/33, reviewer 22 probes raised from 8/22 to 16/22 after one functional defect and four coverage findings were fixed; every source restored byte-identical by sha256; final gate 1079 tests, 219 Python AST files, 144 JavaScript files, 4 architecture guards, clean diff check); R8-21 archived in docs/tasks/done/, R8-22 activated but not started; R8-22 independent Review PASS and archived with R9-01 activated; R9-01 implementation complete and developer-verified (18-probe developer mutation set 17/18 then 18/18 after pinning a guard that a ValidationError had masked; DoD proven across two OS processes through a durable JSON artifact); R9-01 independent Review PASS (11 reviewer probes on disjoint axes 9/11 then 9/11 after four requiredness pins; two survivors proven equivalent by measurement; all 29 probes restored byte-identical by sha256; final gate 1147 tests, 229 Python AST files, 146 JavaScript files, 4 architecture guards, clean diff check); R9-01 archived in docs/tasks/done/, R9-02 activated but not started
 worktree_before_R0: clean
 worktree_at_R4_03: HEAD a1195c9 plus the R4-03 card's own pending additions only —
@@ -7961,3 +7961,32 @@ pydantic gives each instance its own dict and the record freezes it.
   second owner of asset data and deliberately untouched by R9-01 and R9-02.
 
 R9-03 must not be implemented in the run that activates it.
+
+## Local commit of the R6-13 … R9-02 batch (2026-09-13)
+
+R6-13 through R9-02 had all been reviewed, archived and status-synced, but none
+of that work had a commit: 242 changed paths sat in the working tree on top of
+`1a78ca5`. They are now committed locally on `main` as six commits, in this
+order:
+
+| commit | scope | contents |
+| --- | --- | --- |
+| `cfe8097` | `.gitignore` | ignore `.workbuddy-ai/` (local agent session data — keep on disk, keep out of commits) |
+| `9708537` | `workbench/` | canonical Core: domain (prompt, skill, provider, availability, execution, asset), application services and registries, repositories, codex/direct_model/comfyui/runninghub/mcp runtimes, API routers |
+| `75498e6` | `tests/` | the focused suites behind each card's DoD, including `test_asset_domain.py` (20) and `test_asset_version.py` (24) |
+| `e8d0172` | `static/` | workbench canvas modules: prompt/skill/model UI, collection surfaces, execution preview and branch, result tray with preview/compare/selection/collection/materialization |
+| `12013d3` | `main.py`, `schemas/` | router and service wiring; published `node-record` kind enum restored to the `NodeKind` closed set (`collection`, `result`) |
+| `dee3a77` | `docs/`, `AGENT_NEXT_TASK.md` | 55 cards moved to `docs/tasks/done/`, `TASK_INDEX.md` and `AGENT_NEXT_TASK.md` synced, this file's archive sections |
+
+Committing does not change any verified result: the gate was green immediately
+before (`1172 tests`, 230 Python AST files, 146 JavaScript files, 4 architecture
+guards, clean diff check) and green again immediately after, and the worktree is
+clean. Per `LOCAL_ONLY_DEVELOPMENT_POLICY.md` nothing was pushed — remote
+synchronization remains a separate user decision.
+
+**One inconsistency the commit does not fix.** R8-18 through R9-02 each record
+their verdict under a dedicated `## Independent Review` heading; R8-17 records
+the same verdict as a bullet inside `## Developer Verification` (line 145 of
+`docs/tasks/done/R8-17-result-preview.md`, mirrored at line 7144 of this file).
+The review happened and is evidenced — the heading is what is missing. Lifting
+it into its own section is a documentation-only change, still outstanding.
