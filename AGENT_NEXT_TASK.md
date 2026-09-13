@@ -5,12 +5,12 @@
 
 ## Active Task
 
-- Active Task: `R6-07`
-- Task Card: `docs/tasks/active/R6-07-collection-gallery-view.md`
-- Status: `ACTIVE — not started`
-- Depends on: `R6-06` (DONE, independent Review PASS)
+- Active Task: `R9-03`
+- Task Card: `docs/tasks/backlog/R9-03-asset-repository-and-migration.md`
+- Status: `ACTIVE — dependency satisfied; implementation not started`
+- Depends on: `R9-02` (DONE, independent Review PASS)
 
-R6-01 through R6-06 are archived after independent Review PASS. Continue in dependency order.
+R6-01 through R6-24, R7-01 through R7-13, R8-01 through R8-22, R9-01 and R9-02 are archived after independent Review PASS. Continue in dependency order.
 
 ## Task Lifecycle
 
@@ -1132,5 +1132,20 @@ After implementation / verification:
 
 ## Recommended Successor
 
-`R5-02` is the next backlog card after `R5-01`. It is recommended only and
-must not be activated or executed by an `R5-01` run.
+`R9-04` is the next backlog card after `R9-03`. It is recommended only and
+must not be activated or executed by an `R9-03` run.
+
+`R9-02` is archived in `docs/tasks/done/` after its independent Review PASS, so
+`R9-03` Asset Repository and Migration is the sole ACTIVE card, activated but
+**not started**.
+
+What `R9-03` inherits from `R9-01` and `R9-02`: `Asset` names its versions by id
+and owns no version content; `AssetVersion` owns content, checksum, provenance
+and ordinal and is immutable by construction. The rules a single record cannot
+enforce are `R9-03`'s to add — ordinal uniqueness per asset, gap-free sequences,
+and single-assignment version ids. `R9-03` also retires the legacy
+`data/asset_library.json` store, which is still the second owner of asset data.
+One open decision it must make: the published node-record schema addresses
+`asset_version` by a single `id`, while `AssetVersionRef` uses
+`asset_id` + `version_id` — pick one before wiring refs into nodes and
+Collections.

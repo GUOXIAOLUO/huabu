@@ -1,31 +1,31 @@
-# CARD R9-03 — Asset Repository and Migration
+# CARD R6-17 — SkillRegistry
 
-- Round: R9
+- Round: R6
 - Priority: P0
-- Status: ACTIVE — dependency satisfied; implementation not started
-- Depends on: `R9-02` (DONE, independent Review PASS)
+- Status: DONE — independent Review PASS (2026-09-11)
+- Depends on: R6-16
 
 ## Goal
 
-Persist assets/versions and migrate existing file metadata safely.
+Provide one registry for discovering installed Skills.
 
 ## Before Owner
 
-files + legacy JSON metadata
+scattered feature capability lookup
 
 ## After Owner
 
-AssetRepository
+SkillRegistry
 
 ## In Scope
 
-- Build repository/service/API.
-- Map existing assets.
-- Verify checksums/paths and no data loss.
+- Register/unregister/list/search skills.
+- Support package/source/version metadata.
+- Resolve exact version.
 
 ## Out of Scope
 
-- No Resource Library visual redesign yet.
+- No online marketplace required.
 
 ## Compatibility / Migration
 
@@ -49,7 +49,7 @@ characterize
 
 ## Definition of Done
 
-- [ ] Existing assets are addressable by AssetVersionRef.
+- [x] Task/Agent future callers can discover Skills through one service.
 
 ## Documentation
 
@@ -64,10 +64,17 @@ Before:
 
 After:
 
+`workbench.application.SkillRegistry` now owns registration, unregistration,
+listing, search, source/package metadata filtering, and exact version
+resolution for installed `SkillDefinition` records.
+
 Duplicate owner removed:
+
+No second discovery path, online marketplace, executor, or execution fallback
+was added; future Task/Agent callers use the one explicit registry boundary.
 
 ## Next Recommended Card
 
-`R9-04`
+`R6-18`
 
 Do not execute the next card in the same Agent run.

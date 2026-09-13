@@ -65,62 +65,62 @@
 | `R6-04` | R6 | P0 | DONE | R6-03 | Edge / InputBinding Separation |
 | `R6-05` | R6 | P0 | DONE | R6-04 | Collection Domain Model |
 | `R6-06` | R6 | P0 | DONE | R6-05 | Collection Persistence and API |
-| `R6-07` | R6 | P1 | ACTIVE | R6-06 | Collection Gallery View |
-| `R6-08` | R6 | P1 | BACKLOG | R6-07 | Collection Grid and List Views |
-| `R6-09` | R6 | P0 | BACKLOG | R6-08 | Collection Table Workspace |
-| `R6-10` | R6 | P1 | BACKLOG | R6-09 | Quick Collection |
-| `R6-11` | R6 | P0 | BACKLOG | R6-10 | Binding Table |
-| `R6-12` | R6 | P0 | BACKLOG | R6-11 | Prompt / PromptVersion |
-| `R6-13` | R6 | P1 | BACKLOG | R6-12 | Prompt Registry |
-| `R6-14` | R6 | P0 | BACKLOG | R6-13 | Prompt Resolver |
-| `R6-15` | R6 | P1 | BACKLOG | R6-14 | Prompt Resource UI |
-| `R6-16` | R6 | P0 | BACKLOG | R6-15 | SkillDefinition |
-| `R6-17` | R6 | P0 | BACKLOG | R6-16 | SkillRegistry |
-| `R6-18` | R6 | P1 | BACKLOG | R6-17 | SkillPack |
-| `R6-19` | R6 | P0 | BACKLOG | R6-18 | SkillBinding |
-| `R6-20` | R6 | P1 | BACKLOG | R6-19 | Skill Selector |
-| `R6-21` | R6 | P0 | BACKLOG | R6-20 | Skill-Driven Presentation |
-| `R6-22` | R6 | P1 | BACKLOG | R6-21 | Skill Inspector |
-| `R6-23` | R6 | P2 | BACKLOG | R6-22 | Independent Skill Node Materialization |
-| `R6-24` | R6 | P0 | BACKLOG | R6-23 | Common Image Analysis Configuration Proof |
-| `R7-01` | R7 | P0 | BACKLOG | R6-24 | ProviderDefinition |
-| `R7-02` | R7 | P0 | BACKLOG | R7-01 | ProviderConnection |
-| `R7-03` | R7 | P0 | BACKLOG | R7-02 | ModelDefinition |
-| `R7-04` | R7 | P0 | BACKLOG | R7-03 | ModelAvailability |
-| `R7-05` | R7 | P0 | BACKLOG | R7-04 | Capability Matching |
-| `R7-06` | R7 | P1 | BACKLOG | R7-05 | Model Selector UI |
-| `R7-07` | R7 | P0 | BACKLOG | R7-06 | Codex stderr Drain |
-| `R7-08` | R7 | P0 | BACKLOG | R7-07 | Codex Unexpected EOF Handling |
-| `R7-09` | R7 | P0 | BACKLOG | R7-08 | Codex Bounded Event Queue |
-| `R7-10` | R7 | P1 | BACKLOG | R7-09 | Typed Codex Protocol Messages |
-| `R7-11` | R7 | P1 | BACKLOG | R7-10 | Codex Timeout and Backoff |
-| `R7-12` | R7 | P0 | BACKLOG | R7-11 | Codex Event Normalizer |
-| `R7-13` | R7 | P0 | BACKLOG | R7-12 | Codex Model Projection |
-| `R8-01` | R8 | P0 | BACKLOG | R7-13 | Executor Contract |
-| `R8-02` | R8 | P0 | BACKLOG | R8-01 | ExecutorRegistry |
-| `R8-03` | R8 | P0 | BACKLOG | R8-02 | ExecutionProfile |
-| `R8-04` | R8 | P0 | BACKLOG | R8-03 | ExecutionPolicy |
-| `R8-05` | R8 | P0 | BACKLOG | R8-04 | ExecutionInputProjection |
-| `R8-06` | R8 | P1 | BACKLOG | R8-05 | Execution Input Preview |
-| `R8-07` | R8 | P0 | BACKLOG | R8-06 | ExecutionRun Domain |
-| `R8-08` | R8 | P0 | BACKLOG | R8-07 | ExecutionAttempt Domain |
-| `R8-09` | R8 | P0 | BACKLOG | R8-08 | ExecutionEvent Store |
-| `R8-10` | R8 | P0 | BACKLOG | R8-09 | Cancel and Retry |
-| `R8-11` | R8 | P0 | BACKLOG | R8-10 | CodexHarnessExecutor |
-| `R8-12` | R8 | P1 | BACKLOG | R8-11 | DirectModelExecutor |
-| `R8-13` | R8 | P1 | BACKLOG | R8-12 | ComfyUIExecutor |
-| `R8-14` | R8 | P2 | BACKLOG | R8-13 | RunningHubExecutor |
-| `R8-15` | R8 | P2 | BACKLOG | R8-14 | MCPExecutor Contract |
-| `R8-16` | R8 | P0 | BACKLOG | R8-15 | Result Tray Runtime |
-| `R8-17` | R8 | P1 | BACKLOG | R8-16 | Result Preview |
-| `R8-18` | R8 | P1 | BACKLOG | R8-17 | Result Compare |
-| `R8-19` | R8 | P1 | BACKLOG | R8-18 | Result Selection and Rating |
-| `R8-20` | R8 | P1 | BACKLOG | R8-19 | Regenerate and Branch |
-| `R8-21` | R8 | P1 | BACKLOG | R8-20 | Result to Collection |
-| `R8-22` | R8 | P0 | BACKLOG | R8-21 | Result to Canvas Materialization |
-| `R9-01` | R9 | P0 | BACKLOG | R8-22 | Asset Domain |
-| `R9-02` | R9 | P0 | BACKLOG | R9-01 | AssetVersion |
-| `R9-03` | R9 | P0 | BACKLOG | R9-02 | Asset Repository and Migration |
+| `R6-07` | R6 | P1 | DONE | R6-06 | Collection Gallery View |
+| `R6-08` | R6 | P1 | DONE | R6-07 | Collection Grid and List Views |
+| `R6-09` | R6 | P0 | DONE | R6-08 | Collection Table Workspace |
+| `R6-10` | R6 | P1 | DONE | R6-09 | Quick Collection |
+| `R6-11` | R6 | P0 | DONE | R6-10 | Binding Table |
+| `R6-12` | R6 | P0 | DONE | R6-11 | Prompt / PromptVersion |
+| `R6-13` | R6 | P1 | DONE | R6-12 | Prompt Registry |
+| `R6-14` | R6 | P0 | DONE | R6-13 | Prompt Resolver |
+| `R6-15` | R6 | P1 | DONE | R6-14 | Prompt Resource UI |
+| `R6-16` | R6 | P0 | DONE | R6-15 | SkillDefinition |
+| `R6-17` | R6 | P0 | DONE | R6-16 | SkillRegistry |
+| `R6-18` | R6 | P1 | DONE | R6-17 | SkillPack |
+| `R6-19` | R6 | P0 | DONE | R6-18 | SkillBinding |
+| `R6-20` | R6 | P1 | DONE | R6-19 | Skill Selector |
+| `R6-21` | R6 | P0 | DONE | R6-20 | Skill-Driven Presentation |
+| `R6-22` | R6 | P1 | DONE | R6-21 | Skill Inspector |
+| `R6-23` | R6 | P2 | DONE | R6-22 | Independent Skill Node Materialization |
+| `R6-24` | R6 | P0 | DONE | R6-23 | Common Image Analysis Configuration Proof |
+| `R7-01` | R7 | P0 | DONE | R6-24 | ProviderDefinition |
+| `R7-02` | R7 | P0 | DONE | R7-01 | ProviderConnection |
+| `R7-03` | R7 | P0 | DONE | R7-02 | ModelDefinition |
+| `R7-04` | R7 | P0 | DONE | R7-03 | ModelAvailability |
+| `R7-05` | R7 | P0 | DONE | R7-04 | Capability Matching |
+| `R7-06` | R7 | P1 | DONE | R7-05 | Model Selector UI |
+| `R7-07` | R7 | P0 | DONE | R7-06 | Codex stderr Drain |
+| `R7-08` | R7 | P0 | DONE | R7-07 | Codex Unexpected EOF Handling |
+| `R7-09` | R7 | P0 | DONE | R7-08 | Codex Bounded Event Queue |
+| `R7-10` | R7 | P1 | DONE | R7-09 | Typed Codex Protocol Messages |
+| `R7-11` | R7 | P1 | DONE | R7-10 | Codex Timeout and Backoff |
+| `R7-12` | R7 | P0 | DONE | R7-11 | Codex Event Normalizer |
+| `R7-13` | R7 | P0 | DONE | R7-12 | Codex Model Projection |
+| `R8-01` | R8 | P0 | DONE | R7-13 | Executor Contract |
+| `R8-02` | R8 | P0 | DONE | R8-01 | ExecutorRegistry |
+| `R8-03` | R8 | P0 | DONE | R8-02 | ExecutionProfile |
+| `R8-04` | R8 | P0 | DONE | R8-03 | ExecutionPolicy |
+| `R8-05` | R8 | P0 | DONE | R8-04 | ExecutionInputProjection |
+| `R8-06` | R8 | P1 | DONE | R8-05 | Execution Input Preview |
+| `R8-07` | R8 | P0 | DONE | R8-06 | ExecutionRun Domain |
+| `R8-08` | R8 | P0 | DONE | R8-07 | ExecutionAttempt Domain |
+| `R8-09` | R8 | P0 | DONE | R8-08 | ExecutionEvent Store |
+| `R8-10` | R8 | P0 | DONE | R8-09 | Cancel and Retry |
+| `R8-11` | R8 | P0 | DONE | R8-10 | CodexHarnessExecutor |
+| `R8-12` | R8 | P1 | DONE | R8-11 | DirectModelExecutor |
+| `R8-13` | R8 | P1 | DONE | R8-12 | ComfyUIExecutor |
+| `R8-14` | R8 | P2 | DONE | R8-13 | RunningHubExecutor |
+| `R8-15` | R8 | P2 | DONE | R8-14 | MCPExecutor Contract |
+| `R8-16` | R8 | P0 | DONE | R8-15 | Result Tray Runtime |
+| `R8-17` | R8 | P1 | DONE | R8-16 | Result Preview |
+| `R8-18` | R8 | P1 | DONE | R8-17 | Result Compare |
+| `R8-19` | R8 | P1 | DONE | R8-18 | Result Selection and Rating |
+| `R8-20` | R8 | P1 | DONE | R8-19 | Regenerate and Branch |
+| `R8-21` | R8 | P1 | DONE | R8-20 | Result to Collection |
+| `R8-22` | R8 | P0 | DONE | R8-21 | Result to Canvas Materialization |
+| `R9-01` | R9 | P0 | DONE | R8-22 | Asset Domain |
+| `R9-02` | R9 | P0 | DONE | R9-01 | AssetVersion |
+| `R9-03` | R9 | P0 | ACTIVE | R9-02 | Asset Repository and Migration |
 | `R9-04` | R9 | P0 | BACKLOG | R9-03 | Resource Library Shell |
 | `R9-05` | R9 | P1 | BACKLOG | R9-04 | Asset Search and Filter |
 | `R9-06` | R9 | P1 | BACKLOG | R9-05 | Asset Inspector and Versions |

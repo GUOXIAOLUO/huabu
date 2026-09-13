@@ -6,11 +6,11 @@ status_schema: workbench.execution-status/2
 
 repository: local worktree (remote repository out of scope)
 verified_head: HEAD (local main)
-verified_commit: "R5-03 Canonical Project API completion evidence"
+verified_commit: "HEAD (local main; R9-02 independent Review PASS and archived; R9-03 activated, implementation not started)"
 branch: main
 remote_state: not checked; GitHub/remote synchronization is out of scope for this local task
-verified_at: 2026-09-11T01:15:00+08:00
-verification_source: R6-05 independent Review PASS; R6-06 activated without implementation
+verified_at: 2026-09-13T08:28:00+08:00
+verification_source: R8-20 independent Review PASS (two disjoint mutation sets: developer 34 probes at 33/34, reviewer 26 probes raised from 5/26 to 22/26 after four blocking findings were fixed; every source restored byte-identical by sha256; DoD proven through the real main.app across two OS processes: 201/201/422/403, lineage_root run-1, run_count 3, source_revision 1; final gate 1053 tests, 216 Python AST files, 142 JavaScript files, 4 architecture guards, clean diff check); R8-20 archived in docs/tasks/done/; R8-21 implementation complete and developer-verified (gate 1078 tests, 219 Python AST files, 144 JavaScript files, 4 architecture guards, clean diff; 33-probe mutation review 25/33 then 32/33 after seven pins, every source restored byte-identical by sha256; DoD proven through the real main.app across two OS processes: 200 with 2 items, stranger 403, zero revision 422, canvas_count 0); R8-21 independent Review PASS (two disjoint mutation sets: developer 33 probes at 32/33, reviewer 22 probes raised from 8/22 to 16/22 after one functional defect and four coverage findings were fixed; every source restored byte-identical by sha256; final gate 1079 tests, 219 Python AST files, 144 JavaScript files, 4 architecture guards, clean diff check); R8-21 archived in docs/tasks/done/, R8-22 activated but not started; R8-22 independent Review PASS and archived with R9-01 activated; R9-01 implementation complete and developer-verified (18-probe developer mutation set 17/18 then 18/18 after pinning a guard that a ValidationError had masked; DoD proven across two OS processes through a durable JSON artifact); R9-01 independent Review PASS (11 reviewer probes on disjoint axes 9/11 then 9/11 after four requiredness pins; two survivors proven equivalent by measurement; all 29 probes restored byte-identical by sha256; final gate 1147 tests, 229 Python AST files, 146 JavaScript files, 4 architecture guards, clean diff check); R9-01 archived in docs/tasks/done/, R9-02 activated but not started
 worktree_before_R0: clean
 worktree_at_R4_03: HEAD a1195c9 plus the R4-03 card's own pending additions only —
 the authority policy seam, the main.py guard wiring, focused policy/wiring tests,
@@ -30,8 +30,8 @@ silent_model_provider_executor_fallback_allowed: false
 
 ## Active Round
 
-active_round: R6
-active_round_name: Port / Data + Definition + Prompt + Skill
+active_round: R8
+active_round_name: Execution Runtime + Integration Contracts
 round_status: in_progress
 blocking_issues: []
 
@@ -164,8 +164,8 @@ generic Core registry. Unknown port types fail without repository or audit
 mutation. The registry centrally owns namespaced registration, resolution,
 parent compatibility, generic Core types, and `asset.cad`; package extensions use
 the same seam without new Core NodeKinds. Full verification passed at 696 tests.
-R6-02 through R6-06 are archived after independent Review PASS. R6-07 is now
-the sole ACTIVE task and is not started.
+R6-02 through R6-09 are archived after independent Review PASS. R6-10 is now
+the sole ACTIVE task; it is activated but implementation has not started.
 
 Process correction (2026-09-10): R5-08 through R5-13 and R6-01 were reopened
 because their cards had been archived before a separately recorded independent
@@ -180,12 +180,12 @@ passes with 690 tests, 104 Python AST files, 120 JavaScript files, 4
 architecture guards, and clean diff check.
 
 R5-09 through R5-13 and R6-01 are archived after independent Review PASS.
-R6-02 through R6-06 are archived after independent Review PASS. R6-07 is
-ACTIVE and not started.
+R6-02 through R6-09 are archived after independent Review PASS. R6-10 is
+ACTIVE with implementation not started.
 
-R4 is complete. R5-01 through R5-13 and R6-01 through R6-06 are complete and
-reviewed; R6-07 is now the sole active R6 card. Do not begin or activate R6-08
-or any later card before R6-07 implementation and independent Review PASS.
+R4 is complete. R5-01 through R5-13 and R6-01 through R6-09 are complete and
+reviewed; R6-10 is now the sole active R6 card. Do not begin R6-10
+implementation until its active-card execution request is received.
 
 R4-41 acceptance/fix attempt (2026-09-09): title/icon metadata writes were
 moved to the dedicated `/meta` boundary and covered by a regression contract.
@@ -6127,13 +6127,15 @@ Default and all-six-zero browser acceptance rendered the same persisted
 two-node Canvas; workflow modal open/close passed. Full
 `./scripts/agent-verify.sh`: PASS (630 tests, 80 Python AST files, 111
 JavaScript files, 4 architecture guards, clean diff check). R4-39 is DONE.
-R4-40 and R5+ were not started.
+Historical R4-39 execution checkpoint: R4-40 and R5+ were not started at that
+time.
 
 Latest execution authority (2026-09-11): R5-09 through R5-13 and R6-01
-through R6-06 are archived after independent Review PASS. R6-07 Collection
-Gallery View is the sole ACTIVE task because its R6-06 dependency is satisfied.
-Its implementation and verification are complete; independent Review is
-pending. Do not begin or activate R6-08 or any later card in this execution.
+through R6-07 are archived after independent Review PASS. R6-08 Collection
+Grid and List Views is the sole ACTIVE task because its R6-07 dependency is
+satisfied. Developer implementation and verification are complete; independent
+Review is pending. Do not begin or activate R6-09 or any later card in this
+execution.
 
 R6-06 implementation and independent Review evidence (2026-09-11): `Collection` aggregates are
 stored in canonical SQLite with project ownership, restart-safe lookup by id,
@@ -6142,19 +6144,1820 @@ and audit-outbox events. `CollectionService` and the versioned
 `/api/v1/collections` CRUD/query router are wired from `main.py` as thin
 composition only. Focused tests pass (3); full regression and
 `./scripts/agent-verify.sh` pass with 715 tests, 116 Python AST files, 121
-JavaScript files, 4 architecture guards, and clean diff check. R6-07 is
-ACTIVE and was not started.
+JavaScript files, 4 architecture guards, and clean diff check. At that
+implementation checkpoint R6-07 remained unactivated.
 Independent Review: PASS. R6-07 was activated as the only next task after
 R6-06 close.
 
-R6-07 implementation evidence (2026-09-11): `WorkbenchCollectionRichNode`
+R6-07 implementation and independent Review evidence (2026-09-11): `WorkbenchCollectionRichNode`
 provides a generic Collection gallery renderer through the unified
 RendererRegistry and NodeShell. It orders Collection items, resolves mixed
 `asset_version`/`artifact_version` references through an injected resolver,
 filters invalid/non-visual references, renders image/video tiles, and emits
 selection/open intents without taking persistence ownership. Shared
 presentation state supports card/expanded/workspace/inspector and reload.
-Focused tests pass (2); full `./scripts/agent-verify.sh` passes with 717 tests,
-117 Python AST files, 122 JavaScript files, 4 architecture guards, and clean
-diff check. R6-07 remains ACTIVE pending independent Review; R6-08 was not
+Focused tests pass (5); full `./scripts/agent-verify.sh` passes with 721 tests,
+117 Python AST files, 123 JavaScript files, 4 architecture guards, and clean
+diff check. At that checkpoint R6-07 remained ACTIVE pending independent
+Review; R6-08 was not started.
+
+R6-07 independent Review repair (2026-09-11): the Review correctly found that
+the Canvas adapter rejected Collection records through `MediaRenderer.canRender`
+before RendererRegistry could select `collection-gallery`, and that NodeShell's
+Collection Rich Node instance did not receive resolver or interaction options.
+The adapter now routes Collection records directly through the shared registry,
+resolves visual version references from existing Canvas output owners, retains
+selection as transient presentation state, and opens items through the existing
+output-preview boundary. Renderer options feed the one Rich Node instance and
+NodeCardHost is the sole descriptor-registration owner. The new behavioral test
+executes Registry → NodeShell → Gallery with mixed image/video references and
+selection/open callbacks; all 5 focused tests and the 721-test full gate pass.
+R6 intentionally does not add AssetVersion/ArtifactVersion persistence or a
+second resource resolver; unresolved canonical IDs remain references and are
+omitted safely unless an injected resolver, retained snapshot, or Canvas-owned
+output supplies a visual projection.
+Independent Review: PASS. R6-07 is archived and R6-08 is activated as the sole
+next dependency-satisfied task.
+
+R6-08 implementation evidence (2026-09-11): `WorkbenchCollectionRichNode`
+now exposes independent `grid`/`list` view state and controls. The Canvas
+adapter injects `localStorage` through a stable presentation-only key, so the
+real Registry → NodeShell → Gallery mount restores the selected view after
+remount. Item order, selection, references, and Collection semantic payload
+remain unchanged; focused DOM coverage verifies order and selection across
+both layouts. The gallery updates its layout class and accessible pressed state
+without taking Collection persistence ownership. Focused R6-08 behavior and
+related gallery/renderer regressions remain green.
+Full `./scripts/agent-verify.sh` passes with 723 tests, 117 Python AST files,
+123 JavaScript files, 4 architecture guards, and clean diff check. R6-08
+remains ACTIVE pending independent Review; R6-09 was not started.
+
+R6-08 independent Review repair (2026-09-11): Canvas-specific gallery CSS now
+explicitly overrides the generic Canvas grid and media sizing rules in List
+mode. The focused real-mount test loads the editor script and directly executes
+`mountCanvasNodeShellForMedia()` with the Canvas adapter options, remounts
+after switching to List, verifies the remounted List view retains
+selection/order, and switches that remounted instance back to Grid. Focused
+and full verification remain green (7 focused tests; 723 full tests).
+
+Latest execution authority (2026-09-11): R6-08 Collection Grid and List Views
+passed independent Review and is archived in `docs/tasks/done/`. R6-09
+Collection Table Workspace is the sole ACTIVE task, activated because its
+R6-08 dependency is satisfied. R6-09 implementation and developer verification
+are complete; independent Review is pending. Do not begin R6-10 or any later
+card in this execution.
+
+Latest execution authority (2026-09-11): R6-09 Collection Table Workspace
+passed independent Review and is archived in `docs/tasks/done/`. R6-10 Quick
+Collection is the sole ACTIVE task because its R6-09 dependency is satisfied.
+Implementation and developer verification are complete; independent Review is
+pending. R6-10 remains ACTIVE and R6-11 must not be started in this execution.
+
+R6-10 Quick Collection implementation (2026-09-11): the multi-select action
+bar now contributes a Collection action only when at least two selected nodes
+resolve to eligible typed asset/artifact/Collection references. The action
+prompts once for a minimal title, preserves selection order, persists the
+Collection through `/api/v1/collections`, and creates the Canvas Collection
+node through the versioned NodeCreationService boundary. Group remains a visual
+Canvas grouping operation and is unchanged. Focused tests pass (4 new Quick
+Collection tests plus the Collection node adapter regression); full
+`./scripts/agent-verify.sh` passes with 733 tests, 119 Python AST files, 126
+JavaScript files, 4 architecture guards, and clean diff check.
+
+R6-10 passed independent Git Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R6-11 Binding Table is now the sole ACTIVE task; it was
+activated after R6-10 completion and was not started in this execution.
+
+R6-11 Binding Table implementation (2026-09-11): `binding-table.js` now owns
+the pure Collection-row to typed InputBinding projection. It preserves
+Collection order, maps column metadata to input roles/targets, serializes
+literal values deterministically, rejects reference-type mismatches, and
+reports missing required cells. CollectionTableWorkspace exposes row and full
+table projections; no batch execution or graph-edge ownership was added.
+Focused tests pass (3 new Binding Table tests); independent Review PASS.
+
+R6-11 passed independent Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R6-12 Prompt / PromptVersion is now the sole ACTIVE task;
+it was activated because its R6-11 dependency is satisfied and was not started
+in this execution.
+
+R6-12 Prompt / PromptVersion implementation (2026-09-11): added project-owned
+`PromptDefinition` and immutable append-only `PromptVersion` records, explicit
+`prompt_id + version` resolution, authorized repository/service/API boundaries,
+and focused behavioral coverage for version resolution and project read/edit
+authorization. Focused tests pass (2 tests); full
+`./scripts/agent-verify.sh` passes with 738 tests, 125 Python AST files, 127
+JavaScript files, 4 architecture guards, and clean diff check.
+
+R6-12 passed independent Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R6-13 Prompt Registry was then the sole ACTIVE task because
+its R6-12 dependency was satisfied; its implementation and independent Review
+were completed in this execution. R6-14 was not started at that checkpoint.
+
+R6-13 Prompt Registry implementation (2026-09-11): added the explicit
+`PromptRegistry` application discovery boundary and `PromptRegistration`
+metadata for system/package/user sources, while project-owned Prompts are
+listed through the authorized PromptRepository. The canonical Prompt API now
+supports basic list/search/source filtering without scanning UI code. Existing
+legacy prompt-library behavior remains unchanged; no Skill Runtime or R6-14
+work was started. Focused tests pass (2 new registry/API tests); full
+`./scripts/agent-verify.sh` passes with 740 tests, 126 Python AST files, 127
+JavaScript files, 4 architecture guards, and clean diff check. R6-13 is
+implementation-complete and passed independent Review. R6-13 is archived in
+`docs/tasks/done/`. R6-14 Prompt Resolver is now the sole ACTIVE task because
+its R6-13 dependency is satisfied; R6-14 implementation has not started and
+must not be started in this execution.
+
+R6-14 Prompt Resolver implementation (2026-09-11): added provider-neutral
+`PromptLayer`, immutable `ResolvedPrompt`, and the application-level
+`PromptResolver` with deterministic precedence `runtime > task > project >
+default`. Selected version references, content, and metadata are snapshotted;
+duplicate layers and an empty layer set are rejected. No model calls or
+provider-specific assembly were added. Focused tests pass (3 new resolver
+tests); full `./scripts/agent-verify.sh` passes with 743 tests, 128 Python AST
+files, 127 JavaScript files, 4 architecture guards, and clean diff check.
+R6-14 passed independent Review and is archived in `docs/tasks/done/`. R6-15
+Prompt Resource UI is now the sole ACTIVE task because its R6-14 dependency is
+satisfied; R6-15 implementation was completed in this execution and remains
+ACTIVE pending independent Review. R6-16 was not started.
+
+R6-15 Prompt Resource UI implementation (2026-09-11): the existing Resources
+prompt tab now renders canonical `PromptRegistry` entries, supports search,
+version viewing, Prompt creation, and immutable new-version updates through the
+canonical Prompt API, including source metadata. No top-level Prompt
+navigation was added. The tab also exposes an explicit in-place compatibility
+view for legacy prompt-library records and preserves its existing library,
+category, item, and batch-management actions; that compatibility view is not
+the primary Resources Prompt owner.
+Focused tests pass (4 new resource-UI tests); full
+`./scripts/agent-verify.sh` passes with 747 tests, 129 Python AST files, 127
+JavaScript files, 4 architecture guards, and clean diff check. R6-15 is
+implementation-complete and remains ACTIVE pending independent Review; R6-16
+was not started.
+
+R6-15 passed independent Review on 2026-09-11 after repairs for explicit
+legacy prompt-library compatibility access, canonical API-backed search
+including IME composition completion, and removal of the legacy endpoint from
+canonical resource initialization. The card is archived in `docs/tasks/done/`.
+R6-16 SkillDefinition is now the sole ACTIVE task because its R6-15 dependency
+is satisfied; R6-16 implementation had not started at that checkpoint.
+
+R6-16 SkillDefinition implementation (2026-09-11): added the immutable,
+business-neutral `SkillDefinition` domain contract with version/package identity,
+typed ports and JSON input/output/parameter schemas, capability requirements,
+Prompt reference, presentation/workspace metadata, and declarative execution
+route metadata. Duplicate capability/route identities are rejected; no provider
+SDK, executor, SkillRegistry, or WholeHouse definition was added. Focused tests
+pass (3); full `./scripts/agent-verify.sh` passes with 750 tests, 132 Python
+AST files, 127 JavaScript files, 4 architecture guards, and clean diff check.
+R6-16 remains ACTIVE pending independent Review; R6-17 was not started.
+
+R6-16 passed independent Review on 2026-09-11. The card is archived in
+`docs/tasks/done/`. R6-17 SkillRegistry is now the sole ACTIVE task because its
+R6-16 dependency is satisfied; R6-17 implementation has not started.
+
+R6-17 SkillRegistry implementation (2026-09-11): added the single installed
+Skill discovery service with explicit registration/unregistration, list/search,
+source and package metadata filters, and exact `(skill_id, version)` resolution.
+Duplicate registration and missing exact versions fail explicitly; no online
+marketplace, executor, provider SDK, or industry-specific path was added.
+Focused tests pass (4); full `./scripts/agent-verify.sh` passes with 754 tests,
+134 Python AST files, 127 JavaScript files, 4 architecture guards, and clean
+diff check. R6-17 remains ACTIVE pending independent Review; R6-18 was not
 started.
+
+R6-17 passed independent Review on 2026-09-11. The card is archived in
+`docs/tasks/done/`. R6-18 SkillPack is now the sole ACTIVE task because its
+R6-17 dependency is satisfied; R6-18 implementation has not started.
+
+R6-18 SkillPack implementation (2026-09-11): added generic `SkillPack` metadata
+and exact `SkillRef` associations, plus `SkillRegistry` Pack registration,
+exact Pack-version resolution, and registry-level enable/disable state. Disabled
+Pack members are excluded from normal Skill discovery while explicit inclusion
+remains available; no Package Runtime, online marketplace, provider, or
+industry-specific branch was added. Focused tests pass (6); full
+`./scripts/agent-verify.sh` passes with 756 tests, 134 Python AST files, 127
+JavaScript files, 4 architecture guards, and clean diff check. R6-18 passed
+independent Review on 2026-09-11 and is archived in `docs/tasks/done/`.
+R6-19 SkillBinding is now the sole ACTIVE task because its R6-18 dependency is
+satisfied. R6-19 implementation (2026-09-11): added the immutable,
+business-neutral `SkillBinding` contract for exact Skill id/version, enabled
+state, parameters, Prompt override, and Execution Profile reference; binding
+validation checks exact `SkillDefinition` identity and its parameter schema.
+Task Rich Node now persists and reloads the structured binding without taking
+ownership of discovery or execution. Focused tests pass (7); full
+`./scripts/agent-verify.sh` passes with 757 tests, 134 Python AST files, 127
+JavaScript files, 4 architecture guards, and clean diff check. R6-19 passed
+independent Review on 2026-09-11 and is archived in `docs/tasks/done/`.
+R6-20 Skill Selector is now the sole ACTIVE task because its R6-19 dependency
+is satisfied. R6-20 implementation (2026-09-11): added the generic
+`WorkbenchSkillSelector` discovery view for search, recent, recommended, and
+enabled installed Packs. Selection creates an exact SkillBinding and updates
+the existing Task Rich Node without changing its `task` kind; discovery is
+injected, and the selector UI mounts through the shared NodeShell Task content
+slot via `skillSelectorOptions`. No execution, Provider, or industry-specific
+branch was added.
+Focused tests pass (4); full `./scripts/agent-verify.sh` passes with 758 tests,
+134 Python AST files, 128 JavaScript files, 4 architecture guards, and clean
+diff check. R6-20 passed independent Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R6-21 Skill-Driven Presentation is now the sole ACTIVE task
+because its R6-20 dependency is satisfied. R6-21 implementation (2026-09-11):
+added definition-driven Task presentation for schema-based parameter controls,
+input roles, output summaries, and declared workspace/action contributions
+resolved only through injected registries. It mounts through NodeShell with a
+separate host from the R6-20 selector, so two Skill definitions can produce
+different UI while the Task `kind` remains generic. No arbitrary Skill-defined
+code, execution, Provider, or industry branch was added. Focused tests pass
+(7); full `./scripts/agent-verify.sh` passes with 761 tests, 134 Python AST
+files, 129 JavaScript files, 4 architecture guards, and clean diff check.
+R6-21 passed independent Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R6-22 Skill Inspector is now the sole ACTIVE task because
+its R6-21 dependency is satisfied; implementation has not started and must not
+be started in this execution.
+
+R6-22 Skill Inspector implementation (2026-09-11): added the reusable,
+definition-driven `WorkbenchSkillInspector` for versioned Skill identity,
+inputs, outputs, parameters, package/version, capabilities, and Prompt
+references. It mounts through a separate Task Rich Node host and exposes only
+injected `change` and `open_resource` safe actions; executor internals,
+Provider ownership, and arbitrary Skill code remain outside the inspector.
+Focused tests pass (9); full `./scripts/agent-verify.sh` passes with 763 tests,
+134 Python AST files, 130 JavaScript files, 4 architecture guards, and clean
+diff check. R6-22 remains ACTIVE with implementation complete pending
+independent Review; R6-23 was not started.
+
+R6-22 review repair (2026-09-11): aligned Skill Inspector projection with the
+canonical `SkillDefinition` JSON shape for `package.package_id`,
+`capability_requirements`, and singular `prompt`. The regression fixture first
+failed on the package id before the fix and passed after the mapping repair;
+focused and full verification remain green at 763 tests. R6-22 remains ACTIVE
+pending independent Review; R6-23 was not started.
+
+R6-22 passed independent Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R6-23 Independent Skill Node Materialization is now the
+sole ACTIVE task because its R6-22 dependency is satisfied. R6-23
+implementation has not started and must not be started in this execution.
+
+R6-23 Independent Skill Node Materialization implementation (2026-09-11):
+added optional `WorkbenchSkillNodeMaterializer` and
+`WorkbenchSkillNodeRenderer`. Materialization builds a generic `skill`
+DefinitionRef command with embedded SkillBinding and delegates persistence
+through the injected canonical node creation boundary; the renderer projects
+definition identity, binding, and typed ports through the shared
+RendererRegistry. Embedded Task SkillBinding remains the default path, with no
+duplicate SkillDefinition, raw Canvas mutation, executor, Provider, or industry
+ownership. Focused tests pass (3); full `./scripts/agent-verify.sh` passes with
+766 tests, 135 Python AST files, 132 JavaScript files, 4 architecture guards,
+and clean diff check. R6-23 remains ACTIVE with implementation complete
+pending independent Review; R6-24 was not started.
+
+R6-23 passed independent Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R6-24 Common Image Analysis Configuration Proof is now the
+sole ACTIVE task because its R6-23 dependency is satisfied. R6-24
+implementation has not started and must not be started in this execution.
+
+R6-24 Common Image Analysis Configuration Proof implementation (2026-09-11):
+added the minimal generic `common.image-analysis@1.0.0` configuration proof.
+It registers declarative Skill metadata, binds an AssetVersion input and exact
+Prompt override to a Task Rich Node, and verifies equality after Task state is
+reloaded from storage. No actual execution, model/provider selection,
+WholeHouse dependency, or new persistence owner was added. Focused tests pass
+(2); full `./scripts/agent-verify.sh` passes with 768 tests, 136 Python AST
+files, 133 JavaScript files, 4 architecture guards, and clean diff check.
+R6-24 remains ACTIVE with implementation complete pending independent Review;
+R7-01 was not started.
+
+R6-24 passed independent Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R7-01 ProviderDefinition is now the sole ACTIVE task
+because its R6-24 dependency is satisfied. R7-01 implementation has not
+started and must not be started in this execution.
+
+R7-01 ProviderDefinition implementation (2026-09-11): added the independent,
+frozen `ProviderDefinition` contract for provider id/title/protocol,
+capabilities, config-schema metadata, and neutral metadata, plus a legacy
+adapter that projects public metadata while filtering credential-like values.
+The definition is connection-free; no ProviderConnection, CredentialRef,
+ModelDefinition, endpoint/account state, provider execution, or industry
+ownership was added. Focused tests pass (3); full `./scripts/agent-verify.sh`
+passes with 771 tests, 140 Python AST files, 133 JavaScript files, 4
+architecture guards, and clean diff check. R7-01 remains ACTIVE with
+implementation complete pending independent Review; R7-02 was not started.
+
+R7-01 review repair (2026-09-11): `ProviderDefinition` now rejects
+credential-like metadata recursively at the domain boundary, closing the gap
+where direct construction could retain nested credential values. The focused
+and full verification results remain green at 3 and 771 tests respectively;
+R7-01 remains ACTIVE pending independent Review and R7-02 was not started.
+
+R7-01 passed independent Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R7-02 ProviderConnection is now the sole ACTIVE task
+because its R7-01 dependency is satisfied. R7-02 is activated but has not
+started; no R7-02 implementation was performed in this execution.
+
+R7-02 ProviderConnection implementation (2026-09-11): added frozen,
+provider-neutral `ProviderConnection` and opaque `CredentialRef` contracts.
+Multiple independently identified connections can reference one provider;
+connection config and metadata reject credential-like fields, while normal
+serialization exposes only the credential reference id. Focused tests pass (2);
+full `./scripts/agent-verify.sh` passes with 773 tests, 141 Python AST files,
+133 JavaScript files, 4 architecture guards, and clean diff check. No raw
+secret persistence, ProviderDefinition mutation, ModelDefinition, execution,
+or Canvas ownership was added. R7-02 remains ACTIVE pending independent
+Review; R7-03 was not started.
+
+R7-02 review repair (2026-09-11): the domain secret-field guard now rejects
+credential-like key variants such as `apiKey` and `secret_value`, including
+nested configuration and metadata, so raw values cannot enter normal
+ProviderConnection serialization through naming variants. Focused and full
+verification remain green at 5 and 773 tests respectively; R7-02 remains
+ACTIVE pending independent Review and R7-03 was not started.
+
+R7-02 passed independent Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R7-03 ModelDefinition is now the sole ACTIVE task because
+its R7-02 dependency is satisfied. R7-03 is activated but has not started; no
+R7-03 implementation was performed in this execution.
+
+R7-03 ModelDefinition implementation (2026-09-11): added the frozen,
+provider-neutral `ModelDefinition` contract for model identity/family, display
+name, normalized capabilities, input/output modalities, context window,
+parameter schema, and native metadata. `ModelDefinitionAdapter` projects
+legacy model strings/objects/lists without provider, connection, availability,
+route, executor, or credential ownership. Focused tests pass (3); full
+`./scripts/agent-verify.sh` passes with 776 tests, 143 Python AST files, 133
+JavaScript files, 4 architecture guards, and clean diff check. R7-03 remains
+ACTIVE pending independent Review; R7-04 was not started.
+
+R7-03 passed independent Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R7-04 ModelAvailability is now the sole ACTIVE task because
+its R7-03 dependency is satisfied. R7-04 is activated but has not started; no
+R7-04 implementation was performed in this execution.
+
+R7-04 ModelAvailability implementation (2026-09-11): added the v2
+provider/runtime route contract, bounded repository/service seam, and explicit
+separation from ModelDefinition, ProviderConnection, CredentialRef, and
+Executor. The same model can expose independent provider and runtime
+availabilities; no route selection or execution was added. Focused tests pass
+(2); full `./scripts/agent-verify.sh` passes with 778 tests, 149 Python AST
+files, 133 JavaScript files, 4 architecture guards, and clean diff check.
+R7-04 remains ACTIVE pending independent Review; R7-05 was not started.
+
+R7-04 passed independent Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R7-05 Capability Matching is now the sole ACTIVE task
+because its R7-04 dependency is satisfied. R7-05 is activated but has not
+started; no R7-05 implementation was performed in this execution.
+
+R7-05 Capability Matching implementation (2026-09-11): added the
+`ModelCompatibilityResolver` application boundary to normalize Skill
+capability requirements, filter disabled/unavailable or incomplete
+ModelAvailability routes, rank compatible routes deterministically, and return
+explicit incompatibility reasons. Empty requirements fail explicitly; no
+silent route fallback or execution ownership was added. Focused tests pass (3);
+full `./scripts/agent-verify.sh` passes with 781 tests, 151 Python AST files,
+133 JavaScript files, 4 architecture guards, and clean diff check. R7-05
+remains ACTIVE pending independent Review; R7-06 was not started.
+
+R7-05 passed independent Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R7-06 Model Selector UI is now the sole ACTIVE task because
+its R7-05 dependency is satisfied. R7-06 is activated but has not started; no
+R7-06 implementation was performed in this execution.
+
+R7-06 Model Selector UI implementation (2026-09-11): added the generic
+`WorkbenchModelSelector` Task UI with Auto and explicit ModelAvailability route
+selection, visible resolved-route projection, unavailable reasons, and a
+credential-free public route projection. TaskRichNode persists only the
+independent `modelSelection` state; Skill binding remains separate. Focused
+tests pass (2); full `./scripts/agent-verify.sh` passes with 783 tests, 152
+Python AST files, 134 JavaScript files, 4 architecture guards, and clean diff
+check. R7-06 remains ACTIVE pending independent Review; R7-07 was not started.
+
+R7-06 review repair (2026-09-11): Model Selector wiring now flows through the
+production `NodeCardHost → NodeShell → TaskRichNode` composition boundary for
+Task nodes, with injected ModelAvailability/requirement data and an explicit
+empty-state when none is supplied. A source-contract regression test pins the
+page script load and all three wiring seams; focused and full verification are
+green at 3 and 784 tests respectively. R7-06 remains ACTIVE pending
+independent Review; R7-07 was not started.
+
+R7-06 passed independent Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R7-07 Codex stderr Drain is now the sole ACTIVE task
+because its R7-06 dependency is satisfied. R7-07 is activated but has not
+started; no R7-07 implementation was performed in this execution.
+
+R7-07 Codex stderr Drain implementation (2026-09-11): `CodexBridge` now
+starts a managed stderr reader alongside the stdout protocol reader, retains
+bounded redacted diagnostics, and cancels/awaits both reader tasks during
+shutdown. A 20,000-line stderr fixture proves initialization proceeds without
+pipe buildup or deadlock. Focused tests pass (4); full
+`./scripts/agent-verify.sh` passes with 785 tests, 152 Python AST files, 134
+JavaScript files, 4 architecture guards, and clean diff check. R7-07 remains
+ACTIVE pending independent Review; R7-08 was not started.
+
+R7-07 passed independent Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R7-08 Codex Unexpected EOF Handling is now the sole ACTIVE
+task because its R7-07 dependency is satisfied. R7-08 is activated but has not
+started; no R7-08 implementation was performed in this execution.
+
+R7-08 Codex Unexpected EOF Handling implementation (2026-09-11):
+`CodexBridge` now detects stdout EOF, fails all pending request futures with a
+normalized transport error, emits an `unexpected-eof` event, and leaves
+recovery explicit to the caller. Focused tests pass (5), including the
+pending-request/no-hang and recover/restart path; full
+`./scripts/agent-verify.sh` passes with 786 tests, 152 Python AST files, 134
+JavaScript files, 4 architecture guards, and clean diff check. R7-08 remains
+ACTIVE pending independent Review; R7-09 was not started.
+
+R7-08 passed independent Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R7-09 Codex Bounded Event Queue is now the sole ACTIVE task
+because its R7-08 dependency is satisfied. R7-09 is activated but has not
+started; no R7-09 implementation was performed in this execution.
+
+R7-09 Codex Bounded Event Queue implementation (2026-09-11): `CodexBridge`
+now owns a fixed-capacity event queue (`maxsize=256`) and publishes events
+without awaiting queue capacity, so notification storms cannot block the
+protocol reader or grow buffered memory without bound. Normal overflow is
+explicitly counted through `event_queue_stats()`; critical approval, protocol,
+turn-completed, and transport-error events preserve critical entries by
+evicting only ordinary buffered events and carry the cumulative drop count. A
+fully critical queue reports `dropped_important` explicitly. Focused tests pass
+(6), including a 5,000-event storm; full
+`./scripts/agent-verify.sh` passes with 787 tests, 152 Python AST files, 134
+JavaScript files, 4 architecture guards, and clean diff check. R7-09 was
+implementation-complete and awaiting independent Review; R7-10 was not started.
+
+R7-09 passed independent Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R7-10 Typed Codex Protocol Messages is now the sole ACTIVE
+task because its R7-09 dependency is satisfied. R7-10 is activated but has not
+started; no R7-10 implementation was performed in this execution.
+
+R7-10 Typed Codex Protocol Messages implementation (2026-09-11): added the
+provider-neutral `workbench/codex/protocol.py` boundary for validated JSONL
+request, response, notification, and server-request envelopes, the used
+initialize/thread/turn/interrupt/model/config parameter and result models, and
+isolated protocol-version compatibility. `CodexBridge` now sends only typed
+protocol models, dispatches validated incoming messages, and exposes typed
+operation results; no Workbench business types or Codex raw DTOs escaped the
+Codex boundary. Focused tests pass (8); full `./scripts/agent-verify.sh` passes
+with 789 tests, 154 Python AST files, 134 JavaScript files, 4 architecture
+guards, and clean diff check. R7-10 was implementation-complete and awaiting
+independent Review; R7-11 was not started.
+
+R7-10 passed independent Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R7-11 Codex Timeout and Backoff is now the sole ACTIVE task
+because its R7-10 dependency is satisfied. R7-11 is activated but has not
+started; no R7-11 implementation was performed in this execution.
+
+R7-11 Codex Timeout and Backoff implementation (2026-09-11): `HarnessLaunchPolicy`
+now owns positive timeout validation, finite request-attempt limits, retryable
+method classification, and capped exponential backoff. `CodexBridge` retries
+only initialize/resume/model/config transport reads; side-effecting thread and
+turn operations remain single-attempt. Final timeouts emit a normalized
+`request-timeout` event, raise an observable `CodexBridgeError`, and clean
+pending futures; cancellation is not retried and explicit `recover()` remains
+the restart boundary. Focused tests pass (9); full `./scripts/agent-verify.sh`
+passes with 792 tests, 154 Python AST files, 134 JavaScript files, 4
+architecture guards, and clean diff check. R7-11 was implementation-complete
+and awaiting independent Review; R7-12 was not started.
+
+R7-11 passed independent Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R7-12 Codex Event Normalizer is now the sole ACTIVE task
+because its R7-11 dependency is satisfied. R7-12 is activated but has not
+started; no R7-12 implementation was performed in this execution.
+
+R7-12 Codex Event Normalizer implementation (2026-09-11): added the Codex
+boundary `CodexEventNormalizer` and stable Workbench-neutral `RuntimeEvent`
+contract for lifecycle, progress, output, error, and approval semantics.
+`CodexBridge.events` now exposes normalized events; Codex method names and raw
+payload shapes remain only in explicit diagnostic references when needed for
+support. EOF, timeout,
+protocol-error, approval, turn, item, and unknown-notification paths all pass
+through the normalizer; no Agent UI or Workbench business event ownership was
+added. Focused tests pass (11); full `./scripts/agent-verify.sh` passes with
+794 tests, 156 Python AST files, 134 JavaScript files, 4 architecture guards,
+and clean diff check. R7-12 was implementation-complete and awaiting
+independent Review; R7-13 was not started.
+
+R7-12 passed independent Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R7-13 Codex Model Projection is now the sole ACTIVE task
+because its R7-12 dependency is satisfied. R7-13 is activated but has not
+started; no R7-13 implementation was performed in this execution.
+
+R7-13 Codex Model Projection implementation (2026-09-11): added the bounded
+Codex-side `CodexModelProjector` and refresh service. Typed Codex model/config
+sources are projected only when a matching existing `ModelDefinition` exists;
+each result is a stable `runtime` route with `route_ref` and `executor_type`
+`codex_harness`, carrying the existing ModelDefinition capabilities for route
+matching, and registered through the existing ModelAvailability owner.
+Unknown/duplicate discoveries are ignored, Codex is not mislabeled as a model,
+and no credentials or raw config are persisted. The adapter remains under
+`workbench/codex` and uses an abstract sink, so Core application code does not
+import Codex runtime modules. Focused tests pass (14); full
+`./scripts/agent-verify.sh` passes with 797 tests, 158 Python AST files, 134
+JavaScript files, 4 architecture guards, and clean diff check. R7-13 was
+implementation-complete and awaiting independent Review; R8-01 was not started.
+
+R7-13 passed independent Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R8-01 Executor Contract is now the sole ACTIVE task because
+its R7-13 dependency is satisfied. R8-01 is activated but has not started; no
+R8-01 implementation was performed in this execution.
+
+R8-01 Executor Contract implementation (2026-09-11): added the generic,
+provider-neutral `workbench.domain.execution.Executor` lifecycle port with
+typed prepare/start/stream/cancel/status/result/cleanup/health contracts and
+validated request, input/output, event, result, cancellation, and health
+envelopes. The contract records stable idempotency and explicit cancellation
+semantics without owning ModelAvailability, ExecutionProfile, provider, or
+Codex behavior. A fake executor passes the focused lifecycle and validation
+tests (4); full `./scripts/agent-verify.sh` passes with 801 tests, 161 Python
+AST files, 134 JavaScript files, 4 architecture guards, and clean diff check.
+R8-01 is implementation-complete and awaiting independent Review; R8-02 was
+not started.
+
+R8-01 passed independent Review on 2026-09-11 and is archived in
+`docs/tasks/done/`. R8-02 ExecutorRegistry is now the sole ACTIVE task because
+its R8-01 dependency is satisfied. R8-02 is activated but has not started; no
+R8-02 implementation was performed in this execution.
+
+R8-02 ExecutorRegistry implementation (2026-09-12): added the generic
+`ExecutorRegistry` application boundary and immutable registration/resolution
+contracts. Executors are discovered by opaque runtime-route and
+ExecutionProfile references plus declared capabilities; exact matching is
+deterministic with stable executor-reference tie-breaking, and unavailable
+route/profile/capability/combination cases return explicit reasons without
+silent fallback. No executor execution, provider/Codex branching, or
+ExecutionProfile definition was added. Focused tests pass (8, including the
+R8-01 contract suite); full `./scripts/agent-verify.sh` passes with 805 tests,
+163 Python AST files, 134 JavaScript files, 4 architecture guards, and clean
+diff check. R8-02 is implementation-complete and awaiting independent Review;
+R8-03 was not started.
+
+R8-02 passed independent Review on 2026-09-12 and is archived in
+`docs/tasks/done/`. R8-03 ExecutionProfile is now the sole ACTIVE task because
+its R8-02 dependency is satisfied. R8-03 is activated but has not started; no
+R8-03 implementation was performed in this execution.
+
+R8-03 ExecutionProfile implementation (2026-09-12): added immutable,
+versioned `ExecutionProfile` and exact `ExecutionProfileRef` domain records,
+covering opaque executor/runtime/model selections, default parameters,
+safety-policy refs, and bounded timeouts. Added the deterministic in-memory
+repository seam for exact `id + version` persistence and round-trip lookup;
+secret-like default and metadata keys are rejected. SkillBinding retains only
+an opaque profile reference, so executor internals are not duplicated. Focused
+tests pass (11, including R8-01/R8-02 regression coverage); full
+`./scripts/agent-verify.sh` passes with 808 tests, 166 Python AST files, 134
+JavaScript files, 4 architecture guards, and clean diff check. R8-03 is
+implementation-complete and awaiting independent Review; R8-04 was not
+started.
+
+R8-03 passed independent Review on 2026-09-12 and is archived in
+`docs/tasks/done/`. R8-04 ExecutionPolicy is now the sole ACTIVE task because
+its R8-03 dependency is satisfied. R8-04 is activated but has not started; no
+R8-04 implementation was performed in this execution.
+
+R8-04 ExecutionPolicy implementation (2026-09-12): added the provider-neutral
+`ExecutionPolicy` contract for single, batch, and map modes with explicit
+concurrency, start-index/limit windowing, retry, timeout, ordering, and
+continue-on-error controls. Defaults and ranges are validated, single mode
+cannot declare parallel concurrency, and Collection remains data-only. Focused
+tests pass (15, including R8-01/R8-02/R8-03 regression coverage); full
+`./scripts/agent-verify.sh` passes with 812 tests, 168 Python AST files, 134
+JavaScript files, 4 architecture guards, and clean diff check. R8-04 is
+implementation-complete and awaiting independent Review; R8-05 was not
+started.
+
+R8-04 passed independent Review on 2026-09-12 and is archived in
+`docs/tasks/done/`. R8-05 ExecutionInputProjection is now the sole ACTIVE task
+because its R8-04 dependency is satisfied. R8-05 is activated but has not
+started; no R8-05 implementation was performed in this execution.
+
+R8-05 ExecutionInputProjection implementation (2026-09-12): added the
+non-executable `ExecutionInputProjectionService` and immutable projection
+envelopes. Typed bindings are resolved through the existing BindingResolver;
+Collection bindings expand into stable row-order snapshots, ordinary resource
+values are deep-copied, and parameters plus Skill/Prompt/ModelAvailability/
+ExecutionProfile refs are captured with the projection. Unresolved, disabled,
+invalid-literal, and invalid-Collection inputs return explicit pre-execution
+errors with no executable inputs. Focused tests pass (12, including binding
+and Collection regressions); full `./scripts/agent-verify.sh` passes with 816
+tests, 170 Python AST files, 134 JavaScript files, 4 architecture guards, and
+clean diff check. R8-05 is implementation-complete and awaiting independent
+Review; R8-06 was not started.
+
+R8-05 passed independent Review on 2026-09-12 and is archived in
+`docs/tasks/done/`. R8-06 Execution Input Preview is now the sole ACTIVE task
+because its R8-05 dependency is satisfied. R8-06 is activated but has not
+started; no R8-06 implementation was performed in this execution.
+
+R8-06 Execution Input Preview implementation (2026-09-12): added the generic
+`WorkbenchExecutionInputPreview` UI seam for inspecting concrete projected
+items, roles, source references, and missing-input errors before a run. The
+preview owns only a cloned projection view and validated single/batch/map
+policy edits; it disables the start intent for invalid projections, missing
+inputs, empty inputs, or invalid scheduling windows. `TaskRichNode`,
+`NodeShell`, and `NodeCardHost` expose the mounting seam without taking over
+execution or mutating input resources. Focused tests pass (3); full
+`./scripts/agent-verify.sh` passes with 819 tests, 171 Python AST files, 135
+JavaScript files, 4 architecture guards, and clean diff check. R8-06 is
+implementation-complete and awaiting independent Review; R8-07 was not
+started.
+
+R8-06 Review repair (2026-09-12): wired the preview into the real Task Node
+Canvas path. Task records are admitted by the existing renderer boundary, and
+`NodeCardHost` derives the projection/policy from the record when no explicit
+renderer options are supplied, so the preview is reachable in production
+mounting rather than being only an unused seam. Focused tests now pass (4).
+
+R8-06 passed independent Review on 2026-09-12 and is archived in
+`docs/tasks/done/`. R8-07 ExecutionRun Domain is now the sole ACTIVE task
+because its R8-06 dependency is satisfied. R8-07 is activated but has not
+started; no R8-07 implementation was performed in this execution.
+
+R8-07 ExecutionRun Domain implementation (2026-09-12): added immutable,
+provider-neutral `ExecutionRun` records with task/profile references, frozen
+ExecutionPolicy and ExecutionInputProjection snapshots, lifecycle status,
+timestamps, summary, and revision. The SQLite repository persists runs and
+supports restart reads, authorization, optimistic status updates, and valid
+status transitions; the application service and `/api/v1/execution-runs` API
+provide create/list/get/status operations. Focused tests pass (3); full
+`./scripts/agent-verify.sh` passes with 823 tests, 177 Python AST files, 135
+JavaScript files, 4 architecture guards, and clean diff check. The projection
+envelope is owned by the domain layer and re-exported by its existing
+application seam, avoiding a domain-to-application dependency. R8-07 is
+implementation-complete and awaiting independent Review; R8-08 was not
+started.
+
+R8-07 independent-review repair (2026-09-12): removed the domain-to-application
+projection dependency by owning immutable projection envelopes in
+`workbench.domain.execution`; recursively froze nested projection values and
+run summaries while preserving SQLite JSON encoding, and mapped invalid status
+transitions to API 400 responses. Focused tests pass (7); full verification
+remains PASS at 823 tests.
+
+R8-07 passed independent Review on 2026-09-12 and is archived in
+`docs/tasks/done/`. R8-08 ExecutionAttempt Domain is now the sole ACTIVE task
+because its R8-07 dependency is satisfied. R8-08 is activated but has not
+started; no R8-08 implementation was performed in this execution.
+
+R8-08 ExecutionAttempt Domain implementation (2026-09-12): added immutable,
+provider-neutral `ExecutionAttempt` records associated with an `ExecutionRun`.
+The SQLite repository persists independent item/retry histories with explicit
+timing, retry/error fields, opaque output references, authorization,
+deterministic ordering, and revision CAS; the application service and nested
+`/api/v1/execution-runs/{run_id}/attempts` API expose create/list/get/status
+operations without introducing UI or event-store ownership. Focused tests pass
+(6, including the R8-07 regression tests); full `./scripts/agent-verify.sh`
+passes with 826 tests, 182 Python AST files, 135 JavaScript files, 4
+architecture guards, and clean diff check. R8-08 is implementation-complete
+and awaiting independent Review; R8-09 was not started.
+
+R8-08 passed independent Review on 2026-09-12 and is archived in
+`docs/tasks/done/`. R8-09 ExecutionEvent Store is now the sole ACTIVE task
+because its R8-08 dependency is satisfied. R8-09 is activated but has not
+started; no R8-09 implementation was performed in this execution.
+
+R8-09 ExecutionEvent Store implementation (2026-09-12): added the immutable,
+provider-neutral `ExecutionEventRecord` plus SQLite repository, application
+service, and `/api/v1/execution-runs/{run_id}/events` polling API. Events carry
+normalized type, monotonic per-run sequence, optional attempt reference,
+payload, and occurrence time; persistence survives restart, rejects sequence
+conflicts, supports after-sequence polling, authorization, and bounded
+per-run retention. Focused tests pass (9, including R8-08/R8-07 regression
+coverage); full `./scripts/agent-verify.sh` passes with 829 tests, 187 Python
+AST files, 135 JavaScript files, 4 architecture guards, and clean diff check.
+R8-09 is implementation-complete and awaiting independent Review; R8-10 was
+not started.
+
+R8-09 passed independent Review on 2026-09-12 and is archived in
+`docs/tasks/done/`. R8-10 Cancel and Retry is now the sole ACTIVE task because
+its R8-09 dependency is satisfied. R8-10 is activated but has not started; no
+R8-10 implementation was performed in this execution.
+
+R8-10 Cancel and Retry implementation (2026-09-12): added the application
+`ExecutionService` cancellation/retry boundary. Cancellation uses the existing
+provider-neutral Executor contract, rejects missing or mismatched handles,
+preserves explicit unsupported results, cancels active attempts, and
+normalizes a run after all attempts reach terminal state. Retry creates one
+next attempt only for failed items and enforces the immutable
+`ExecutionPolicy.retry` limit; no infinite automatic retry or executor
+implementation was added. Focused tests pass (22, including R8-07 through
+R8-09 regression coverage); full `./scripts/agent-verify.sh` passes with 843
+tests, 189 Python AST files, 135 JavaScript files, 4 architecture guards, and
+clean diff check. Retry creation is serialized with run/attempt revision and
+latest-item checks, canonical prepared-attempt validation, and atomic
+`audit_outbox` records for execution mutations. `ExecutionService` is wired
+through the cancel/retry HTTP controls and main composition root; explicit
+retry can requeue a failed run, while unknown/stale cancel requests map to
+controlled HTTP errors. R8-10 passed independent Review on 2026-09-12 and is
+archived in `docs/tasks/done/`. R8-12 is now the sole ACTIVE task and was not
+started.
+
+R8-11 CodexHarnessExecutor implementation (2026-09-12): added the thin
+`CodexHarnessExecutor` adapter over the existing `CodexBridge`. The adapter
+uses the configured `ExecutionProfile` timeout/cancel budget, preserves the
+bridge's read-only Harness sandbox, starts or resumes a Codex Thread and Turn,
+maps normalized `RuntimeEvent` values into typed `ExecutionEvent` values, and
+interrupts the active turn on timeout or cancel. `ExecutionService.execute`
+now creates the durable Attempt, registers the active executor/handle for
+concurrent cancel, persists normalized events through `ExecutionEventService`,
+and normalizes the durable Run from the typed result. No Agent orchestration,
+Codex protocol ownership, model substitution, or new executor fallback was
+added. Focused tests pass (29); full `./scripts/agent-verify.sh` passes with
+856 tests, 191 Python AST files, 135 JavaScript files, 4 architecture guards,
+ and clean diff check. Developer Git Review PASS; independent Review PASS on
+ 2026-09-12. R8-11 is archived in `docs/tasks/done/`; R8-12 is now the sole
+ ACTIVE task and was not started.
+
+R8-12 DirectModelExecutor implementation (2026-09-12): the generic direct
+model/API route is a real product route because `ModelAvailability.route_type`
+already carries an explicit `provider` kind, so the card implemented
+`DirectModelExecutor` instead of recording a skip decision. The new
+`workbench/direct_model/` package adapts the R8-01 Executor contract to one
+direct provider call: it resolves the route from the separate
+`ModelAvailability` (route kind, enabled flag, status, capabilities) and
+`ProviderConnection` (provider id, sanitized config, opaque `credential_ref`)
+records, submits one `DirectModelCall` through the injected
+`DirectModelTransport` port, and maps provider-shaped `DirectModelRawEvent`
+values into typed `ExecutionEvent`/`ExecutionOutput` values under the
+configured `ExecutionProfile` timeout/cancel budget. Runtime routes, disabled
+or unknown routes, and unusable connections are bounded errors rather than
+silent substitutions, and cleanup closes the transport submission. Provider
+transport, HTTP/SDK details, authentication and credential resolution stay
+behind the transport port: no provider SDK or secret material is imported by
+`workbench/domain`, `workbench/application`, or `workbench/direct_model`, which
+a focused source-scan test now pins. No existing module, executor wiring, model
+selection, or fallback path was changed. Focused tests pass (22); full
+`./scripts/agent-verify.sh` passes with 878 tests, 194 Python AST files, 135
+JavaScript files, 4 architecture guards, and clean diff check. Developer Git
+Review PASS. R8-12 remains the sole ACTIVE card pending independent Review;
+R8-13 was not started.
+
+R8-12 passed independent Review on 2026-09-12 and is archived in
+`docs/tasks/done/`. The review re-ran the focused suite (22 tests) and the full
+gate, confirmed that `workbench/direct_model` imports only stdlib, pydantic and
+`workbench.domain.*`, and mutation-tested the three guarded behaviours
+(provider-route rejection, named output normalization, timeout-is-failed); each
+mutation was caught and the source file was restored byte-identical. No
+duplicate owner existed to remove and no existing module was touched. R8-13
+ComfyUIExecutor is now the sole ACTIVE task because its R8-12 dependency is
+satisfied. R8-13 is activated but has not started; no R8-13 implementation was
+performed in this execution.
+
+R8-13 ComfyUIExecutor implementation (2026-09-12): added `workbench/comfyui/`
+so a ComfyUI run has a Workbench owner instead of only Canvas-shaped behavior.
+`ComfyUIExecutor` resolves an explicit versioned workflow reference
+(`workflow_id@version`; an implicit latest and a resolver-returned other
+version are both rejected rather than substituted) plus the configured
+`ExecutionProfile`, maps Workbench input roles onto ComfyUI node input slots
+through the workflow binding table, and normalizes queued/executing/progress/
+output events into typed `ExecutionEvent`/`ExecutionOutput` values with output
+kinds and deterministic names. The workflow graph is copied before injection,
+so the immutable workflow record is never mutated. Unknown roles and missing
+required roles are bounded errors. ComfyUI transport, backend selection,
+HTTP/WebSocket details and output classification stay behind the injected
+`ComfyUITransport` port. The DoD is met by a generic Task executing through
+`ExecutionService` with `ComfyUIExecutor` and producing normalized outputs with
+no Canvas node, Canvas repository, or provider-shaped Canvas payload; a source
+scan pins that `workbench/comfyui` imports neither Canvas/legacy modules nor
+any provider SDK. `main.py`'s legacy `/api/canvas-comfy-tasks` path and its
+ComfyUI helpers are intentionally unchanged — this card does not authorize
+migrating existing Canvas behavior, and no duplicate ComfyUI output classifier
+was introduced. Focused tests pass (24); full `./scripts/agent-verify.sh`
+passes with 902 tests, 197 Python AST files, 135 JavaScript files, 4
+architecture guards, and clean diff check. Developer Git Review PASS. R8-13
+remains the sole ACTIVE card pending independent Review; R8-14 was not started.
+
+R8-13 passed independent Review on 2026-09-12 and is archived in
+`docs/tasks/done/`. The review re-ran the focused suite (24 tests) and the full
+gate (902 tests, 197 Python AST files, 135 JavaScript files, 4 architecture
+guards, clean diff check), mutation-tested three further guarded behaviours not
+covered by the developer (required-role validation, declared output naming,
+declined cancellation reporting) — each was caught and the source restored
+byte-identical — probed the frozen-value injection path, and confirmed that
+`workbench/comfyui` imports only stdlib, pydantic and `workbench.domain.*`.
+`main.py`'s legacy ComfyUI path is intact, so no unauthorized migration and no
+duplicate ComfyUI output classifier were introduced. R8-14 RunningHubExecutor
+is now the sole ACTIVE task because its R8-13 dependency is satisfied. R8-14 is
+activated but has not started; no R8-14 implementation was performed in this
+execution.
+
+R8-14 RunningHubExecutor implementation (2026-09-12): added
+`workbench/runninghub/` so RunningHub is one executor route instead of the owner
+of a Canvas runtime. `RunningHubExecutor` resolves an explicit versioned
+retained route (`ai_app:route_id@version` or `workflow:route_id@version`; an
+implicit latest, an unknown kind, and a resolver-returned other version are
+rejected rather than substituted) plus the configured `ExecutionProfile`, maps
+Workbench input roles onto RunningHub `nodeInfoList` fields through the route
+binding table, submits one `RunningHubCall` through the injected
+`RunningHubTransport` port, and normalizes RunningHub status and outputs into
+typed `ExecutionEvent`/`ExecutionOutput` values with output kinds and
+deterministic names. Endpoint URLs, API key/wallet resolution, HTTP polling,
+status-code semantics and output extraction stay with the transport adapter.
+The DoD is met by a generic Task running end-to-end through `ExecutionService`
+and persisting normalized events/outputs with no Canvas node, Canvas
+repository, or provider-shaped Canvas payload; a source scan pins that
+`workbench/runninghub` imports neither Canvas/legacy modules nor any provider
+SDK. The legacy `/api/runninghub/*` execution endpoints were intentionally left
+untouched: the Canvas UI still calls them (7 call sites in
+`classic-executor-runtime.js` and `api-settings.js`), so removing them is not
+possible under this card's compatibility rule; they now survive only as bounded
+compatibility adapters. No second RunningHub execution owner was introduced —
+the seam does not re-implement the legacy status-code table or output
+extractor. Focused tests pass (23); full `./scripts/agent-verify.sh` passes
+with 925 tests, 200 Python AST files, 135 JavaScript files, 4 architecture
+guards, and clean diff check. Developer Git Review PASS. R8-14 remains the sole
+ACTIVE card pending independent Review; R8-15 was not started.
+
+R8-14 passed independent Review on 2026-09-12 and is archived in
+`docs/tasks/done/`. The review re-ran the focused suite (23 tests) and the full
+gate (925 tests, 200 Python AST files, 135 JavaScript files, 4 architecture
+guards, clean diff check), and independently mutation-tested two further
+guarded behaviours the developer had not covered: the `ExecutionProfile`
+executor-identity check (an architecture §13 silent-substitution hole) and the
+required-input-role check — each was caught and the source restored
+byte-identical (sha256 `d4ad2ce4…`). It also probed the DoD source-scan guard
+itself (a temporary module under `workbench/runninghub/` importing
+`legacy_definitions` and `requests` makes
+`test_seam_has_no_canvas_or_provider_sdk_dependency` fail as required; probe
+removed), re-grepped the 7 legacy RunningHub UI call sites, confirmed `main.py`
+is untouched with `/api/runninghub/submit` and `/api/runninghub/query` intact,
+and confirmed that `workbench/runninghub` imports only `asyncio`,
+`dataclasses`, `pydantic`, `typing` and `workbench.domain.*`. No unauthorized
+migration and no duplicate RunningHub execution owner were introduced. R8-15
+MCPExecutor Contract is now the sole ACTIVE task because its R8-14 dependency
+is satisfied. R8-15 is activated but has not started; no R8-15 implementation
+was performed in this execution.
+
+R8-15 MCPExecutor Contract implementation (2026-09-12): added `workbench/mcp/`
+so MCP capability execution has one Workbench-owned contract instead of being
+an ad-hoc call owned by whichever surface issued it. `MCPExecutor` resolves an
+explicit connection reference (config, then the capability declaration, then
+the profile `runtime_connection_ref`), an explicit capability reference
+(`tool:<name>`, `prompt:<name>` or `resource:<name>`; a missing or unknown kind
+is rejected, and a resolver-returned capability with a different kind or name
+is rejected rather than substituted) and the single deterministic
+capability-kind to MCP-action mapping (`tool -> call_tool`, `prompt ->
+get_prompt`, `resource -> read_resource`; `MCPCall` refuses to carry an action
+that disagrees with its kind). It maps Workbench input roles onto MCP action
+arguments through the capability binding table, submits one `MCPCall` through
+the injected `MCPTransport` port, and normalizes MCP results, progress and
+errors into typed `ExecutionEvent`/`ExecutionOutput` values with deterministic
+output names — including MCP's `isError`-inside-a-successful-response
+semantics, which normalize to a failed execution, while MCP / JSON-RPC codes
+stay in event metadata. Integration references are carried as opaque values
+only; the Integration boundary that will own definitions and live connections
+remains a later round. No MCP execution owner existed before this card (the
+only MCP mentions in the product were an allow-listed CLI sub-command name in
+the Codex / Antigravity pass-through and a CLI-type `<option>` in the settings
+page), and none was duplicated: `workbench/mcp` imports only stdlib, pydantic
+and `workbench.domain.*`, and a source-scan test pins that no provider SDK, no
+MCP client library and no Canvas/legacy module can enter the seam. `main.py`
+is untouched. Focused tests pass (30); full `./scripts/agent-verify.sh` passes
+with 955 tests, 203 Python AST files, 135 JavaScript files, 4 architecture
+guards, and clean diff check. Developer Git Review PASS. R8-15 remains the sole
+ACTIVE card pending independent Review; R8-16 was not started.
+
+R8-15 independent Review returned CHANGES_REQUIRED (2026-09-12) on one blocking
+finding: `MCPExecutor` resolved the connection as config -> capability
+declaration -> profile, so a capability declaration silently outranked the
+profile's `runtime_connection_ref` while `PreparedExecution.metadata` recorded
+only the actual value — an AGENTS.md §13 provenance gap, and inconsistent with
+the reviewed ComfyUI and RunningHub seams (both resolve config -> profile). The
+reviewer also showed the branch had zero test coverage: deleting it left all 30
+tests green.
+
+R8-15 remediation (2026-09-12, option b): `_resolve_connection` now reads the
+execution configuration first (explicit call setting, then the profile's
+`runtime_connection_ref`), and a capability declaration may only fill a
+connection the configuration left unspecified.
+`PreparedExecution.metadata` now records `requested_connection_ref` and
+`connection_source` (`request` or `capability`) alongside the actual
+`connection_ref`, so a fill-in is never invisible and no configured connection
+is silently replaced. Three tests were added (33 focused tests total) and the
+three regression mutations that previously slipped through are now caught:
+reverting to capability-first ordering fails two tests, removing the capability
+fill-in fails one, and blanking the requested-connection provenance fails
+three; the source was restored byte-identical after each. Full
+`./scripts/agent-verify.sh` passes with 958 tests, 203 Python AST files, 135
+JavaScript files, 4 architecture guards, and clean diff check. R8-15 remains
+the sole ACTIVE card pending re-review; R8-16 was not started.
+
+R8-15 passed independent Review on 2026-09-12 (after a CHANGES_REQUIRED
+remediation round) and is archived in `docs/tasks/done/`. The re-review
+reproduced the focused suite (33 tests) and the full gate (958 tests, 203
+Python AST files, 135 JavaScript files, 4 architecture guards, clean diff
+check), re-ran the original blocking scenario to confirm the profile's
+configured connection is no longer overridden by a capability declaration, and
+mutation-tested five guarded behaviours — reverting to capability-first
+ordering, removing the capability fill-in, blanking the requested-connection
+provenance, mislabelling a capability fill-in as a requested connection, and
+dropping the explicit call setting's precedence — all of which were caught,
+with the source restored byte-identical after each. The DoD source-scan guard
+was probed again and remains effective. `main.py` is untouched and no duplicate
+MCP execution owner was introduced. One non-blocking follow-up is recorded on
+the card: in the degenerate case where no connection is supplied at all,
+`connection_source` is `""` and that label is not pinned by a test (both
+`connection_ref` and `requested_connection_ref` are empty there, so it is
+cosmetic rather than a §13 override). R8-16 Result Tray Runtime is now the sole
+ACTIVE task because its R8-15 dependency is satisfied. R8-16 is activated but
+has not started; no R8-16 implementation was performed in this execution.
+
+R8-16 Result Tray Runtime implementation (2026-09-12): added
+`static/js/workbench/canvas/result-tray-runtime.js` so execution results have a
+non-Canvas staging area instead of existing only as node state. Before this
+card, `execution-host.js` required `writePromptResult` / `writeOutputText` /
+`setRunStatus`, `classic-executor-runtime.js` called them at every terminal
+branch, and `canvas-app-execution.js` bound them onto node fields, so a result
+had no home other than the producing node. The tray now opens a session keyed
+by project/task/run, stages one attempt's outputs as items linked to their
+run/attempt/output name/ordinal, classifies each value into a generic kind,
+handles a replayed attempt idempotently, and produces host-agnostic card
+descriptors that `mount` renders into a host element. Nothing is materialized:
+the session and every item stay `materialized: false` and the module exposes no
+promotion or node-creation entry point. It is wired into the Task node surface
+the same way the R8-06 input preview is: `task-rich-node.js` exposes
+`mountResultTray` and `node-shell.js` mounts and destroys it under
+`resultTrayOptions`. No duplicate classifier or node factory was introduced —
+the tray reads the kind the executor already declared. Focused tests pass (10);
+full `./scripts/agent-verify.sh` passes with 968 tests, 204 Python AST files,
+136 JavaScript files, 4 architecture guards, and clean diff check. Developer
+Git Review PASS. R8-16 remains the sole ACTIVE card pending independent Review;
+R8-17 was not started.
+
+R8-16 Result Tray Runtime passed independent Review on 2026-09-12 and is
+archived in `docs/tasks/done/`. The review reproduced the focused suite (10
+tests) and the full gate (968 tests, 204 Python AST files, 136 JavaScript files,
+4 architecture guards, clean diff check), re-ran the DoD probe against the real
+executor output vocabulary (five outputs staged with correct kinds, a no-op
+replay of a replayed attempt, exactly six controller keys with no materialization
+entry point, and a byte-identical Canvas graph), and mutation-tested twenty
+guarded behaviours across three rounds — the developer's five plus fifteen
+independent ones — of which nineteen were caught with the sources restored
+byte-identical (`result-tray-runtime.js` sha256 `a298b6f7…`, `node-shell.js`
+sha256 `df2ddc7a…`). The single miss, replacing `escapeHtml` with a pass-through,
+is a test-coverage gap rather than a defect: a hostile-input probe (output names
+and URLs containing `<script>`, `<img … onerror=>`, quotes and ampersands) shows
+the implementation escapes correctly and no raw tag reaches the host, so the DoD
+is unaffected. mtime inspection confirms no backend module is in this card's
+change set. Three non-blocking follow-ups are recorded on the card: no producer
+routes executor results into the tray yet (so the Goal's "by default" wiring is
+still owed by a later card even though the DoD is met), ComfyUI outputs carrying
+only `filename`/`subfolder` stage but do not preview (R8-17's declared
+"unavailable/failed output refs" scope), and the escaping has no test pinning it.
+R8-17 Result Preview is now the sole ACTIVE task because its R8-16 dependency is
+satisfied. R8-17 is activated but has not started; no R8-17 implementation was
+performed in this execution.
+
+R8-17 Result Preview implementation (2026-09-12): added
+`static/js/workbench/canvas/result-preview-runtime.js` so a staged result is
+inspectable instead of being only a name and a kind. Before this card the tray
+owned "how a result is displayed" and what it displayed was not the result: a
+characterized render of a staged image and video produced two empty
+`<span data-preview-url>` markers with zero real media elements, and a staged
+text output produced no preview node at all. The new module owns result preview
+rendering through a deterministic renderer registry (highest priority then
+lowest id, with no fallback to a different kind), one built-in renderer per
+common result kind, and a two-state preview descriptor — `ready` carrying its
+owning renderer, or `unavailable` carrying a reason (`empty_output`,
+`failed_output`, `missing_reference`, `unsafe_reference`, `unsupported_kind`)
+and a human message — with frozen descriptors carrying
+`workbench.result-preview/1`. The tray keeps staging, item identity,
+idempotency and the list DOM, and now delegates only the preview body, so its
+R8-16 behaviour is unchanged when no registry is loaded. No duplicate owner was
+introduced: the registry renders the kind the tray already derived (a source
+scan rejects extension tokens and `WorkbenchCanvasMediaKind`, leaving
+`media-kind.js` the only URL/extension classifier) and consumes the tray's
+already-resolved `preview_url` instead of re-resolving references; the Classic
+Canvas output surfaces are untouched and not duplicated. An end-to-end probe
+staging seven executor-shaped outputs produced one `<img>`, one `<video>`, one
+text `<pre>`, one json `<pre>`, one anchor, and two explicitly reasoned
+unavailable cards — including the ComfyUI filename-only reference that the R8-16
+review recorded as silently unpreviewable, which now reports
+`missing_reference`. Focused tests pass (12); full `./scripts/agent-verify.sh`
+passes with 980 tests, 205 Python AST files, 137 JavaScript files, 4
+architecture guards, and clean diff check. Developer Git Review PASS with eleven
+mutations; mutation testing found one real coverage gap — the `missing` flag
+guard was initially unpinned — two cases were added, and all eleven mutations
+are now caught with the sources restored byte-identical
+(`result-preview-runtime.js` sha256 `a97239d3…`, `result-tray-runtime.js` sha256
+`4193fc8c…`). R8-17 remains the sole ACTIVE card pending independent Review;
+R8-18 was not started.
+
+R8-17 Result Preview passed independent Review on 2026-09-12 and is archived in
+`docs/tasks/done/`. The review reproduced the focused suite (12 tests) and the
+full gate (980 tests, 205 Python AST files, 137 JavaScript files, 4 architecture
+guards, clean diff check), re-confirmed that R8-16's own 10 tests still pass
+against the modified tray, and ran an independent DoD probe that staged six
+real-executor-shaped outputs and mounted the tray: every staged card was either
+rendered with a real element (text `<pre>`, image `<img>`, resource `<a>`, json
+`<pre>`) or reported unavailable with an explicit reason, no `javascript:`
+reference reached an attribute, no raw reference marker leaked into the registry
+path, the tray controller still exposed exactly six keys, and the probe's Canvas
+graph object was byte-identical. Ten further mutations were run on targets the
+developer had not covered, of which eight were caught with the sources restored
+byte-identical (`result-preview-runtime.js` sha256 `a97239d3…`,
+`result-tray-runtime.js` sha256 `4193fc8c…`); the two misses were investigated and
+are coverage gaps rather than defects — `Object.isFrozen` is asserted only for a
+`ready` preview, so the `unavailable` descriptor's frozen-ness is unpinned though
+it is in fact frozen, and the "priority override" test passes coincidentally
+because the custom renderer's id sorts before the built-in's, so it does not
+actually pin priority ordering although a probe confirms priority does win.
+Architecture and ownership were re-checked independently: no backend or Core
+module is in this card's change set, the module creates no Canvas node and
+mutates no graph, no duplicate result-preview owner exists, `media-kind.js`
+remains the only URL/extension classifier, the Classic output surfaces are
+untouched, an unregistered kind resolves to an explicit `unsupported_kind`
+rather than silently substituting another renderer, and the page registers the
+registry before the tray with that order pinned by a test. Two non-blocking
+follow-ups are recorded on the card: pin the `unavailable` descriptor's
+frozen-ness and rewrite the priority test with a renderer whose id sorts after
+the built-in (tightening the card's "priority override" wording), and tidy the
+overlapping naming between the tray's staging-side `previewable` hint and the
+registry's `state: ready`. R8-18 Result Compare is now the sole ACTIVE task
+because its R8-17 dependency is satisfied. R8-18 is activated but has not
+started; no R8-18 implementation was performed in this execution.
+
+R8-18 Result Compare was then developed. Characterization came first: the only
+comparison in the codebase is the Classic per-output, pairwise slider inside
+`openOutputLightbox` in `canvas-app-output-ui.js` (`outputCompareUrlFor` →
+`media-tools.outputCompareUrl`, keyed by a node's `imageComparisons`), reachable
+only once an output already exists on a Canvas node; a search for
+`ResultCompare`/`result-compare`/`resultCompare` across `static/` returned nothing,
+and neither R8-16 (which exposes only `KINDS`, `PREVIEWABLE`, `kindOf`, `urlOf`,
+`createSession`, `ingest`, `cardFor`, `cards`, `summaryOf`, `create`) nor R8-17
+offers comparison, so no duplicate owner existed and none had to be removed. The
+new `static/js/workbench/canvas/result-compare-runtime.js` exposes
+`WorkbenchCanvasResultCompare` with `candidateFrom`, `candidatesFrom` and
+`create`; it owns a bounded ordered selection (min 2, max 4) over candidates that
+are still staged run results, the side-by-side column metadata, and the layout,
+while delegating every preview body to `WorkbenchCanvasResultPreview` and
+rendering the caller's declared kind as given instead of re-classifying it. It is
+mounted through `WorkbenchTaskRichNode.mountResultCompare`, wired by
+`node-shell.js` to a `data-result-compare-host` section created only when
+`settings.resultCompareOptions` is present and destroyed in the shell's
+`destroy()`, and registered by `static/canvas.html` after the preview runtime and
+ahead of the app bootstrap. Two implementation defects were caught and fixed
+before the suite first ran green: `columnFor` omitted `preview_url` although
+`columnHtml` reads it, and `render()` called `comparison()` twice per render. Two
+test-side defects were caught and fixed: columns were counted by the bare
+substring `result-compare__column`, which the wrapper class
+`workbench-result-compare__columns` also contains and which therefore reported one
+column too many, and the node-shell vocabulary scan tripped on the shell's own
+`createNodeShell` factory — the scan now scrubs that one known-legitimate token
+and a companion assertion proves the scrub is narrow enough that a real
+`createNodeFromResult` would still be caught. The focused suite
+`tests/test_result_compare.py` adds 14 tests, all passing, and the full gate
+reports 994 unit tests (980 before this card), 206 Python AST files, 138
+JavaScript files, 4 architecture guards and a clean diff. Sixteen mutations were
+run against the guarded branches this DoD depends on — the capacity guard,
+selection order, the unknown-candidate guard, `setCandidates` preservation and
+its `omitted` reporting, the `incomplete`/`ready` threshold, the `item_id` join,
+preview delegation, the column's retained `preview_url`, the absence of scoring,
+the absence of a promotion entry point, the empty-state copy, the missing-module
+error, the shell's `destroy()` call, the page registration and re-classification
+by extension — of which all 16 were caught with all four touched sources restored
+byte-identical. An independent DoD probe fed with the real executor output
+vocabulary (DirectModel raw text, RunningHub `{kind,url,filename}`, ComfyUI
+`{kind,filename,subfolder,item_type}` with no url, MCP `{kind,uri,mime_type}`,
+plus a `data:text/html` link) compared three candidates in the user's own
+selection order: each column carried its `run_id`/`attempt_id`/`output_name`, the
+RunningHub and DirectModel outputs rendered real `<img>`/`<pre>` elements, the
+ComfyUI output with no url reported an explicit `missing_reference`, the
+`data:text/html` reference never reached an attribute, the staged tray state
+stayed byte-identical with every `materialized` flag `false`, the Canvas graph
+object was byte-identical, and the workspace exposed no promotion entry point.
+Ownership was re-checked independently: `WorkbenchCanvasResultCompare` has
+exactly one consumer (`task-rich-node.js`), the Classic output surfaces and
+`media-kind.js` are untouched, and no backend or Core module is in this card's
+change set. R8-18 remains the sole ACTIVE task and has not been archived; it now
+awaits independent Review, and R8-19 Result Selection and Rating must not start
+until that Review passes and a separate switch archives this card.
+
+R8-18 then passed its independent Review, and this switch archived it. The
+reviewer re-derived everything rather than trusting the developer's summary: the
+change set was recomputed from mtimes (R8-18's window 19:45–20:02 contains only
+`result-compare-runtime.js`, `task-rich-node.js`, `node-shell.js`,
+`static/canvas.html`, `test_result_compare.py` and the bookkeeping documents, with
+`find workbench main.py -newermt "2026-09-12 19:40"` empty, so no backend or Core
+module is in scope); the two R8-17 seams that also show a 19:43–19:44 mtime were
+confirmed byte-identical to their R8-17 archived hashes
+(`result-preview-runtime.js` `a97239d3…`, `result-tray-runtime.js` `4193fc8c…`),
+so they were not silently altered; the focused suite was re-run at 14 tests
+matching its 14 test methods, R8-16 + R8-17 + R8-18 ran green together (36 tests),
+and the full gate was re-run to AGENT VERIFY: PASS. Fifteen reviewer mutations were
+run on targets disjoint from the developer's sixteen, of which five were caught
+(both bounds constants, `stateOf(0)`, the schema string, `comparison().omitted`) and
+ten were missed; all ten were then probed against the unmutated implementation and
+every one behaves correctly, so all ten are coverage gaps rather than defects — the
+probing covered `select()`'s de-duplication, capacity and unknown-id guards,
+`toggle()`'s unknown-candidate flag, `mount()`'s host guard, `destroy()`'s actual
+teardown, the column's registry-versus-bare-reference render branch, the candidate
+value clone, and the rendered `attempt` metadata value, and a hostile-input probe
+(`<img onerror>`, `"><script>`, `" onload="`, `<svg onload>`, a `javascript:`
+reference) confirmed no script, event-handler attribute or executable scheme
+reaches the markup while all four HTML entities are emitted and the unsafe
+reference reports `unsafe_reference`. An independent end-to-end DoD probe using a
+different executor-output mix from the developer's (Codex raw text, RunningHub
+video, ComfyUI image with subfolder and item_type, MCP file, across two attempts)
+compared two candidates and confirmed the columns carry their run/attempt/output
+linkage, the Codex and RunningHub outputs render real elements, the selection moves
+`incomplete → ready` in the user's own order, `setCandidates` preserves survivors
+and reports the vanished id, the staged tray snapshot and the Canvas graph object
+stay byte-identical, every `materialized` flag stays false, and neither public
+surface exposes a materialize/promote/create-node/persist key, so the DoD holds
+independently. Architecture and ownership were re-checked:
+`WorkbenchCanvasResultCompare` has one definition and one consumer, the workspace
+renders into a `data-result-compare-host` section inside the existing node shell so
+no second canvas is introduced, `canvas.html` loads preview → tray → compare →
+bootstrap in the correct dependency order, the Classic per-output slider and
+`media-kind.js` are untouched, and every `graph`/`canvas`/`node`/`persist`
+occurrence in the module is comment prose or a name. Four non-blocking coverage
+observations are recorded on the archived card, the sharpest being that the rendered
+column body is the weakest-pinned part (neither the rendered preview element nor the
+rendered metadata values are asserted) and that `comparison()` indexes
+`byId.get(id)` without a null check, so its safety rests entirely on the untested
+`select()`/`toggle()`/`setCandidates` guards. One methodological note is recorded
+for future runs: `unittest discover` must be invoked with the project virtualenv
+interpreter the gate itself uses, because any other interpreter reports spurious
+import errors from missing dependencies. R8-19 Result Selection and Rating is now
+the sole ACTIVE task because its R8-18 dependency is satisfied; R8-19 is activated
+but has not started, and no R8-19 implementation was performed in this execution.
+Its DoD — "Candidate preference survives reload" — introduces persistence, which
+none of the three result seams so far own, so the next run must characterize the
+existing persistence boundaries before implementing.
+
+R8-19 Result Selection and Rating is now implemented and has passed its developer
+Git Review, and it stays ACTIVE — the card has not been archived, because an
+independent Review is still outstanding and this run did not perform it. The
+persistence-boundary question was resolved before implementation by asking the
+user rather than guessing: the project has no client-side persistence convention
+(`localStorage` and `sessionStorage` appear in zero frontend files), so "survives
+reload" is resolved on the backend as a **new canonical object** rather than by
+widening `ExecutionAttempt.summary`, and wiring the live "execution output →
+tray/compare" data path is deliberately **out of scope**, so the seam is mounted
+and tested but no caller supplies it options yet. The new ownership is
+`workbench/domain/execution/selection.py` (`ResultSelection`, schema
+`workbench.result-selection/1`), `workbench/repositories/result_selection_repository.py`
+(table `result_selections`, unique per `(attempt_id, output_name, ordinal)`,
+foreign key to `execution_runs`, per-project authorization, revision CAS and an
+`audit_outbox` event per mutation),
+`workbench/application/result_selection_service.py`,
+`workbench/api/result_selections.py`
+(`/api/v1/execution-runs/{run_id}/selections`), the client-side seam
+`static/js/workbench/canvas/result-selection-runtime.js` and the only transport
+`result-selection-api-client.js`, both registered in `static/canvas.html` after
+compare and before bootstrap. The record deliberately reuses the tray/compare
+identity instead of minting a second result id, and no Approval/Frozen semantics
+were introduced, so nothing here authorizes anything. The gate is green: 1018
+tests (994 before this card plus 24 new), 211 Python AST files, 140 JavaScript
+files, 4 architecture guards and a clean diff check. The DoD was proven
+independently across a process boundary — one process wrote and then restated a
+preference, and a **new** process read it back through a fresh repository, a
+fresh service and the mounted router, with the restated rating, the three-part
+identity and the payload all present in the raw SQLite row, so the value is
+stored rather than cached. Mutation review ran 45 targeted probes and caught 42;
+the 3 survivors are probed and judged non-blocking rather than defects. Two are a
+single invariant guarded twice — the optimistic-concurrency `WHERE id=? AND
+revision=?` and the prior read comparison each mask the other, so neither is
+individually observable from a single-threaded test, though the invariant itself
+is pinned by asserting that a refused stale write leaves the stored revision and
+preference untouched. The third is the `FOREIGN KEY(run_id)` constraint, which is
+unreachable through the public path because `_project_id` rejects an unknown run
+first. Five defects were found and fixed during development, the sharpest being
+that `pending()` and `snapshot()` exposed only the internal composite key, so the
+client received no `attempt_id`/`output_name`/`ordinal` and mounted rows rendered
+with empty identity attributes; the others are that `snapshot().count` counted a
+cleared-but-unsaved record as marked, that the client's `list()` left its HTTP
+method implicit and untestable, that the service's not-found translation for
+`get` was unpinned, and that **no test imported `main`**, so deleting the
+`include_router` line would have left the whole card unreachable in the shipped
+app — the composition root is now asserted against the real app's OpenAPI paths.
+R8-20 is the recommended successor and must not be started in this run; because
+R8-19 is still ACTIVE, R8-20 must not be activated either until R8-19 passes an
+independent Review and is archived.
+
+R8-19 was then independently reviewed and returned **CHANGES_REQUIRED**, on a
+single ground: the new persistent object had two authorization paths with no
+test coverage anywhere in the project. Removing `Action.EXECUTION_READ` from
+`SqliteResultSelectionRepository.get` entirely did not fail a single one of the
+1018 tests, so any actor could have read any preference by id, and swapping
+`EXECUTION_EDIT` for `EXECUTION_READ` in `update` was equally invisible, letting a
+viewer pass the preceding read check and then write. Both guards were present and
+correct — they were simply unasserted, so the next refactor could have dropped
+them silently. The DoD, the architecture constraints and the ownership change all
+passed the review on their own. The DoD was re-proven independently by driving the
+real `main.app` — not a test-built app — over HTTP across two OS processes: create
+→ 201, restate → 200 at revision 2, an expired restatement → 409 `stale_revision`
+with the accepted values intact, and in a new process the identity, preference and
+schema version all read back with the same values present in the raw SQLite row;
+viewer read → 200, viewer write → 403, stranger → 403, audit events exactly
+`[created, updated]`. Architecture was re-derived rather than assumed: no
+wholehouse vocabulary in Core, no codex leak, no Git-hosting fetch, one Unified
+Canvas, no client-side persistence, no Approval/Frozen state, no computed scoring,
+and the only `freeze` hits were the JS `Object.freeze` built-in and the project's
+own `freeze_value` helper. The blocking findings are now fixed: both
+authorization paths are pinned at the repository and at the HTTP boundary, and
+each pin also asserts that the refused write left the stored record untouched.
+Re-running the fresh probe set afterwards raised the catch rate from 2 of 19 to
+**12 of 19**, with every source restored byte-identical; the 7 survivors were each
+re-checked against a downstream guard and are defence in depth — `expected_revision
+ge=1` falls through to the repository CAS, `ordinal ge=0` is also enforced by the
+domain and by a SQL `CHECK`, an empty identity is also rejected by `OpaqueId`, and
+the comment length is also enforced by the domain — while the last three are
+trivial (the seam's default revision for a record that carries none, and its
+boolean coercion, which the backend model re-coerces anyway). Two things still
+need attention and are **not** blockers. First, a delivery gap: the frontend seam
+is the only R8 result seam with no consumer — `task-rich-node.js` provides
+`mountResultTray` and `mountResultCompare`, `result-preview-runtime.js` is consumed
+by tray and compare, but nothing ever calls
+`WorkbenchCanvasResultSelection.create(...)`, so "Add select/favorite/rating/
+comment where generic" reaches no user, and no R8 successor (R8-20 Regenerate and
+Branch, R8-21 Result to Collection, R8-22 Result to Canvas Materialization) would
+wire it either; the card's earlier text said the seam "is mounted", which
+overstated it, since it is registered on the page and never mounted. Second, a
+method hazard worth carrying forward: a mutation harness running the full suite
+sequentially exceeded the command timeout, and the resulting `SIGTERM` killed
+Python before its `finally` restore ran, leaving one mutation applied until it was
+found by per-file hash comparison and repaired by hand — so after any timeout a
+harness must re-verify every touched file's hash rather than trusting
+try/finally. The card stays ACTIVE and a fresh independent Review should be run
+before it is archived, since the fix and the review were performed in the same
+run.
+
+A **second independent Review** has now been run and returned **PASS**, so R8-19
+is archived in `docs/tasks/done/` and R8-20 Regenerate and Branch is the sole
+ACTIVE card, activated but **not started**. The second review used a third
+mutation set, disjoint from both the developer's 45 and the first review's 19,
+aimed at structural and lifecycle guards rather than value bounds: immutability,
+foreign-key enforcement, schema idempotency, HTTP status codes, seam lifecycle
+and client identity. It caught 5 of 17 on the first pass; four further guards were
+then pinned — the record is immutable so credentials cannot be smuggled into its
+metadata after validation, an update restates metadata rather than merging it, the
+seam's `hasPreference` counts a rating on its own, and a restatement stamps
+`updated_at` — bringing it to **10 of 17**, with every source restored
+byte-identical. The 7 survivors are trivial or shadowed by a downstream guard:
+`PRAGMA foreign_keys` is shadowed by `_project_id` rejecting an unknown run, the
+API's `extra="forbid"` by the domain's, the create-path revision is always 1 in
+practice, and the audit row's project attribution, the seam's host check, the
+client's id check and its metadata forwarding are cosmetic. The DoD now stands on
+three independent confirmations, the strongest being the real `main.app` driven
+over HTTP across two OS processes and re-run after the final change: create 201,
+restate 200 at revision 2, expired restatement 409 `stale_revision` with the
+accepted values intact, and in a new process the identity
+`["attempt-3","poster.png",1]`, the preference `[true,false,4,"first pick"]` and
+the schema version all read back with the same values present in the raw SQLite
+row, viewer read 200 / viewer write 403 / stranger 403, audit events exactly
+`[created, updated]`. Final gate: 1023 tests (994 before the card plus 29), 211
+Python AST files, 140 JavaScript files, 4 architecture guards, clean diff. Two
+things carry forward as observations rather than blockers. The delivery gap is
+unchanged and still needs a decision: the frontend seam remains the only R8 result
+seam with no consumer, since `task-rich-node.js` mounts the tray and compare but
+nothing calls `WorkbenchCanvasResultSelection.create(...)`, and no R8 successor
+would wire it — so "Add select/favorite/rating/comment where generic" reaches no
+user even though the persistence underneath is complete and correct. And the
+method hazard is worth repeating: a mutation harness that runs the full suite
+sequentially can exceed the command timeout, and the resulting `SIGTERM` kills
+Python before its `finally` restore runs, so after any timeout every touched
+file's hash must be re-verified rather than trusting try/finally — one mutation
+was silently left applied this way and had to be repaired by hand. R8-20 must not
+be executed in this run; the next run should characterize it and note that it
+depends on the selection concept R8-19 introduced, in particular that a
+regenerated run needs to preserve lineage to a source run or result.
+
+## R8-20 Regenerate and Branch — implementation complete, awaiting independent Review
+
+R8-20 has been implemented and developer-verified; the card stays ACTIVE and no
+successor has been started. Three scope questions were put to the user before any
+code was written, because the card's wording admits more than one boundary:
+lineage belongs in a **new canonical object** rather than a new field on
+`ExecutionRun` (no migration is authorized, and R8-19 set the precedent);
+regenerate **prepares a branch and does not execute it**, since starting a run
+needs an executor and is not what the DoD asks; and the frontend seam is
+**mounted, not merely registered** — `task-rich-node.js` exposes
+`mountExecutionBranch` and `node-shell.js` mounts it when the host supplies
+`executionBranchOptions`. That last decision is the R8-19 lesson applied
+directly: a seam with no consumer is a delivery gap, and R8-19's result-selection
+seam is still the only R8 seam in that state.
+
+Ownership now sits in one place per concern. `workbench/domain/execution/branch.py`
+(`ExecutionBranch`, schema `workbench.execution-branch/1`) owns what lineage *is*:
+a run descends from at most one source, so `UNIQUE(run_id)` makes the lineage a
+chain and not a graph; a branch may name the exact result it came from using the
+same three-part identity the Result Tray stages and Result Selection rates
+(`attempt_id` + `output_name` + `ordinal`), and naming a result means naming all
+three parts or none. `execution_branch_repository.py` persists it with foreign
+keys and audit on both ends. `execution_branch_service.py` makes regeneration one
+operation that creates the new run **and** its lineage together, because a new run
+without a branch record would be an unattributable run — the DoD is "every
+regeneration has lineage", not "most". `execution_branches.py` exposes
+`POST /branches`, `GET /branches`, `GET /branches/{branch_id}` and `GET /lineage`
+under `/api/v1/execution-runs/{run_id}`. Nothing was added to `ExecutionRun`: a
+regeneration adds a run and never edits the one it came from.
+
+Verification. The gate is green at **1047 tests** (1042 before the mutation
+review, +5 pins), 216 Python AST files, 142 JavaScript files, 4 architecture
+guards, clean diff. The focused suite `tests/test_execution_branch.py` is 24
+tests. The DoD was additionally proven through the real `main.app` across two OS
+processes — one writes, a second reads the same SQLite file: 201 on the first
+regeneration, 422 on a partial result name, 201 on a second regeneration, 403 for
+a stranger; then `lineage_root "run-1"`, two lineage ids root-first,
+`raw_has_result "attempt-4"` present in the raw row, `run_count 3` and
+`source_revision 1`. That last pair is the out-of-scope boundary ("no destructive
+overwrite of prior run") measured rather than asserted.
+
+That cross-process probe earned its keep: it found a defect no test-built app
+would have. A partial result name answered **500**, not 422, because the payload
+validator raised a bare `ValueError` and pydantic keeps a live exception object in
+the error context, which makes the 422 body impossible to serialize. It now raises
+`PydanticCustomError("partial_result", …)`. A second defect found during
+development: an unknown source run answered 400 instead of 404, because the
+service collapsed the run service's `not_found` into a generic error.
+
+Mutation review: 34 probes, one per guarded branch, each applied alone with the
+focused suite run against it and the source restored byte-for-byte (sha256
+verified for all 7 touched files afterwards). First pass **25/34**; the nine
+survivors were all "guard present, nothing aims at it", so five pins were added —
+the branch repository refusing a viewer on `create`, `get_for_run` and
+`list_lineage` when called directly rather than through the service, a branch
+refusing to cross projects, the new run's `summary` naming its source, the
+record's immutability and metadata safety check, and a hostile row id proving the
+seam escapes `data-branch-id`. Second pass **33/34**. The one survivor is an
+equivalent mutant: removing `ORDER BY created_at, id` from `list_children` changes
+nothing, because `EXPLAIN QUERY PLAN` shows both the ordered and unordered query
+performing the same `SEARCH execution_branches USING INDEX
+idx_execution_branches_source (source_run_id=?)` and that index is already ordered
+by `(source_run_id, created_at, id)`. The clause is kept as an explicit statement
+of the guarantee; it is not independently observable.
+
+R8-20 remains ACTIVE. The next run should perform the independent Review against
+the still-active card and only then archive it, sync `TASK_INDEX.md` and
+`AGENT_NEXT_TASK.md`, and activate R8-21.
+
+## R8-20 archived — independent Review PASS, R8-21 activated but not started
+
+The independent Review of R8-20 returned **PASS**, so R8-20 is archived in
+`docs/tasks/done/` and R8-21 Result to Collection is the sole ACTIVE card,
+activated but **not started**.
+
+The review used a probe set deliberately disjoint from the developer's 34 —
+structure, lifecycle and schema rather than value bounds — and it earned its
+keep: the first pass caught only **5 of 26**, against 33 of 34 for the
+developer's own set. Four findings were blocking.
+
+1. **The canonical record's contract was entirely unpinned.** Unknown field
+   refused, `revision >= 1`, `kind` a closed set, `source_ordinal >= 0`,
+   `source_output_name` non-empty and `schema_version` a pinned literal — six
+   guards, no tests. This was not a judgement call: the preceding card pins all
+   six for its own record in
+   `test_result_selection.py::test_record_rejects_out_of_contract_values`, so
+   R8-20 had regressed against the convention it sits next to. Fixed by
+   mirroring that test, and by pinning the schema version as a **hard-coded
+   literal** — the existing assertion compared against the imported constant,
+   which is tautological and would have passed even if the constant changed.
+2. **A lineage cycle did not provably terminate.** `UNIQUE(run_id)` bounds
+   origins, not ancestry; two runs descending from each other are
+   constructible, and without the visited set the walk would run to the depth
+   bound and report the same records 64 times over. Now pinned by a test that
+   builds the cycle.
+3. **The conflict contract was unpinned at both layers** — neither the service's
+   `conflict` code nor the API's 409 mapping had a test, so a client could not
+   rely on a duplicate origin being reported as a conflict. The first attempt at
+   this test had the wrong premise: through the API the run id is always fresh,
+   so the reachable conflict is the branch record's primary key, not
+   `UNIQUE(run_id)`.
+4. **The `/lineage` endpoint's authorization had no HTTP-level coverage.**
+   `/branches` was pinned for a stranger; `/lineage` was not.
+
+After the fixes the reviewer's set stands at **22 of 26**. The four survivors
+are non-blocking and each was classified rather than waved through:
+`PRAGMA foreign_keys` is shadowed by `_project_id` rejecting an unknown run
+first (the same shadowing the preceding card recorded); `self._runs.migrate()`
+is a *redundant call*, because `SqliteExecutionRunRepository.__init__` already
+migrates; and the seam's `REASONS` array and mounted surface being frozen is a
+convention with no consumer that could mutate them, not an observable
+behaviour.
+
+Two things are worth carrying forward. First, **the developer's own probe set is
+not a good measure of its own coverage** — 33/34 looked healthy while a
+disjoint 26-probe set found 5/26, and the difference is entirely which axes each
+set chose. A reviewer should pick axes the author did not. Second, **calibrate
+against the neighbouring cards, not against taste**: "is this pinned?" was
+answerable here only by reading the previous card's test file, and that reading
+turned four judgement calls into one blocking finding.
+
+Final gate: 1053 tests (1042 before the mutation review, +11 pins across both
+passes), 216 Python AST files, 142 JavaScript files, 4 architecture guards,
+clean diff. Focused suite `tests/test_execution_branch.py` is 30 tests. R8-21
+must not be executed in this run; the next run should characterize it and note
+that it depends on the result identity R8-19 introduced and the branch lineage
+R8-20 added, so a result can be traced to the run that produced it.
+
+## R8-21 Result to Collection — implementation complete, awaiting independent Review
+
+R8-21 has been implemented and developer-verified; the card stays ACTIVE and no
+successor has been started. Four scope questions were put to the user first,
+because the card admits more than one boundary: `execution_result` becomes a
+first-class member of the Collection type system rather than lineage being
+hidden in item metadata; "selected" is read from Result Selection rather than
+passed in; the operation appends to an existing Collection rather than creating
+one; and the frontend seam is mounted rather than merely registered.
+
+The characterization that made the first question necessary is worth recording.
+`Collection` had no way at all to point at a produced result: its reference
+kinds are Asset, Artifact, entity and Collection, and this card explicitly puts
+Asset/Artifact conversion out of scope, so none of them could be borrowed
+without mislabelling what the item holds. That absence is the real content of
+the card's "Before Owner: manual copy/Canvas nodes" — a result could only reach
+a Collection by being copied into Canvas nodes first.
+
+The type is realised as its own cell, `CollectionExecutionResultCell`, rather
+than as a `CollectionReferenceCell`. Every other reference points at a resource
+by a single id; a result is named by four parts — the run, the attempt, the
+output name and that output's occurrence — so a single `reference_id` would
+over- or under-address it. `execution_result` is therefore added to
+`CollectionValueType`, which is what a column may hold, and deliberately not to
+`CollectionReferenceType`. This widens a closed set rather than narrowing it, so
+no stored Collection is invalidated and no migration is authorized.
+
+One operation was added, in `workbench/application/result_collection_service.py`:
+it reads the run's selected results, refuses a cross-project collect, makes sure
+the Collection's schema can hold results under the requested key without
+retyping a column that already exists, and appends the items through the
+existing revision-checked `CollectionService.update`. No new table. The API is
+`POST /api/v1/collections/{collection_id}/results`.
+
+Verification. The gate is green at **1078 tests** (1053 before the mutation
+review, +25 pins), 219 Python AST files, 144 JavaScript files, 4 architecture
+guards, clean diff. The focused suite `tests/test_result_collection.py` is 25
+tests. The DoD was additionally proven through the real `main.app` across two OS
+processes — one writes, a second reads the same SQLite file: 200 with two items
+and revision 2, stranger 403, zero revision 422; then `stored_item_count 2`, the
+two identities read back as `[run-1, attempt-1, poster.png, 0]` and
+`[run-1, attempt-2, thumb.png, 0]`, `stored_cell_types` both
+`execution_result`, and `canvas_count 0`. That last figure is the out-of-scope
+half of the DoD — "without Canvas node creation" — measured on disk rather than
+asserted.
+
+Mutation review: 33 probes, one per guarded branch, each applied alone with the
+focused suite run against it and the source restored byte-for-byte (sha256
+verified for all 6 touched files). First pass **25/33**; seven of the eight
+survivors were "guard present, nothing aims at it" and were pinned — the result
+cell's out-of-contract values, a taken column id, an aggregate that cannot be
+validated, the API's `expected_revision >= 1`, and the seam refusing a result
+whose name is an empty string. Second pass **32/33**. The remaining survivor is
+an unreachable guard: the service translates the selection service's
+`not_found`, but `ExecutionRunService.get` has already rejected an unknown run
+against the same database a few lines earlier.
+
+One defect was found and fixed: `_validate` let a raw pydantic `ValidationError`
+escape the service, which the API would have answered with a 500. It now raises
+`ResultCollectionServiceError("invalid_collection", …)` — the same class of bug
+that the cross-process probe caught on R8-20, found here by reading the code
+rather than by running the app.
+
+R8-21 remains ACTIVE. The next run should perform the independent Review against
+the still-active card and only then archive it, sync `TASK_INDEX.md` and
+`AGENT_NEXT_TASK.md`, and activate R8-22.
+
+## R8-21 archived — independent Review PASS, R8-22 activated but not started
+
+The independent Review of R8-21 returned **PASS**, so R8-21 is archived in
+`docs/tasks/done/` and R8-22 Result to Canvas Materialization is the sole ACTIVE
+card, activated but **not started**.
+
+The review used a probe set disjoint from the developer's 33 and caught only
+**8 of 22** on the first pass. The most valuable finding is one a mutation probe
+cannot make: **the seam could not use a custom column key at all**. The service
+and the API both let a caller choose which column results land in, but the seam
+hard-coded `result` — `recordFrom` read only `values.result`, and the mounted
+`requestFrom` always sent `result`. A Collection that collected under another key
+would have rendered empty, and no request could have asked for one. A delivered
+capability, unreachable from the only client. It was found by reading the seam
+against the service contract, and fixed by threading a column key through
+`create({columnKey})`, `recordFrom` and the mounted `requestFrom`.
+
+Four coverage findings were also pinned: the result cell's `attempt_id` bound,
+the API payload's `run_id` and `column_key` bounds, the seam's hydrated
+`revision` (which is what a further append has to name), and the client's
+`Content-Type`. Second pass 13/22, and a further 3/9 after two corrections —
+**16/22** overall.
+
+One of those corrections is a method worth recording: **a probe set that runs
+only the focused suite under-reports.** Seven probes targeted the pre-existing
+`Collection` aggregate, which is actually covered by
+`tests/test_collection_domain.py`; against the focused suite alone all seven
+survived, but two of them (`an item is closed`, `schema column keys are unique`)
+are already pinned there. The measure has to include the suite that owns the code
+under test, or a reviewer will report gaps that do not exist.
+
+Six survivors remain and each was classified. Five are pre-existing gaps in the
+`Collection` aggregate itself — the schema version as a pinned literal,
+immutability, `revision >= 1`, `order >= 0`, and unique column ids — which
+predate this card, which the card was not authorized to reshape, and whose
+domain test file has only four tests. They are recorded as an observation for
+whoever owns that aggregate rather than silently expanded into this card. The
+sixth, the seam's mounted surface being frozen, is a convention with no consumer
+that could mutate it.
+
+Final gate: 1079 tests, 219 Python AST files, 144 JavaScript files, 4
+architecture guards, clean diff. Focused suite `tests/test_result_collection.py`
+is 26 tests. R8-22 must not be executed in this run. Whoever picks it up should
+note that R8-21 deliberately did *not* create Canvas nodes — that is precisely
+what R8-22 asks for — so the two cards are adjacent but opposite, and R8-22
+should reuse the result identity and the collection seam rather than reinvent
+either.
+
+## R8-22 Result to Canvas Materialization — implementation complete, awaiting independent Review
+
+R8-22 has been implemented and developer-verified; the card stays ACTIVE and no
+successor has been activated. Final gate: **1117 Python tests** (1079 before,
++38), 226 Python AST files, 146 JavaScript files, 4 architecture guards, clean
+diff. Focused suite `tests/test_result_materialization.py` is **38 tests**.
+
+A constraint shaped the work and had to be decided separately, because it was not
+visible when the scope questions were answered: the only Canvas node store is the
+Legacy JSON one and its repository whitelist refuses every canonical definition,
+so a canonical result node could not be persisted at all. The decision was to
+write it into the same `canvas["nodes"]` list under the same
+`mutate_if_current` lock and the same idempotency convention, through a new
+`CanonicalJsonNodeCreationRepository` rather than by widening the Legacy one, so
+neither writer accepts what the other must refuse. The stored node carries a
+marker `type` Legacy consumers see but never produce and repeats `x`/`y`/`w`/`h`
+so Legacy geometry still places it; the canonical record is stored whole and
+`LegacyCanvasAdapter.node_to_record` routes the marker to
+`canonical_adapter.record_from_payload`, which is why the existing node read
+endpoint answers honestly instead of flattening the node into a Legacy one. A
+test pins that an existing Legacy node in the same list is unaffected.
+
+The DoD was proven through the real `main.app` across two OS processes — one
+writes, a second reads the same Canvas file: `created_status 201` with
+`created_kind result`, `created_definition {workbench, execution-result, 1}`,
+`created_result [run-1, attempt-1, poster.png, 0]`, `created_provenance run-1`,
+a second result `201`, then unselected `409`, unnamed `404`, no actor `401`, zero
+revision `422`; read back as two `workbench-result` nodes, both `result` kind,
+both provenance `run-1`, identities `[run-1, attempt-1, poster.png, 0]` and
+`[run-1, attempt-2, thumb.png, 0]`, audited with source `result_materialization`.
+
+**Independent Review: PASS** (2026-09-13). A disjoint 13-probe set on different
+axes — schema shape and closed sets, lifecycle and teardown, persistence
+serialisability, published-contract drift, error-code contract per cause — caught
+**6/13** on the first pass and **12/13** after the gaps were pinned; baseline 95
+tests green across the five owning suites, all 7 touched files restored
+byte-identical by sha256. Focused suite 38 → 48 tests; gate **1128 tests**.
+
+Its one blocking finding is one no probe could make: the published
+`schemas/node-record/node-record.v1.schema.json` enumerated `kind` **without
+`result`** — the kind this card adds — and without `collection`, which had
+drifted out earlier. A consumer validating against the published schema would
+have rejected every result node this card produces. Both were added and the
+contract was made self-enforcing: `tests/test_node_record.py` now asserts the
+published enum equals `get_args(NodeKind)` exactly, so it cannot drift again.
+Six further contract gaps in new canonical code were pinned — the identity's
+frozen/closed/bounded guarantees, a read-back that would have stripped keys from
+the in-memory canvas, a persisted idempotency-key constant asserted only through
+itself, and a seam that rendered into a torn-down host. One non-blocking
+survivor: the API's `invalid_request → 422` branch is unreachable because the
+payload rejects first.
+
+Mutation review: **44 probes, 41/44 on the first pass, 44/44 after three pins**,
+every one of the 11 touched files restored byte-identical by sha256. Two survivors
+were the same lesson in two places — a guard that a lower layer also enforces
+looks equivalent and a probe cannot tell the difference; they were pinned by
+making the layering observable (a recording node-creation service proves the
+materialization service refuses before asking for a node; the API test proves a
+payload rejection produces FastAPI's validation list, not the service's coded
+object). The third was a seam that escaped a node id no test ever made
+need escaping.
+
+**A tooling trap is recorded here because it will otherwise be repeated.** The
+first mutation run reported 44/44 in 22 seconds and was entirely wrong: the
+harness had been launched with a Rosetta (x86_64) interpreter, so the child ran
+the project's arm64 venv under the wrong architecture, `pydantic_core` and `PIL`
+failed to load, and every suite died at import — a non-zero exit that is
+indistinguishable from a caught probe unless the tests are counted. The harness
+now parses `Ran N tests` and rejects any run shorter than expected; and it must
+be launched with the venv's own interpreter, not a differently-built one.
+
+## R8-22 archived — independent Review PASS, R9-01 activated but not started
+
+R8-22's independent Review returned **PASS**, so R8-22 is archived in
+`docs/tasks/done/` and `R9-01` Asset Domain is the sole ACTIVE card, activated
+but **not started**. `TASK_INDEX.md` marks R8-22 DONE and R9-01 ACTIVE;
+`AGENT_NEXT_TASK.md` points at R9-01 and records `R8-01 through R8-22` as
+archived. Final gate after the review: **1128 tests**, 226 Python AST files, 146
+JavaScript files, 4 architecture guards, clean diff. Focused suite
+`tests/test_result_materialization.py` is 48 tests.
+
+Two things the next card should inherit rather than rediscover:
+
+- **Materializing a result does not make it an Asset.** R8-22 deliberately
+  stopped short of conversion: the node is its own kind with no ports, because a
+  result that has not been converted may not claim to accept or produce typed
+  values. R9-01 (Asset Domain) and the later result-to-Asset card are where that
+  conversion belongs, and they should reuse
+  `workbench/domain/execution/result_identity.py` rather than mint another
+  address for the same thing.
+- **The published node-record schema is now enforced against the domain.**
+  `tests/test_node_record.py` asserts the published `kind` enum equals
+  `get_args(NodeKind)` exactly. Adding a kind without updating
+  `schemas/node-record/node-record.v1.schema.json` now fails the gate, which is
+  what let `collection` and `result` drift out silently before.
+
+R9-01 must not be implemented in the run that activates it.
+
+One observation is recorded for whoever makes the renderer registry live: the
+result node declares `RendererRef(id="result", version="1")` and no renderer is
+registered under that id. Nothing in production resolves renderers through
+`RendererRegistry` today (only tests do) and the page hard-codes `legacy@1` when
+it builds records, so the node is rendered by the seam this card mounts. The gap
+should be closed when the registry is wired rather than discovered then.
+
+## R9-01 Asset Domain — implementation complete, developer-verified, still ACTIVE
+
+R9-01 was reviewed independently while it was still unimplemented and came back
+**CHANGES_REQUIRED**: no `Asset` record existed anywhere, the DoD checkbox was
+unticked, and the card's own Final Ownership Evidence was empty. Implementation
+has since been completed in the same ACTIVE card; it is **not archived** and
+awaits an independent Review.
+
+**Ownership change.** Before: `file + JSON metadata` — an asset was one mutable
+record in `data/asset_library.json` (`{id, name, url, kind, created_at}`) owned by
+`main.py`'s library helpers and `static/js/asset-manager.js`, with no notion of a
+version. After: `Asset` in `workbench/domain/asset/models.py` — the only Core
+definition of asset identity (`id`/`project_id`/`source`/`type`/`status`/
+`metadata` plus `version_ids`), frozen, `extra="forbid"`, carrying no version
+content. The duplicate that remains is **deliberate**: R9-03 owns
+`Build repository/service/API` and `Map existing assets`, and this card's
+compatibility clause forbids an unauthorized migration, so the legacy JSON store
+still serves the existing UI and is retired there, not here. What this card did
+remove is the duplicate *definition*: the JSON shape no longer decides what an
+asset is.
+
+**Scope decision (asked first).** Domain record only — no SQLite, no service, no
+API, no `main.py` change. "Version" in the DoD means a reference by id; the
+version record and its rules belong to R9-02.
+
+**Gate:** `./scripts/agent-verify.sh` **PASS — 1145 tests** (1128 → +17),
+229 Python AST files (226 → +3), 146 JavaScript files, 4 architecture guards,
+clean `git diff --check`. Focused suite `tests/test_asset_domain.py` is 17 tests.
+
+**Mutation review:** 18 probes, **17/18 then 18/18** after one pin; the one
+touched file restored byte-identical by sha256 and every run parsed
+`Ran 17 tests`. The pin matters: `with_version`'s duplicate refusal was
+**masked** because `pydantic.ValidationError` subclasses `ValueError`, so the
+record-level uniqueness check stood in for the domain guard — the test now
+asserts the refusal is not a `ValidationError` and carries the seam's message.
+One **equivalent mutant** is recorded non-blocking: `Field(default_factory=dict)`
+vs a bare `{}` default, since pydantic v2 deep-copies a mutable class-level
+default per instance; the invariant is pinned by outcome instead.
+
+**Two things the next card should inherit:**
+
+- **R9-02 owns the rules.** No `current_version_id`, no ordering rule, no
+  checksum and no immutability rule was added here — appending a reference is the
+  only operation this card claims. R9-02 should define `AssetVersion` and decide
+  which version an Asset points at; the `Asset` record already names versions
+  without owning them, which is the seam to build on.
+- **The published node-record schema needed no change.** `asset` is already a
+  `NodeKind`, and `tests/test_node_record.py` fails if the published `kind` enum
+  ever drifts from `get_args(NodeKind)` — so widening a domain closed set without
+  updating `schemas/node-record/node-record.v1.schema.json` is no longer silent.
+
+R9-01 remains the sole ACTIVE card. Do not archive it and do not start R9-02
+before the independent Review PASSes.
+
+## R9-01 archived — independent Review PASS, R9-02 activated but not started
+
+R9-01's independent Review returned **PASS**, so R9-01 is archived in
+`docs/tasks/done/` and `R9-02` AssetVersion is the sole ACTIVE card, activated
+but **not started**. `TASK_INDEX.md` marks R9-01 DONE and R9-02 ACTIVE;
+`AGENT_NEXT_TASK.md` points at R9-02 and records R9-01 as archived. Final gate
+after the review: **1147 tests**, 229 Python AST files, 146 JavaScript files,
+4 architecture guards, clean diff. Focused suite `tests/test_asset_domain.py`
+is 19 tests.
+
+Two disjoint mutation sets were run against the still-ACTIVE card: the
+developer's 18 (17/18 → 18/18) and the reviewer's 11 on different axes —
+requiredness, append vs prepend, aliasing, dump mode, element bounds,
+closed-set narrowing — (9/11 → 9/11 after four pins). All 29 probes left
+`workbench/domain/asset/models.py` byte-identical by sha256.
+
+**The reviewer's blocking finding was absence, not defect.** `id`,
+`project_id`, `source` and `type` had no test proving they are *required*:
+giving any of them a default passed the whole suite, so an Asset could exist
+while answering "which asset is this?" with a placeholder. Pinned by
+`test_every_identity_field_is_required`. Two further survivors were proven
+equivalent by measurement rather than assumed — pydantic rebuilds the metadata
+dict during validation, so `with_version` cannot alias its source; and
+`model_dump` in json vs python mode is identical for every JSON-shaped metadata
+payload the record accepts.
+
+Three things the next cards should inherit:
+
+- **R9-02 owns everything about a version.** `Asset` names versions by id and
+  deliberately carries no content, checksum, provenance or rule about which
+  version is current. Content and the versioning rules belong in
+  `AssetVersion`, not back on the identity record.
+- **"Immutable" currently ends at the record boundary.** Append-only holds only
+  through `with_version`; nothing stops a new `Asset` being built with fewer
+  version ids. Enforcing that is the repository's job, which is R9-03 along
+  with the service, the API and the retirement of the legacy
+  `data/asset_library.json` store — still the second owner of asset data and
+  deliberately untouched by R9-01.
+- **Two drift risks were recorded, not fixed** (neither belongs to R9-01):
+  `schemas/renderer/renderer-manifest.v1.schema.json` `supported_kinds` is a
+  second published closed set mirroring `NodeKind` and lacks `collection` and
+  `result`; and the canvas `asset.*` port types name asset kinds independently
+  of the new `AssetType`. R9-03 should decide whether they map to each other.
+
+R9-02 must not be implemented in the run that activates it.
+
+## R9-02 AssetVersion — implementation complete, developer-verified, still ACTIVE
+
+R9-02 is ACTIVE with implementation complete; it is **not archived** and awaits
+an independent Review. Scope is the same as R9-01's: the domain record only,
+because R9-03 owns repository/service/API and the migration.
+
+**Ownership change.** Before: `mutable file metadata` — one asset was one
+rewritable record in `data/asset_library.json` (`{id, name, url, kind,
+created_at}`), so replacing a file destroyed the only address the previous bytes
+had; no checksum, no provenance, no history. After: `AssetVersion` — frozen,
+with `AssetVersionContent` (location/checksum/mime/size),
+`AssetVersionProvenance` (speaking the `AssetSource` vocabulary), `created_at`
+and an `ordinal`; plus `AssetVersionRef`, an address derived from
+`asset_id` + `version_id` alone so it stays valid when the bytes move or are
+re-hashed. The legacy JSON store is still the second owner of asset data and is
+retired by R9-03, not here.
+
+**Gate:** `./scripts/agent-verify.sh` **PASS — 1170 tests** (1147 → +23),
+230 Python AST files (229 → +1 for `tests/test_asset_version.py`), 146 JavaScript files, 4 architecture guards,
+clean `git diff --check`. Focused suites: `tests/test_asset_version.py` 22 tests,
+`tests/test_asset_domain.py` 20 tests.
+
+**Mutation review:** 22 probes, **22/22 caught**; every probe restored
+byte-identical by sha256 and every run parsed `Ran 42 tests`. Three probes
+survived the first pass and were closed by pins, not explained away: `mime_type`
+had no minimum length, `source_ref` no maximum and `actor_id` no minimum — three
+bounds the record states and nothing tested.
+
+**Post-close repair to R9-01, declared here.** Adding `AssetVersion` beside
+`Asset` exposed that the neighbouring canonical records
+(`ExecutionAttempt`/`Run`/`Event`/`Branch`, `ResultSelection`) freeze their
+metadata with `assert_safe_metadata` + `freeze_value` and `Asset` did not — a
+frozen record with a mutable interior. R9-01 has no consumers yet, so
+`Asset.metadata` now gets the same treatment; both R9-01 probe sets were re-run
+against it (19/20 and 9/11, the same documented equivalent mutants, no
+regression). R9-01's DoD and ownership statement are unchanged.
+
+**What R9-03 inherits:** ordinal uniqueness per asset, gap-free sequences and
+single-assignment version ids cannot be enforced by one record — they need the
+repository. And `Asset.version_ids` (R9-01) and `AssetVersionRef` (this card)
+are meant to coexist: the parent names its versions, the ref is the
+self-contained address used from outside; keep them consistent rather than
+picking one.
+
+R9-02 remains the sole ACTIVE card. Do not archive it and do not start R9-03
+before the independent Review PASSes.
+
+## R9-02 archived — independent Review PASS, R9-03 activated but not started
+
+R9-02's independent Review returned **PASS**, so R9-02 is archived in
+`docs/tasks/done/` and `R9-03` Asset Repository and Migration is the sole ACTIVE
+card, activated but **not started**. `TASK_INDEX.md` marks R9-02 DONE and R9-03
+ACTIVE; `AGENT_NEXT_TASK.md` points at R9-03 and records R9-02 as archived.
+Final gate after the review: **1172 tests**, 230 Python AST files, 146 JavaScript
+files, 4 architecture guards, clean diff. Focused suites:
+`tests/test_asset_version.py` 24 tests, `tests/test_asset_domain.py` 20 tests.
+
+Two disjoint mutation sets ran against the still-ACTIVE card: the developer's 22
+(19/22 then 22/22 after three field-bound pins) and the reviewer's 12 on
+different axes — schema shape, nested immutability, record-degrades-to-dict,
+defaults on fields that must be supplied, ref semantics, ref shape — (9/12 then
+11/12 after two pins). Every probe restored byte-identical by sha256 across both
+touched files.
+
+**Both blocking findings were absence, not defect.** `AssetVersion` had no test
+pinning its own shape, so adding a `url` field passed the whole suite — the DoD
+turns on what a version *is*, and nothing asserted it. And metadata was only
+proven frozen one level deep, leaving a mutable dict nested one step down — the
+same hole this round's post-close repair to `Asset` had just closed. The one
+survivor is equivalent: a bare `{}` metadata default cannot alias because
+pydantic gives each instance its own dict and the record freezes it.
+
+**Four things R9-03 inherits:**
+
+- **The rules a single record cannot enforce are now R9-03's**: ordinal
+  uniqueness per asset, gap-free sequences, and single-assignment version ids.
+  Today nothing stops a new `AssetVersion` being built with the same id and
+  different content.
+- **An open decision about refs.** The published node-record schema
+  (`$defs.output_ref`, `input_binding`) addresses `asset_version` by a single
+  `id`, `Asset.version_ids` uses a single id, but `AssetVersionRef` uses
+  `asset_id` + `version_id`. Pick one before wiring version refs into nodes and
+  Collections, and update whichever side loses.
+- **A shared guard has no owner.** `workbench/domain/value_types.py`
+  (`assert_safe_metadata`, `freeze_value`) is load-bearing in 11 domain modules
+  and has no test file of its own; the nested-freeze probe survived its first
+  pass partly for that reason.
+- **R9-03 also retires the legacy `data/asset_library.json` store**, still the
+  second owner of asset data and deliberately untouched by R9-01 and R9-02.
+
+R9-03 must not be implemented in the run that activates it.
