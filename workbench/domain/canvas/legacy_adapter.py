@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from .models import EdgeRecord, NodeRecord, Position, RendererRef, Size
+from .canonical_adapter import is_canonical_payload, record_from_payload
 from .input_bindings import InputBindingAdapter
 from .ports import InputPort, OutputPort, PortSet
 from .states import NodeState
@@ -49,6 +50,10 @@ class LegacyCanvasAdapter:
 
     @classmethod
     def node_to_record(cls, node: dict[str, Any], *, canvas: dict[str, Any]) -> NodeRecord:
+        # A canonical node shares this one node list but is not a Legacy shape:
+        # it is read back as the record it was stored as, not guessed at.
+        if is_canonical_payload(node):
+            return record_from_payload(node)
         payload = deepcopy(node)
         node_type = str(node.get("type") or "unknown")
         created_at = _legacy_timestamp(canvas.get("created_at"))

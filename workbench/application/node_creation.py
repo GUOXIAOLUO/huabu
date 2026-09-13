@@ -18,8 +18,10 @@ class NodeCreationSource(StrEnum):
     SKILL_LIBRARY_DRAG = "skill_library_drag"
     FILE_DROP = "file_drop"
     CLIPBOARD = "clipboard"
+    QUICK_COLLECTION = "quick_collection"
     WORKFLOW_IMPORT = "workflow_import"
     AGENT_PROPOSAL = "agent_proposal"
+    RESULT_MATERIALIZATION = "result_materialization"
     LEGACY = "legacy"
 
 
@@ -44,6 +46,7 @@ class NodeCreateCommand:
     initial_config: dict[str, Any] | None = None
     requested_model_binding: ModelBinding | None = None
     approval_id: str | None = None
+    provenance_ref: str | None = None
 
 
 @dataclass(frozen=True)
@@ -177,6 +180,7 @@ class NodeCreationService:
             input_bindings=InputBindingAdapter.from_payloads(command.initial_bindings),
             model_binding=binding,
             config=dict(command.initial_config or {}),
+            provenance_ref=command.provenance_ref,
             created_by=command.actor_id,
             created_at=timestamp,
             updated_at=timestamp,

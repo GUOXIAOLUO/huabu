@@ -12,7 +12,15 @@ from .states import NodeState
 
 NODE_SCHEMA_VERSION = "workbench.node/1"
 EDGE_SCHEMA_VERSION = "workbench.edge/1"
-NodeKind = Literal["asset", "skill", "artifact", "entity", "task", "approval", "group", "collection", "composite", "legacy"]
+NodeKind = Literal["asset", "skill", "artifact", "entity", "task", "approval", "group", "collection", "composite", "result", "legacy"]
+
+# A canonical node that the Legacy JSON Canvas store has to carry alongside its
+# own shapes. The store is one list of nodes, so a canonical node is written
+# with this marker in the same ``type`` field Legacy renderers read; position and
+# size are repeated there too, so a consumer that only knows x/y/w/h can still
+# place it. Reading it back is the adapter's job, not the writer's.
+CANONICAL_RESULT_NODE_TYPE = "workbench-result"
+CANONICAL_NODE_REQUEST_METADATA_KEY = "_workbench_node_create_request_id"
 
 
 OpaqueId = Annotated[str, Field(min_length=1, max_length=255)]

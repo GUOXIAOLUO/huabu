@@ -55,7 +55,7 @@ class LegacyJsonNodeCreationRepository:
         self._repository = repository
 
     def create_node(self, node: NodeRecord, *, expected_revision: int | None, request_id: str) -> NodeCreationPersistence:
-        if node.definition_ref.type != "legacy" or node.definition_ref.id not in {"image", "prompt", "loop", "group", "output", "smart-prompt", "smart-loop", "smart-group", "smart-minimax"} or node.definition_ref.version != "0":
+        if node.definition_ref.type != "legacy" or node.definition_ref.id not in {"image", "prompt", "loop", "group", "output", "collection", "smart-prompt", "smart-loop", "smart-group", "smart-minimax"} or node.definition_ref.version != "0":
             raise ValueError("this Legacy node repository only supports approved Legacy definitions")
 
         result: NodeCreationPersistence | None = None
@@ -92,6 +92,8 @@ class LegacyJsonNodeCreationRepository:
                     })
             elif definition_id == "output":
                 payload["images"] = []
+            elif definition_id == "collection":
+                payload.update({"title": node.title, "collection": node.config.get("collection") or {}})
             elif node.definition_ref.id == "prompt":
                 payload["text"] = str(node.config.get("text") or "")
             elif node.definition_ref.id == "smart-prompt":

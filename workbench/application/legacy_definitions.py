@@ -13,6 +13,7 @@ class LegacyDefinitionRegistry:
     LOOP = DefinitionRef(type="legacy", id="loop", version="0")
     GROUP = DefinitionRef(type="legacy", id="group", version="0")
     OUTPUT = DefinitionRef(type="legacy", id="output", version="0")
+    COLLECTION = DefinitionRef(type="legacy", id="collection", version="0")
     SMART_PROMPT = DefinitionRef(type="legacy", id="smart-prompt", version="0")
     SMART_LOOP = DefinitionRef(type="legacy", id="smart-loop", version="0")
     SMART_GROUP = DefinitionRef(type="legacy", id="smart-group", version="0")
@@ -30,6 +31,11 @@ class LegacyDefinitionRegistry:
                     outputs=[OutputPort(id="legacy.out", produces=["legacy.any"], multiple=True)],
                 ),
                 default_size=Size(width=280, height=180),
+            )
+        if definition_ref == self.COLLECTION:
+            return ResolvedNodeDefinition(
+                definition_ref=self.COLLECTION, kind="collection", renderer=RendererRef(id="legacy", version="1"), title="Collection",
+                ports=PortSet(inputs=[], outputs=[]), default_size=Size(width=420, height=300),
             )
         if definition_ref not in {self.PROMPT, self.LOOP, self.GROUP, self.OUTPUT, self.SMART_PROMPT, self.SMART_LOOP, self.SMART_GROUP, self.SMART_MINIMAX}:
             return None

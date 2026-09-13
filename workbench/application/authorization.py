@@ -9,6 +9,10 @@ class Action(StrEnum):
     CANVAS_EDIT = "canvas.edit"
     COLLECTION_READ = "collection.read"
     COLLECTION_EDIT = "collection.edit"
+    PROMPT_READ = "prompt.read"
+    PROMPT_EDIT = "prompt.edit"
+    EXECUTION_READ = "execution.read"
+    EXECUTION_EDIT = "execution.edit"
 
 
 class AuthorizationError(PermissionError):
@@ -27,9 +31,9 @@ class AuthorizationService:
 
     def allows(self, actor_id: str, action: Action, project_id: str) -> bool:
         role = self._memberships.member_role(project_id, actor_id)
-        if action in {Action.PROJECT_READ, Action.COLLECTION_READ}:
+        if action in {Action.PROJECT_READ, Action.COLLECTION_READ, Action.PROMPT_READ, Action.EXECUTION_READ}:
             return role in {"owner", "editor", "viewer"}
-        if action in {Action.CANVAS_EDIT, Action.COLLECTION_EDIT}:
+        if action in {Action.CANVAS_EDIT, Action.COLLECTION_EDIT, Action.PROMPT_EDIT, Action.EXECUTION_EDIT}:
             return role in {"owner", "editor"}
         return False
 

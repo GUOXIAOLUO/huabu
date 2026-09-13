@@ -7,20 +7,25 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 COLLECTION_SCHEMA_VERSION = "workbench.collection/1"
 OpaqueId = Annotated[str, Field(min_length=1, max_length=255)]
-CollectionValueType = Literal[
-    "asset_version",
-    "artifact_version",
-    "entity_ref",
-    "entity_version",
-    "collection",
-    "literal",
-]
 CollectionReferenceType = Literal[
     "asset_version",
     "artifact_version",
     "entity_ref",
     "entity_version",
     "collection",
+]
+# A column may also hold a produced execution result. It is a value type but
+# deliberately not a reference type: the other references point at a Workbench
+# resource by one id, whereas a result is named by four parts, so it gets its own
+# cell rather than a single reference id.
+CollectionValueType = Literal[
+    "asset_version",
+    "artifact_version",
+    "entity_ref",
+    "entity_version",
+    "collection",
+    "execution_result",
+    "literal",
 ]
 
 
@@ -79,8 +84,28 @@ class CollectionReferenceCell(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class CollectionExecutionResultCell(BaseModel):
+    """A cell naming one produced result, so a Collection can hold it without
+    first turning it into an Asset or an Artifact.
+
+    The identity is the same four parts Result Selection rates and an Execution
+    Branch descends from, kept as separate fields rather than one composite key:
+    a result is finer than the attempt that produced it and coarser than nothing,
+    so any single id would either over- or under-address it.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    type: Literal["execution_result"] = "execution_result"
+    run_id: OpaqueId
+    attempt_id: OpaqueId
+    output_name: Annotated[str, Field(min_length=1, max_length=255)]
+    ordinal: Annotated[int, Field(ge=0)]
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 CollectionCell: TypeAlias = Annotated[
-    Union[CollectionLiteralCell, CollectionReferenceCell],
+    Union[CollectionLiteralCell, CollectionReferenceCell, CollectionExecutionResultCell],
     Field(discriminator="type"),
 ]
 
@@ -128,6 +153,9 @@ class Collection(BaseModel):
                 if column.value_type == "literal":
                     if not isinstance(cell, CollectionLiteralCell):
                         raise ValueError(f"column {key} accepts literal cells only")
+                elif column.value_type == "execution_result":
+                    if not isinstance(cell, CollectionExecutionResultCell):
+                        raise ValueError(f"column {key} requires an execution result cell")
                 elif not isinstance(cell, CollectionReferenceCell) or cell.reference_type != column.value_type:
                     raise ValueError(f"column {key} requires a {column.value_type} reference cell")
             missing = [column.key for column in self.collection_schema.columns if column.required and column.key not in item.values]
