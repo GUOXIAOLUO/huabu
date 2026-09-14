@@ -34,8 +34,34 @@
         }, {allowWorkflow:true});
     }
 
-    function isVideo(item) {
-        return mediaKind(item) === 'video';
+    function createMediaElement(documentRef, item, node) {
+        const kind = mediaKind(item);
+        if (kind === 'video' || kind === 'audio') {
+            const media = documentRef.createElement(kind);
+            media.className = 'workbench-media-renderer__item';
+            media.src = item.url;
+            media.dataset.url = item.url;
+            media.controls = true;
+            media.preload = 'metadata';
+            if (kind === 'video') media.playsInline = true;
+            preserveNativeMediaInteraction(media);
+            return media;
+        }
+        if (kind === 'image') {
+            const media = documentRef.createElement('img');
+            media.className = 'workbench-media-renderer__item';
+            media.src = item.url;
+            media.dataset.url = item.url;
+            media.alt = item.label || node.title || 'Media';
+            media.loading = 'lazy';
+            preserveNativeMediaInteraction(media);
+            return media;
+        }
+        const file = documentRef.createElement('div');
+        file.className = 'workbench-media-renderer__file';
+        file.dataset.url = item.url;
+        file.textContent = item.label || item.url.split('/').pop() || 'File';
+        return file;
     }
 
     function preserveNativeMediaInteraction(media) {
@@ -57,26 +83,24 @@
         if (!canRender(node)) throw new TypeError('MediaRenderer requires an asset node or media record');
         const documentRef = (options && options.document) || contentHost.ownerDocument || global.document;
         const root = documentRef.createElement('div');
-        root.className = 'workbench-media-renderer';
+        root.className = 'workbench-media-renderer workbench-media-renderer--content-first';
         const items = mediaItems(node);
         root.classList.toggle('workbench-media-renderer--multiple', items.length > 1);
         if (!items.length) {
             root.textContent = 'No media attached';
         } else {
             items.forEach(item => {
-                const media = documentRef.createElement(isVideo(item) ? 'video' : 'img');
-                media.className = 'workbench-media-renderer__item';
-                media.src = item.url;
-                media.dataset.url = item.url;
-                media.alt = item.label || node.title || 'Media';
-                media.loading = 'lazy';
-                if (media.tagName === 'VIDEO') {
-                    media.controls = true;
-                    media.preload = 'metadata';
-                    media.playsInline = true;
-                    preserveNativeMediaInteraction(media);
+                const figure = documentRef.createElement('figure');
+                figure.className = 'workbench-media-renderer__figure';
+                figure.dataset.url = item.url;
+                figure.append(createMediaElement(documentRef, item, node));
+                if (item.label) {
+                    const caption = documentRef.createElement('figcaption');
+                    caption.className = 'workbench-media-renderer__caption';
+                    caption.textContent = item.label;
+                    figure.append(caption);
                 }
-                root.append(media);
+                root.append(figure);
             });
         }
         contentHost.replaceChildren(root);

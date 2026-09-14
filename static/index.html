@@ -1812,6 +1812,20 @@
 
         window.addEventListener('message', event => {
             if (event.origin && event.origin !== location.origin) return;
+            if (event.data && event.data.type === 'artifact-materialize-request') {
+                const canvasButton = document.querySelector(`[onclick*="'canvas'"]`);
+                switchUI(canvasButton, 'canvas');
+                const canvasFrame = document.querySelector('iframe[data-page="canvas"], iframe[src*="canvas.html"]');
+                try { canvasFrame?.contentWindow?.postMessage(event.data, location.origin); } catch(e) {}
+                return;
+            }
+            /* The Resources shell (asset-manager page) asks the studio shell to
+               open the Unified Canvas, where Collection / Skill resources live,
+               instead of growing a second resource surface inside the iframe. */
+            if (event.data && event.data.type === 'studio-switch-page' && PAGE_IDS.includes(event.data.page)) {
+                switchUI(document.querySelector(`[onclick*="'${event.data.page}'"]`), event.data.page);
+                return;
+            }
             forwardStudioApiChange(event.data);
         });
 

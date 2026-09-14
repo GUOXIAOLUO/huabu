@@ -89,6 +89,27 @@ console.log(JSON.stringify({{view:switched.viewMode,reloadedView:reload.viewMode
             "unchanged": True,
         })
 
+    def test_gallery_exposes_compact_collection_summary_for_mixed_table(self):
+        presentation = ROOT / "static/js/workbench/canvas/presentation-state.js"
+        module = ROOT / "static/js/workbench/canvas/collection-rich-node.js"
+        script = f"""
+const fs=require('fs'),vm=require('vm');
+function element(tag) {{ return {{tagName:tag.toUpperCase(),children:[],dataset:{{}},listeners:{{}},className:'',textContent:'',
+  append(...items){{this.children.push(...items);}},replaceChildren(...items){{this.children=items; }},setAttribute(){{}},addEventListener(type,callback){{(this.listeners[type]||(this.listeners[type]=[])).push(callback);}},remove(){{}} }}; }}
+const documentRef={{createElement:element}},sandbox={{window:{{document:documentRef}},document:documentRef}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(presentation))},'utf8'),sandbox);
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))},'utf8'),sandbox);
+const node={{id:'mixed-table',type:'collection',title:'Campaign inputs',collection:{{schema:{{columns:[
+  {{id:'image',key:'image',label:'Image',value_type:'asset_version'}},{{id:'prompt',key:'prompt',label:'Prompt',value_type:'literal'}}
+]}},items:[{{id:'row-1',order:1,values:{{image:{{type:'reference',reference_type:'asset_version',reference_id:'a1',metadata:{{url:'/a.png',kind:'image'}}}},prompt:{{type:'literal',value:'A prompt'}}}}}}]}}}};
+const shell={{contentHost:element('section')}};
+const mounted=sandbox.window.WorkbenchCollectionRichNode.mount(shell,node,{{document:documentRef}});
+const summary=mounted.element.children.find(child=>child.className==='workbench-collection-gallery__summary');
+console.log(JSON.stringify({{title:summary.children[0].textContent,meta:summary.children[1].textContent,fields:summary.children[2].textContent}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, capture_output=True, text=True)
+        self.assertEqual(json.loads(result.stdout), {"title": "Campaign inputs", "meta": "1 rows · 2 fields", "fields": "Image · Prompt"})
+
     def test_collection_gallery_is_registered_and_integrated_with_node_shell(self):
         module = (ROOT / "static/js/workbench/canvas/collection-rich-node.js").read_text(encoding="utf-8")
         host = (ROOT / "static/js/workbench/canvas/node-card-host.js").read_text(encoding="utf-8")
@@ -233,7 +254,7 @@ const mounted=sandbox.window.WorkbenchNodeCardHost.mount({
 });
 const gallery=mounted.shell.contentHost.children[0];
 const initialResolveCalls=resolveCalls;
-const firstTile=gallery.children[0];
+const firstTile=gallery.children.find(tile=>tile.dataset.itemId==='first');
 firstTile.listeners.click[0]({stopPropagation(){}});
 firstTile.listeners.dblclick[0]({stopPropagation(){}});
 let viewControls=gallery.children[gallery.children.length-1];

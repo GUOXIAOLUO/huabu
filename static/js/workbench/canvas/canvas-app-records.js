@@ -496,6 +496,9 @@ async function openCanvas(id){
 }
 async function applyCanvasSessionRecord(record, context={}){
     const source = String(context.source || 'open');
+    if(source === 'open' || source === 'remote' || source === 'saved') {
+        canvasNodeRevision = Number(record?.updated_at || canvasNodeRevision || 0);
+    }
     if(source === 'saved'){
         const localViewport = {...viewport};
         canvas = {...canvas, ...record, nodes, connections, viewport:localViewport};
@@ -558,6 +561,7 @@ function handleCanvasUpdatedMessage(data){
 async function returnToCanvasManager(){
     if(canvasSession) await canvasSession.close();
     canvas = null;
+    canvasNodeRevision = 0;
     nodes = [];
     connections = [];
     selected.clear();
@@ -727,16 +731,19 @@ document.querySelectorAll('[data-image-edit-mode]').forEach(btn => {
         setImageEditMode(btn.dataset.imageEditMode || 'crop', true);
     });
 });
-document.getElementById('editDrawCanvas').addEventListener('pointerdown', beginEditDraw);
-document.getElementById('editDrawCanvas').addEventListener('pointermove', moveEditDraw);
-document.getElementById('editDrawCanvas').addEventListener('pointerup', endEditDraw);
-document.getElementById('editDrawCanvas').addEventListener('pointercancel', endEditDraw);
-document.getElementById('editDrawCanvas').addEventListener('pointerleave', endEditDraw);
-document.getElementById('editTextCanvas')?.addEventListener('pointerdown', beginEditText);
-document.getElementById('editTextCanvas')?.addEventListener('pointermove', moveEditText);
-document.getElementById('editTextCanvas')?.addEventListener('pointerup', endEditText);
-document.getElementById('editTextCanvas')?.addEventListener('pointercancel', endEditText);
-document.getElementById('editTextCanvas')?.addEventListener('pointerleave', endEditText);
+// The media-editor owner is loaded after this records module. Resolve these
+// handlers lazily so script order cannot abort Canvas bootstrap before the
+// editor module has installed its functions.
+document.getElementById('editDrawCanvas').addEventListener('pointerdown', event => beginEditDraw(event));
+document.getElementById('editDrawCanvas').addEventListener('pointermove', event => moveEditDraw(event));
+document.getElementById('editDrawCanvas').addEventListener('pointerup', event => endEditDraw(event));
+document.getElementById('editDrawCanvas').addEventListener('pointercancel', event => endEditDraw(event));
+document.getElementById('editDrawCanvas').addEventListener('pointerleave', event => endEditDraw(event));
+document.getElementById('editTextCanvas')?.addEventListener('pointerdown', event => beginEditText(event));
+document.getElementById('editTextCanvas')?.addEventListener('pointermove', event => moveEditText(event));
+document.getElementById('editTextCanvas')?.addEventListener('pointerup', event => endEditText(event));
+document.getElementById('editTextCanvas')?.addEventListener('pointercancel', event => endEditText(event));
+document.getElementById('editTextCanvas')?.addEventListener('pointerleave', event => endEditText(event));
 document.getElementById('editTextCanvas')?.addEventListener('dblclick', event => {
     if(imageEditMode !== 'brush' || brushTool !== 'text') return;
     event.preventDefault();
@@ -750,7 +757,7 @@ document.getElementById('editTextCanvas')?.addEventListener('dblclick', event =>
 ['paintBrushSize','paintBrushColor'].forEach(id => {
     const control = document.getElementById(id);
     if(!control) return;
-    control.addEventListener('input', syncSelectedEditTextStyleFromBrush);
+    control.addEventListener('input', event => syncSelectedEditTextStyleFromBrush(event));
     control.addEventListener('change', () => { editTextDirty = false; });
 });
 ['gridHorizontalLines','gridVerticalLines','gridGapSize'].forEach(id => {
@@ -1036,9 +1043,30 @@ function syncClassicCreateMenuCommands(){
     const catalog = window.WorkbenchCanvasCommands.creationCatalogFor('classic');
     window.WorkbenchCanvasCommands.orderCreateMenuItems(buttons, catalog).forEach(button => createMenu.append(button));
 }
+function ensureNodePicker(){
+    if(nodePicker || !createMenu || !window.WorkbenchNodePicker || !window.WorkbenchCanvasCommands) return nodePicker;
+    nodePicker = window.WorkbenchNodePicker.create({
+        document, container:createMenu,
+        entries:window.WorkbenchCanvasCommands.nodePickerCatalogFor('classic'),
+        labels:{searchPlaceholder:langIsEn() ? 'Search nodes…' : '搜索节点…', searchLabel:langIsEn() ? 'Search nodes' : '搜索节点', allCategory:langIsEn() ? 'All' : '全部', empty:langIsEn() ? 'No matching nodes' : '没有匹配的节点'},
+        onSelect:entry => {
+            const type = entry.metadata.createType || entry.definition_ref.id;
+            return nodePickerMode === 'connection' ? createLinkedNode(type) : menuAdd(type);
+        },
+        refreshIcons,
+    });
+    return nodePicker;
+}
 function openCreateMenu(clientX, clientY){
     menuPoint = screenToWorld(clientX, clientY);
     closeLinkCreateMenu();
+    const picker = ensureNodePicker();
+    if(picker) {
+        nodePickerMode = 'create';
+        picker.setEntries(window.WorkbenchCanvasCommands.nodePickerCatalogFor('classic'));
+        picker.open({x:clientX, y:clientY});
+        return;
+    }
     syncClassicCreateMenuCommands();
     createMenu.style.left = `${clientX}px`;
     createMenu.style.top = `${clientY}px`;
@@ -1046,6 +1074,8 @@ function openCreateMenu(clientX, clientY){
     refreshIcons();
 }
 function closeCreateMenu(){
+    nodePicker?.close();
+    nodePickerMode = 'create';
     createMenu.classList.remove('open');
     closeLinkCreateMenu();
     closeImageNodeMenu();
@@ -1086,6 +1116,32 @@ function openLinkCreateMenu(originId, originKind, clientX, clientY){
     const options = linkCreateOptions(state);
     if(!options.length) return false;
     linkCreateState = state;
+    const picker = ensureNodePicker();
+    if(picker) {
+        const entries = window.WorkbenchCanvasCommands.nodePickerCatalogFor('classic').filter(entry => {
+            const metadata = entry.metadata || {};
+            if(!metadata.versionedConnectedCanvasKinds?.includes('classic')) return false;
+            const portType = originKind === 'out' ? metadata.inputPortType : metadata.outputPortType;
+            const source = nodes.find(node => node.id === originId) || {};
+            const sourceType = originKind === 'out'
+                ? (source.output_port_type || source.port_type || 'legacy.any')
+                : (source.input_port_type || source.port_type || 'legacy.any');
+            return window.WorkbenchCanvasPortCompatibility?.isCompatible(
+                originKind === 'out'
+                    ? {direction:'out', dataType:sourceType}
+                    : {direction:'out', dataType:portType || 'legacy.any'},
+                originKind === 'out'
+                    ? {direction:'in', dataType:portType || 'legacy.any'}
+                    : {direction:'in', dataType:sourceType},
+            ) !== false;
+        });
+        if(!entries.length) return false;
+        nodePickerMode = 'connection';
+        linkCreateMenu.classList.remove('open');
+        picker.setEntries(entries);
+        picker.open({x:clientX, y:clientY});
+        return true;
+    }
     createMenu.classList.remove('open');
     linkCreateMenu.innerHTML = options.map(opt => `<button class="menu-btn" data-link-create="${escapeAttr(opt.type)}"><i data-lucide="${escapeAttr(opt.icon)}" class="w-4 h-4"></i><span>${escapeHtml(opt.label)}</span></button>`).join('');
     linkCreateMenu.style.left = `${clientX}px`;
@@ -1197,10 +1253,14 @@ function openImageNodeMenu(nodeId, clientX, clientY){
 }
 function openImageNodePreview(nodeId){
     const node = nodes.find(n => n.id === nodeId);
-    if(!node?.url || isMissingAssetUrl(node.url)) return;
-    const kind = mediaKindForNode(node);
+    const media = window.WorkbenchMediaRenderer?.mediaItems(node)?.[0];
+    const url = node?.url || media?.url || '';
+    if(!url || isMissingAssetUrl(url)) return;
+    const kind = media
+        ? window.WorkbenchCanvasMediaKind.kindForItem({url, kind:media.mediaType, name:media.label}, {includeFlv:true})
+        : mediaKindForNode({...node, url});
     if(!['image','video'].includes(kind)) return;
-    openOutputLightbox(node.url, node);
+    openOutputLightbox(url, {...node, url});
 }
 function openOutputNodeMenu(nodeId, clientX, clientY){
     const node = nodes.find(n => n.id === nodeId);

@@ -35,19 +35,36 @@
             </div>
         </header>
 
-        <div class="asset-tabs">
-            <button id="assetTabAssets" class="active" type="button" data-tab="assets"><i data-lucide="image"></i><span>图片资产</span></button>
-            <button id="assetTabWorkflows" type="button" data-tab="workflows"><i data-lucide="workflow"></i><span>工作流管理</span></button>
-            <button id="assetTabPrompts" type="button" data-tab="prompts"><i data-lucide="text-cursor-input"></i><span>提示词库</span></button>
-            <button id="assetTabCanvasAssets" type="button" data-tab="canvas-assets"><i data-lucide="layout-dashboard"></i><span>画布资产</span></button>
-            <button id="assetTabLocal" type="button" data-tab="local"><i data-lucide="folder-open"></i><span>本地素材</span></button>
-        </div>
+        <!-- The resource category rail, unified search and resource-kind filter
+             are rendered by WorkbenchResourceLibraryShell from the page's
+             resource registry; this container is the single Resources chrome. -->
+        <div id="resourceLibraryShell" class="resource-shell" role="presentation"></div>
+
+        <!-- Canonical asset search: filter/search/paginate the project's assets
+             through the canonical Asset query API, without the Canvas and
+             without the per-category legacy tree. Rendered by the page from
+             WorkbenchAssetQueryPanel, and only while an asset-kind resource
+             category is active. -->
+        <div id="assetQueryPanel" class="asset-query-host" role="region" aria-label="资产检索"></div>
+
+        <!-- Canonical asset inspector: the selected asset's preview, metadata,
+             version history, provenance and usage, read from the canonical
+             Asset/AssetVersion store through the canonical version-history API.
+             Rendered by the page from WorkbenchAssetInspector, and only while
+             an asset from the canonical query is selected. -->
+        <div id="assetInspector" class="asset-inspector-host" role="region" aria-label="资产详情"></div>
+        <div id="artifactInspector" class="artifact-inspector-host" role="region" aria-label="产物详情"></div>
 
         <main id="assetManagerRoot" class="asset-manager-root"></main>
     </div>
 
     <input id="assetUploadInput" type="file" accept="image/*,video/*,audio/*,.json,.zip,application/json,application/zip" multiple hidden>
     <script src="/static/js/workbench/canvas/canvas-entry-compatibility.js?v=2026.09.05.1"></script>
-    <script src="/static/js/asset-manager.js?v=2026.09.05.2"></script>
+    <script src="/static/js/workbench/canvas/resource-library-shell.js?v=2026.09.13.1"></script>
+    <script src="/static/js/workbench/canvas/asset-query-panel.js?v=2026.09.13.2"></script>
+    <script src="/static/js/workbench/canvas/asset-inspector.js?v=2026.09.13.2"></script>
+    <script src="/static/js/workbench/canvas/artifact-inspector.js?v=2026.09.14.1"></script>
+    <script src="/static/js/workbench/canvas/catalog-library.js?v=2026.09.14.1"></script>
+    <script src="/static/js/asset-manager.js?v=2026.09.13.2"></script>
 </body>
 </html>

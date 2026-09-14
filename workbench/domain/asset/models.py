@@ -31,6 +31,7 @@ AssetSource = Literal[
     "local_path",  # a file that already existed on disk
     "provider",  # pulled through an external provider connection
     "import",  # brought in from another library or pack
+    "execution",  # explicitly saved from a selected Workbench result
 ]
 
 AssetType = Literal[

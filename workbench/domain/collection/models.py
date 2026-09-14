@@ -13,6 +13,7 @@ CollectionReferenceType = Literal[
     "entity_ref",
     "entity_version",
     "collection",
+    "catalog_item_version",
 ]
 # A column may also hold a produced execution result. It is a value type but
 # deliberately not a reference type: the other references point at a Workbench
@@ -24,6 +25,7 @@ CollectionValueType = Literal[
     "entity_ref",
     "entity_version",
     "collection",
+    "catalog_item_version",
     "execution_result",
     "literal",
 ]

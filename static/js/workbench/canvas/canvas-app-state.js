@@ -218,6 +218,14 @@ window.addEventListener('message', event => {
         refreshCanvasConfigFromSettings();
         if(canvas) syncRemoteCanvasNow();
     }
+    if(event.data?.type === 'artifact-materialize-request'){
+        const artifactId = String(event.data.artifact_id || '').trim();
+        const versionId = String(event.data.artifact_version_id || '').trim();
+        if(!artifactId || !versionId) return;
+        window.pendingArtifactMaterialization = Object.freeze({artifact_id:artifactId, artifact_version_id:versionId});
+        window.dispatchEvent(new CustomEvent('workbench-artifact-materialization-request', {detail:window.pendingArtifactMaterialization}));
+        if(typeof setStatus === 'function') setStatus('已接收产物物化请求，请通过正式画布创建入口确认位置');
+    }
 });
 window.addEventListener('studio-lang-change', () => {
     document.title = tr('canvas.title');
@@ -235,6 +243,10 @@ const nodesEl = document.getElementById('nodes');
 const minimap = document.getElementById('minimap');
 const minimapContent = document.getElementById('minimapContent');
 const canvasArrangeBtn = document.getElementById('canvasArrangeBtn');
+const canvasZoomOutBtn = document.getElementById('canvasZoomOutBtn');
+const canvasFitBtn = document.getElementById('canvasFitBtn');
+const canvasZoomInBtn = document.getElementById('canvasZoomInBtn');
+const canvasZoomLabel = document.getElementById('canvasZoomLabel');
 let minimapViewport = document.getElementById('minimapViewport');
 const linksEl = document.getElementById('links');
 const linkControlsEl = document.getElementById('linkControls');
@@ -336,6 +348,8 @@ let knifeNeedsRender = false;
 let selectDrag = null;
 let isRKeyDown = false;
 let menuPoint = null;
+let nodePicker = null;
+let nodePickerMode = 'create';
 let linkCreateState = null;
 let internalDrag = false;
 const selected = window.WorkbenchInteractionController.createSelectionStore();
@@ -418,6 +432,10 @@ backToManagerBtn?.addEventListener('click', () => {
     window.location.href = canvasListUrlForProject(canvas?.project || requestedCanvasListProject() || rememberedCanvasListProject());
 });
 let canvasSession = null;
+// Versioned Legacy-node adapters use the Canvas JSON updated_at cursor. Keep
+// that cursor separate from the logical revision owned by full-record CAS
+// persistence; node creation must not poison the save cursor with a timestamp.
+let canvasNodeRevision = 0;
 function ensureCanvasSession(){
     if(!canvasSession){
         canvasSession = window.WorkbenchCanvasSession.create({
@@ -435,10 +453,12 @@ function ensureCanvasSession(){
 }
 function currentCanvasRevision(){
     const state = canvasSession?.snapshot();
-    return Number(state?.revision || state?.updatedAt || canvas?.updated_at || 0);
+    return Number(canvasNodeRevision || state?.updatedAt || canvas?.updated_at || state?.revision || 0);
 }
 function adoptCanvasRevision(revision, missingFallback){
-    return ensureCanvasSession().adoptRevision(revision, missingFallback);
+    const value = Number(revision) || Number(missingFallback) || 0;
+    if(value > 0) canvasNodeRevision = value;
+    return value;
 }
 let models = {gpt:'gpt-image-2', nano:'nano-banana-pro'};
 let imageModels = ['gpt-image-2', 'nano-banana-pro'];
@@ -1124,6 +1144,7 @@ function screenToWorld(clientX, clientY){
 }
 function applyViewport(){
     world.style.transform = `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`;
+    if(canvasZoomLabel) canvasZoomLabel.textContent = `${Math.round(viewport.scale * 100)}%`;
     applyCanvasNodeShellSemanticZoom();
     scheduleMinimapViewportUpdate();
     scheduleCanvasImageResolutionSync(nodesEl, 120);
@@ -1304,6 +1325,24 @@ function centerViewportOnWorldPoint(point){
 function safeViewportScale(value){
     const n = Number(value);
     return Number.isFinite(n) && n > 0 ? n : 1;
+}
+function adjustCanvasViewportScale(factor){
+    if(!canvas || !board) return false;
+    const rect = board.getBoundingClientRect();
+    const anchor = {x:rect.width / 2, y:rect.height / 2};
+    const nextScale = Math.max(.06, Math.min(8, safeViewportScale(viewport.scale * factor)));
+    const shared = ensureCanvasViewportController().zoomAt(anchor, nextScale);
+    if(!shared){
+        const before = screenToWorld(rect.left + anchor.x, rect.top + anchor.y);
+        viewport.scale = nextScale;
+        viewport.x = anchor.x - before.x * nextScale;
+        viewport.y = anchor.y - before.y * nextScale;
+    }
+    applyViewport();
+    renderLinks();
+    renderSelectionHub();
+    scheduleViewportSave();
+    return true;
 }
 function fitAllNodesViewport(){
     const rect = board.getBoundingClientRect();

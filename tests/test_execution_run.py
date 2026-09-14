@@ -12,6 +12,7 @@ from workbench.application.execution_input_projection import ExecutionInputProje
 from workbench.application.execution_run_service import ExecutionRunService
 from workbench.application.execution_service import ExecutionService
 from workbench.domain.execution import ExecutionPolicy, ExecutionRun
+from workbench.domain.knowledge import KnowledgeSnapshot, ProjectKnowledgeContextPolicy
 from workbench.domain.project.models import ProjectRecord
 from workbench.repositories.execution_run_repository import ExecutionRunRepositoryError, ExecutionRunStaleRevisionError, SqliteExecutionRunRepository
 from workbench.repositories.execution_attempt_repository import SqliteExecutionAttemptRepository
@@ -62,6 +63,32 @@ class ExecutionRunTests(unittest.TestCase):
             repository.update_status("run-1", status="failed", expected_revision=1, actor_id="owner")
         with self.assertRaises(ExecutionRunRepositoryError):
             repository.update_status("run-1", status="prepared", expected_revision=2, actor_id="owner")
+
+    def test_service_captures_knowledge_snapshot_at_run_creation(self):
+        repository = SqliteExecutionRunRepository(self.database, clock=lambda: self.now)
+        snapshot = KnowledgeSnapshot(
+            snapshot_id="knowledge-snapshot-1", project_id="project-1",
+            policy=ProjectKnowledgeContextPolicy(), generated_at=self.now,
+            captured_at=self.now,
+        )
+
+        class SnapshotReader:
+            def snapshot(self, *, project_id):
+                self.project_id = project_id
+                return snapshot
+
+        reader = SnapshotReader()
+        service = ExecutionRunService(
+            repository, actor_id="owner", id_factory=lambda: "run-with-context",
+            clock=lambda: self.now, knowledge_context_service=reader,
+        )
+        run = service.create(
+            project_id="project-1", task_id="task-1", execution_profile_ref="profile@1",
+            policy=ExecutionPolicy(), input_projection=self.projection(),
+        )
+        self.assertEqual(reader.project_id, "project-1")
+        self.assertEqual(run.knowledge_snapshot, snapshot)
+        self.assertEqual(repository.get(run.id, actor_id="owner").knowledge_snapshot, snapshot)
 
     def test_api_create_list_get_and_status_survive_reopen(self):
         def service_factory(actor_id):

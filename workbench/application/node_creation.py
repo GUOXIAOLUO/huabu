@@ -5,7 +5,8 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, Callable, Protocol
 
-from workbench.domain.canvas.models import DefinitionRef, ModelBinding, NodeRecord, Position, RendererRef, Size
+from workbench.domain.asset import AssetVersionRef
+from workbench.domain.canvas.models import ArtifactOrAssetVersionRef, DefinitionRef, ModelBinding, NodeRecord, Position, RendererRef, Size
 from workbench.domain.canvas.input_bindings import InputBindingAdapter, InputBindingValue
 from workbench.domain.canvas.port_type_registry import PortTypeRegistry, create_core_port_type_registry
 from workbench.domain.canvas.ports import PortSet
@@ -22,6 +23,7 @@ class NodeCreationSource(StrEnum):
     WORKFLOW_IMPORT = "workflow_import"
     AGENT_PROPOSAL = "agent_proposal"
     RESULT_MATERIALIZATION = "result_materialization"
+    ASSET_REFERENCE_DRAG = "asset_reference_drag"
     LEGACY = "legacy"
 
 
@@ -43,6 +45,7 @@ class NodeCreateCommand:
     expected_revision: int | None = None
     title: str | None = None
     initial_bindings: tuple[InputBindingValue | dict[str, Any], ...] = ()
+    initial_output_refs: tuple[ArtifactOrAssetVersionRef | dict[str, Any], ...] = ()
     initial_config: dict[str, Any] | None = None
     requested_model_binding: ModelBinding | None = None
     approval_id: str | None = None
@@ -101,6 +104,14 @@ class AuditSink(Protocol):
     def append(self, event: NodeCreatedAuditEvent) -> None: ...
 
 
+class AssetVersionReferenceValidator(Protocol):
+    def validate(self, *, actor_id: str, project_id: str, reference: AssetVersionRef) -> None: ...
+
+
+class ArtifactVersionReferenceValidator(Protocol):
+    def validate(self, *, actor_id: str, project_id: str, reference: dict[str, Any]) -> None: ...
+
+
 class NodeCreationService:
     """Single creation pipeline for migrated entry paths.
 
@@ -118,6 +129,8 @@ class NodeCreationService:
         audit_sink: AuditSink,
         node_id_factory: Callable[[], str],
         port_types: PortTypeRegistry | None = None,
+        asset_reference_validator: AssetVersionReferenceValidator | None = None,
+        artifact_version_reference_validator: ArtifactVersionReferenceValidator | None = None,
         clock: Callable[[], datetime] | None = None,
     ):
         self._authorizer = authorizer
@@ -127,6 +140,8 @@ class NodeCreationService:
         self._audit_sink = audit_sink
         self._node_id_factory = node_id_factory
         self._port_types = port_types or create_core_port_type_registry()
+        self._asset_reference_validator = asset_reference_validator
+        self._artifact_version_reference_validator = artifact_version_reference_validator
         self._clock = clock or (lambda: datetime.now(UTC))
 
     def create(self, command: NodeCreateCommand) -> NodeCreationPersistence:
@@ -164,6 +179,35 @@ class NodeCreationService:
         if binding is not None and not self._model_policy.is_compatible(definition, binding):
             raise NodeCreationError("model_incompatible", "the selected model is not compatible with this definition")
 
+        if command.source is NodeCreationSource.ASSET_REFERENCE_DRAG:
+            try:
+                reference = AssetVersionRef.model_validate((command.initial_config or {}).get("asset_version_ref"))
+            except ValueError as error:
+                raise NodeCreationError("invalid_asset_reference", "a valid AssetVersionRef is required") from error
+            if self._asset_reference_validator is None:
+                raise NodeCreationError("asset_reference_unavailable", "asset reference validation is not configured")
+            try:
+                self._asset_reference_validator.validate(
+                    actor_id=command.actor_id, project_id=command.project_id, reference=reference
+                )
+            except PermissionError as error:
+                raise NodeCreationError("forbidden", "actor cannot reference this asset version") from error
+            except LookupError as error:
+                raise NodeCreationError("asset_reference_not_found", "asset version reference is unavailable") from error
+
+        artifact_reference = (command.initial_config or {}).get("artifact_version_ref")
+        if artifact_reference is not None:
+            if self._artifact_version_reference_validator is None:
+                raise NodeCreationError("artifact_reference_unavailable", "artifact version validation is not configured")
+            try:
+                self._artifact_version_reference_validator.validate(
+                    actor_id=command.actor_id, project_id=command.project_id, reference=artifact_reference
+                )
+            except PermissionError as error:
+                raise NodeCreationError("forbidden", "actor cannot reference this artifact version") from error
+            except (LookupError, ValueError, TypeError) as error:
+                raise NodeCreationError("artifact_reference_not_found", "artifact version reference is unavailable") from error
+
         timestamp = self._clock()
         node = NodeRecord(
             id=self._node_id_factory(),
@@ -178,6 +222,7 @@ class NodeCreationService:
             size=definition.default_size,
             ports=definition.ports,
             input_bindings=InputBindingAdapter.from_payloads(command.initial_bindings),
+            output_refs=[ArtifactOrAssetVersionRef.model_validate(ref) for ref in command.initial_output_refs],
             model_binding=binding,
             config=dict(command.initial_config or {}),
             provenance_ref=command.provenance_ref,

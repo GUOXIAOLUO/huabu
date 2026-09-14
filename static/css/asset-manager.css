@@ -51,6 +51,141 @@ button { border:0; cursor:pointer; }
 .asset-tabs button:hover { color:var(--text); background:var(--soft); }
 .asset-tabs button.active { background:var(--strong); color:var(--strong-text); }
 .asset-tabs svg,.asset-btn svg,.asset-icon-btn svg,.asset-row-icon svg,.detail-empty svg { width:14px; height:14px; display:block; flex:0 0 auto; }
+.resource-shell { flex:0 0 auto; }
+.catalog-manager { display:grid; grid-template-columns:minmax(190px, .75fr) minmax(320px, 1.25fr) minmax(260px, 1fr); gap:16px; padding:20px; }
+.catalog-list,.catalog-content,.catalog-inspector { min-width:0; }
+.catalog-card,.catalog-item-card,.catalog-version { display:flex; flex-direction:column; gap:5px; width:100%; padding:12px; border:1px solid var(--border-color, #e5e7eb); border-radius:10px; background:var(--panel-bg, #fff); color:inherit; text-align:left; cursor:pointer; margin-bottom:8px; }
+.catalog-card.active,.catalog-item-card.active,.catalog-version.active,.catalog-filter.active { border-color:var(--accent-color, #2563eb); box-shadow:0 0 0 1px var(--accent-color, #2563eb); }
+.catalog-card span,.catalog-item-card span,.catalog-item-card small { color:var(--muted-text, #6b7280); font-size:12px; }
+.catalog-toolbar,.catalog-filters { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+.catalog-toolbar { justify-content:space-between; font-weight:600; }
+.catalog-filter { border:1px solid var(--border-color, #e5e7eb); border-radius:999px; background:transparent; padding:6px 10px; cursor:pointer; color:inherit; }
+.catalog-item-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(170px, 1fr)); gap:10px; }
+.catalog-item-card { min-height:108px; margin:0; }
+.catalog-inspector { border-left:1px solid var(--border-color, #e5e7eb); padding-left:16px; }
+.catalog-version-list { display:flex; flex-wrap:wrap; gap:7px; margin:12px 0; }
+.catalog-version { width:auto; margin:0; padding:7px 10px; }
+.catalog-attributes { display:grid; gap:8px; margin:14px 0; }
+.catalog-attributes div { display:flex; justify-content:space-between; gap:14px; border-bottom:1px solid var(--border-color, #e5e7eb); padding-bottom:7px; }
+.catalog-attributes dt { color:var(--muted-text, #6b7280); }
+.catalog-attributes dd { margin:0; text-align:right; overflow-wrap:anywhere; }
+.catalog-drag-hint,.catalog-media-refs { color:var(--muted-text, #6b7280); font-size:12px; }
+@media (max-width: 980px) { .catalog-manager { grid-template-columns:1fr 1fr; } .catalog-inspector { grid-column:1 / -1; border-left:0; border-top:1px solid var(--border-color, #e5e7eb); padding:16px 0 0; } }
+@media (max-width: 640px) { .catalog-manager { grid-template-columns:1fr; padding:12px; } .catalog-inspector { grid-column:auto; } }
+.resource-shell-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.resource-shell-tools { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-left:auto; }
+.resource-search-wrap { display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 10px; border-radius:10px; border:1px solid var(--line); background:var(--panel); color:var(--muted); }
+.resource-search-wrap svg { width:14px; height:14px; display:block; flex:0 0 auto; }
+.resource-search { width:150px; border:0; outline:0; background:transparent; color:var(--text); font-size:11.5px; font-weight:750; }
+.resource-search::placeholder { color:var(--faint); }
+.resource-filters { display:flex; align-items:center; gap:4px; padding:4px; border-radius:13px; background:var(--panel); border:1px solid rgba(148,163,184,.22); }
+.resource-filter { height:26px; padding:0 10px; border-radius:8px; background:transparent; color:var(--muted); font-size:11px; font-weight:850; }
+.resource-filter:hover { color:var(--text); background:var(--soft); }
+.resource-filter.active { background:var(--strong); color:var(--strong-text); }
+/* Canonical asset search surface (#assetQueryPanel). Sits between the Resources
+   chrome and the manager root; it is the only place a user searches assets by
+   type/source/tag/metadata without going through the Canvas. */
+.asset-query-host { flex:0 0 auto; }
+.asset-query { border:1px solid rgba(148,163,184,.2); border-radius:16px; background:var(--panel); box-shadow:0 10px 28px var(--shadow); backdrop-filter:blur(18px); padding:12px; display:flex; flex-direction:column; gap:10px; }
+.asset-query-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.asset-query-title strong { display:block; color:var(--text); font-size:13px; line-height:1.2; font-weight:900; }
+.asset-query-title span { display:block; margin-top:3px; color:var(--faint); font-size:10.5px; line-height:1.2; font-weight:750; }
+.asset-query-filters { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.asset-query-chip-row { display:flex; align-items:center; gap:4px; padding:4px; border-radius:13px; background:var(--soft); border:1px solid rgba(148,163,184,.22); }
+.asset-query-chip { height:26px; padding:0 10px; border-radius:8px; background:transparent; color:var(--muted); font-size:11px; font-weight:850; }
+.asset-query-chip:hover { color:var(--text); background:var(--card); }
+.asset-query-chip.active { background:var(--strong); color:var(--strong-text); }
+.asset-query-tags { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.asset-query-tag { height:24px; padding:0 8px; border-radius:8px; background:var(--soft-2); color:var(--text); display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:800; }
+.asset-query-tag:hover { color:var(--danger); }
+.asset-query-tag svg { width:12px; height:12px; display:block; }
+.asset-query-body { max-height:236px; overflow:auto; }
+.asset-query-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px; }
+.asset-query-row { display:flex; }
+.asset-query-row-btn { flex:1; min-width:0; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 10px; border-radius:10px; background:var(--card); border:1px solid var(--line); color:inherit; text-align:left; cursor:pointer; }
+.asset-query-row-btn:hover { border-color:var(--strong); }
+.asset-query-row.active .asset-query-row-btn { border-color:var(--strong); box-shadow:0 0 0 2px rgba(148,163,184,.22); }
+.asset-query-row-main { min-width:0; display:flex; align-items:baseline; gap:8px; }
+.asset-query-row-main strong { color:var(--text); font-size:11.5px; font-weight:850; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.asset-query-row-id { color:var(--faint); font-size:10.5px; font-weight:750; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.asset-query-row-meta { display:flex; align-items:center; gap:5px; flex-wrap:wrap; justify-content:flex-end; }
+.asset-query-badge { height:22px; padding:0 8px; border-radius:7px; background:var(--strong); color:var(--strong-text); display:inline-flex; align-items:center; font-size:10.5px; font-weight:850; }
+.asset-query-badge.soft { background:var(--soft); color:var(--muted); }
+.asset-query-note { padding:12px; border-radius:10px; background:var(--soft); color:var(--muted); font-size:11.5px; font-weight:750; text-align:center; }
+.asset-query-note.danger { background:rgba(220,38,38,.08); color:var(--danger); }
+.asset-query-pager { display:flex; align-items:center; gap:8px; justify-content:flex-end; }
+.asset-query-range { margin-right:auto; color:var(--muted); font-size:11px; font-weight:800; }
+.asset-query-size { display:inline-flex; align-items:center; gap:6px; height:30px; padding:0 8px; border-radius:9px; border:1px solid var(--line); background:var(--card); color:var(--muted); }
+.asset-query-size svg { width:14px; height:14px; display:block; }
+.asset-query-size select { border:0; outline:0; background:transparent; color:var(--text); font-size:11px; font-weight:800; }
+/* Canonical asset inspector surface (#assetInspector). Sits between the search
+   surface and the manager root; it is the only place one canonical Asset's
+   versions, provenance and preview are shown without going through the Canvas. */
+.asset-inspector-host { flex:0 0 auto; }
+.asset-inspector { border:1px solid rgba(148,163,184,.2); border-radius:16px; background:var(--panel); box-shadow:0 10px 28px var(--shadow); backdrop-filter:blur(18px); padding:12px; display:flex; flex-direction:column; gap:10px; }
+.asset-inspector-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.asset-inspector-title strong { display:block; color:var(--text); font-size:13px; line-height:1.2; font-weight:900; }
+.asset-inspector-title span { display:block; margin-top:3px; color:var(--faint); font-size:10.5px; font-weight:750; }
+.asset-inspector-badges { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+.asset-inspector-badge { height:22px; padding:0 8px; border-radius:7px; background:var(--strong); color:var(--strong-text); display:inline-flex; align-items:center; font-size:10.5px; font-weight:850; }
+.asset-inspector-badge.soft { background:var(--soft); color:var(--muted); }
+.asset-inspector-preview { position:relative; border-radius:12px; border:1px solid var(--line); background:var(--soft); min-height:96px; display:flex; align-items:center; justify-content:center; overflow:hidden; cursor:grab; }
+.asset-inspector-preview.file { gap:8px; padding:12px; color:var(--muted); font-size:11px; font-weight:750; }
+.asset-inspector-media { max-width:100%; max-height:220px; display:block; }
+.asset-inspector-preview-kind { position:absolute; right:8px; bottom:8px; height:20px; padding:0 7px; border-radius:6px; background:rgba(15,23,42,.62); color:#fff; display:inline-flex; align-items:center; font-size:10px; font-weight:800; }
+.asset-inspector-preview.file .asset-inspector-preview-kind { position:static; background:var(--soft-2); color:var(--muted); }
+.asset-inspector-location { min-width:0; word-break:break-all; }
+.asset-inspector-preview-empty { padding:18px; border-radius:12px; border:1px dashed var(--line); background:var(--soft); color:var(--muted); font-size:11.5px; font-weight:750; text-align:center; }
+.asset-inspector-section h4 { margin:0 0 6px; color:var(--muted); font-size:10.5px; font-weight:900; letter-spacing:.04em; }
+.asset-inspector-meta { margin:0; display:flex; flex-direction:column; gap:3px; }
+.asset-inspector-meta > div { display:flex; align-items:baseline; gap:8px; }
+.asset-inspector-meta dt { flex:0 0 72px; color:var(--faint); font-size:10.5px; font-weight:800; }
+.asset-inspector-meta dd { margin:0; min-width:0; color:var(--text); font-size:11px; font-weight:750; word-break:break-all; }
+.asset-inspector-versions { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px; }
+.asset-inspector-version-btn { width:100%; display:flex; flex-direction:column; gap:4px; padding:7px 10px; border-radius:10px; background:var(--card); border:1px solid var(--line); color:inherit; text-align:left; cursor:pointer; }
+.asset-inspector-version.active .asset-inspector-version-btn { border-color:var(--strong); box-shadow:0 0 0 2px rgba(148,163,184,.22); }
+.asset-inspector-version-head { display:flex; align-items:baseline; gap:7px; }
+.asset-inspector-version-head strong { color:var(--text); font-size:11.5px; font-weight:900; }
+.asset-inspector-current { height:18px; padding:0 6px; border-radius:6px; background:var(--strong); color:var(--strong-text); display:inline-flex; align-items:center; font-size:9.5px; font-weight:900; }
+.asset-inspector-version-time { margin-left:auto; color:var(--faint); font-size:10px; font-weight:750; }
+.asset-inspector-version-facts { display:flex; align-items:center; gap:8px; flex-wrap:wrap; color:var(--muted); font-size:10.5px; font-weight:750; }
+.asset-inspector-checksum { color:var(--faint); font-size:10px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; word-break:break-all; }
+.asset-inspector-usage { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px; }
+.asset-inspector-usage-item { display:flex; align-items:center; gap:7px; padding:5px 8px; border-radius:9px; background:var(--soft); }
+.asset-inspector-usage-label { color:var(--text); font-size:11px; font-weight:800; }
+.asset-inspector-usage-id { margin-left:auto; color:var(--faint); font-size:10px; font-weight:750; }
+.asset-inspector-note { margin:0; padding:10px; border-radius:10px; background:var(--soft); color:var(--muted); font-size:11.5px; font-weight:750; text-align:center; }
+.asset-inspector-note.muted { background:var(--soft-2); color:var(--faint); }
+.asset-inspector-note.danger { background:rgba(220,38,38,.08); color:var(--danger); }
+.asset-inspector-actions { display:flex; align-items:center; gap:8px; justify-content:flex-end; }
+.artifact-inspector-host { flex:0 0 auto; }
+.artifact-inspector { border:1px solid rgba(148,163,184,.2); border-radius:16px; background:var(--panel); box-shadow:0 10px 28px var(--shadow); padding:12px; display:flex; flex-direction:column; gap:12px; }
+.artifact-inspector header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.artifact-inspector header strong { display:block; color:var(--text); font-size:13px; }
+.artifact-inspector header span { display:block; margin-top:3px; color:var(--faint); font-size:10px; }
+.artifact-inspector-badge, .artifact-inspector-current { display:inline-flex; align-items:center; height:20px; padding:0 7px; border-radius:6px; background:var(--strong); color:var(--strong-text); font-size:10px; font-weight:850; }
+.artifact-inspector-current-preview { display:flex; justify-content:space-between; padding:10px; border-radius:10px; background:var(--soft); color:var(--text); font-size:11px; }
+.artifact-inspector-current-preview span { color:var(--muted); }
+.artifact-inspector h4 { margin:0 0 6px; color:var(--muted); font-size:10.5px; }
+.artifact-inspector-versions { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:5px; }
+.artifact-inspector-version { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 8px; align-items:center; }
+.artifact-inspector-version-btn { min-width:0; display:flex; align-items:center; gap:7px; padding:7px 9px; border:1px solid var(--line); border-radius:9px; background:var(--card); color:var(--text); text-align:left; cursor:pointer; }
+.artifact-inspector-version.active .artifact-inspector-version-btn { border-color:var(--strong); }
+.artifact-inspector-version-btn span { color:var(--faint); font-size:10px; margin-left:auto; }
+.artifact-inspector-version-btn small { grid-column:1 / -1; color:var(--muted); font-size:9.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.artifact-inspector-compare { border:1px solid var(--line); border-radius:7px; background:var(--soft); color:var(--muted); padding:5px 7px; cursor:pointer; font-size:10px; }
+.artifact-inspector-compare.active { background:var(--strong); color:var(--strong-text); }
+.artifact-inspector-lineage { grid-column:1 / -1; color:var(--faint); font-size:9.5px; padding-left:9px; }
+.artifact-inspector-meta { margin:0; display:flex; flex-direction:column; gap:3px; }
+.artifact-inspector-meta > div { display:flex; gap:8px; }
+.artifact-inspector-meta dt { flex:0 0 52px; color:var(--faint); font-size:10px; }
+.artifact-inspector-meta dd { margin:0; color:var(--text); font-size:10.5px; word-break:break-all; }
+.artifact-inspector-compare-panel { padding-top:8px; border-top:1px solid var(--line); }
+.artifact-inspector-compare-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.artifact-inspector-compare-grid > div { padding:8px; border-radius:9px; background:var(--soft); }
+.artifact-inspector-actions { display:flex; justify-content:flex-end; gap:8px; }
+.artifact-inspector-actions button { border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--text); padding:6px 9px; font-size:10.5px; cursor:pointer; }
+.artifact-inspector-actions button:disabled { opacity:.45; cursor:not-allowed; }
 .asset-manager-root { min-height:0; flex:1; display:grid; grid-template-columns:360px minmax(640px, 1fr) 360px; gap:14px; }
 .asset-panel { min-height:0; border:1px solid rgba(148,163,184,.2); border-radius:16px; background:var(--panel); box-shadow:0 10px 28px var(--shadow); backdrop-filter:blur(18px); overflow:hidden; }
 .asset-nav { display:flex; flex-direction:column; }

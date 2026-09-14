@@ -35,6 +35,7 @@
         let sortKey = '';
         let sortDirection = 'asc';
         let dirty = false;
+        let selectedRowId = text(settings.selectedRowId);
 
         function markDirty() {
             dirty = true;
@@ -60,7 +61,7 @@
             return Object.freeze({
                 nodeId: text(node.id), collection: Object.freeze(clone(working)),
                 columns: Object.freeze(clone(working.schema.columns)), rows: Object.freeze(clone(visibleRows())),
-                filterText, sortKey, sortDirection, dirty,
+                filterText, sortKey, sortDirection, dirty, selectedRowId,
             });
         }
 
@@ -121,6 +122,13 @@
 
         function setFilter(value) { filterText = text(value); return snapshot(); }
         function sortBy(columnKey, direction = 'asc') { if (columnKey) columnFor(columnKey); sortKey = text(columnKey); sortDirection = direction === 'desc' ? 'desc' : 'asc'; return snapshot(); }
+        function selectRow(rowId) {
+            const id = text(rowId);
+            rowFor(id);
+            selectedRowId = id;
+            settings.onSelectRow?.(rowId, snapshot());
+            return snapshot();
+        }
         function save() {
             if (!dirty) return snapshot();
             if (typeof settings.persist !== 'function') throw new Error('collection workspace persistence is unavailable');
@@ -148,7 +156,7 @@
             return global.WorkbenchBindingTable.projectRow(row, working.schema, options);
         }
 
-        return Object.freeze({snapshot, setCell, addRow, addColumn, setFilter, sortBy, save, discard, bindingProjection, rowBindings});
+        return Object.freeze({snapshot, setCell, addRow, addColumn, setFilter, sortBy, selectRow, save, discard, bindingProjection, rowBindings});
     }
 
     function mount(host, workspace, options) {
@@ -210,7 +218,7 @@
             state.columns.forEach(column => { const cell = documentRef.createElement('th'); cell.textContent = column.label; cell.dataset.columnKey = column.key; cell.addEventListener('click', () => { workspace.sortBy(column.key, state.sortKey === column.key && state.sortDirection === 'asc' ? 'desc' : 'asc'); render(); }); headRow.append(cell); });
             head.append(headRow); table.append(head);
             const body = documentRef.createElement('tbody');
-            state.rows.forEach(row => { const rowElement = documentRef.createElement('tr'); state.columns.forEach(column => { const cell = documentRef.createElement('td'); const input = documentRef.createElement('input'); const value = row.values?.[column.key]; input.value = value?.type === 'literal' ? String(value.value ?? '') : String(value?.reference_id ?? ''); input.dataset.rowId = row.id; input.dataset.columnKey = column.key; input.addEventListener('change', () => { workspace.setCell(row.id, column.key, column.value_type === 'literal' ? input.value : {type:'reference', reference_type:column.value_type, reference_id:input.value}); render(); }); cell.append(input); rowElement.append(cell); }); body.append(rowElement); });
+            state.rows.forEach(row => { const rowElement = documentRef.createElement('tr'); rowElement.dataset.rowId = row.id; rowElement.setAttribute('aria-selected', String(row.id === state.selectedRowId)); if (row.id === state.selectedRowId) rowElement.className = 'is-selected'; rowElement.addEventListener('click', () => { workspace.selectRow(row.id); render(); }); state.columns.forEach(column => { const cell = documentRef.createElement('td'); const input = documentRef.createElement('input'); const value = row.values?.[column.key]; input.value = value?.type === 'literal' ? String(value.value ?? '') : String(value?.reference_id ?? ''); input.dataset.rowId = row.id; input.dataset.columnKey = column.key; input.addEventListener('click', event => event.stopPropagation()); input.addEventListener('change', () => { workspace.setCell(row.id, column.key, column.value_type === 'literal' ? input.value : {type:'reference', reference_type:column.value_type, reference_id:input.value}); render(); }); cell.append(input); rowElement.append(cell); }); body.append(rowElement); });
             table.append(body); root.append(toolbar, table); host.replaceChildren(root);
         };
         render();

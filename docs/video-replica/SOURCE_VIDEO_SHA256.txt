@@ -1,0 +1,2 @@
+fa104210a78c41d4d30c2f89e240608c505fa1fa6cd47850c83cb6097bbc19cc  /mnt/data/全新AI系统，无限画布，批量生成卖点图，兼容所有API平台，支持Seedance_minimax，modelscope免费生成，支持自定义comfyui节点.mp4
+3bfa609947b086890c33211ceb836c3f98301c5bb97ea3a04685ae4ce2438f07  /mnt/data/DX-OS第二集：最适合普通人的AI系统，无限画布和ComfyUI详细使用教程，AI操作系统，skill_MCP (1).mp4

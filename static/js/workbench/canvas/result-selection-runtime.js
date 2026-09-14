@@ -247,7 +247,19 @@
 
         function rowHtml(record) {
             const rating = record.rating == null ? '' : String(record.rating);
-            return `<li class="result-selection__row" data-selection-attempt="${escapeHtml(record.attempt_id)}" data-selection-output="${escapeHtml(record.output_name)}" data-selection-ordinal="${escapeHtml(record.ordinal)}" data-selection-selected="${record.selected}" data-selection-favorite="${record.favorite}" data-selection-rating="${escapeHtml(rating)}"><span class="result-selection__output">${escapeHtml(record.output_name)}</span><span class="result-selection__comment">${escapeHtml(record.comment)}</span></li>`;
+            const saveAction = record.selected
+                ? `<button type="button" class="result-selection__save-asset" data-result-save-asset="${escapeHtml(indexKey(record))}">Save as asset</button>`
+                : '';
+            return `<li class="result-selection__row" data-selection-attempt="${escapeHtml(record.attempt_id)}" data-selection-output="${escapeHtml(record.output_name)}" data-selection-ordinal="${escapeHtml(record.ordinal)}" data-selection-selected="${record.selected}" data-selection-favorite="${record.favorite}" data-selection-rating="${escapeHtml(rating)}"><span class="result-selection__output">${escapeHtml(record.output_name)}</span><span class="result-selection__comment">${escapeHtml(record.comment)}</span>${saveAction}</li>`;
+        }
+
+        function handleClick(event) {
+            const button = event?.target?.closest?.('[data-result-save-asset]');
+            if (!button || typeof settings.onSaveAsAsset !== 'function') return;
+            const key = button.getAttribute('data-result-save-asset');
+            const record = snapshot().records.find(entry => indexKey(entry) === key);
+            if (!record || !record.selected) return;
+            settings.onSaveAsAsset(clone(record));
         }
 
         function render() {
@@ -261,9 +273,12 @@
         function mount(target) {
             if (!target) throw new TypeError('Result selection requires a host');
             host = target;
+            host.addEventListener?.('click', handleClick);
             render();
-            return Object.freeze({element: host, snapshot, preferenceFor, setPreference, clearPreference, pending, hydrate, markSaved, destroy: () => { host.innerHTML = ''; host.removeAttribute('data-result-selection'); host = null; }});
+            return Object.freeze({element: host, snapshot, preferenceFor, setPreference, clearPreference, pending, hydrate, markSaved, destroy: () => { host.removeEventListener?.('click', handleClick); host.innerHTML = ''; host.removeAttribute('data-result-selection'); host = null; }});
         }
+
+        if (Array.isArray(settings.records)) hydrate(settings.records);
 
         return Object.freeze({
             snapshot, preferenceFor, setPreference, clearPreference, pending, hydrate, markSaved, mount,

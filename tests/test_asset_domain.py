@@ -96,7 +96,7 @@ class AssetDomainTests(unittest.TestCase):
 
     # ------------------------------------------------------- closed sets
     def test_closed_sets_are_pinned(self):
-        self.assertEqual(get_args(AssetSource), ("upload", "url", "local_path", "provider", "import"))
+        self.assertEqual(get_args(AssetSource), ("upload", "url", "local_path", "provider", "import", "execution"))
         self.assertEqual(get_args(AssetType), ("image", "video", "audio", "document", "model", "workflow", "other"))
         self.assertEqual(get_args(AssetStatus), ("draft", "ready", "archived"))
 

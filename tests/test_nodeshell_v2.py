@@ -8,6 +8,33 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class NodeShellV2Tests(unittest.TestCase):
+    def test_task_presentation_is_the_only_selector_mount_owner(self):
+        source_path = ROOT / "static/js/workbench/canvas/node-shell.js"
+        script = f"""
+const fs = require('fs'); const vm = require('vm');
+const makeElement = tag => {{
+  const el = {{tagName: tag.toUpperCase(), children: [], dataset: {{}}, listeners: {{}}, className:'', textContent:'', hidden:false,
+    append(...items) {{ this.children.push(...items); }}, replaceChildren(...items) {{ this.children = items; }},
+    addEventListener(type, cb) {{ (this.listeners[type] = this.listeners[type] || []).push(cb); }},
+    setAttribute(name, value) {{ this['attr_' + name] = String(value); }},
+    classList: {{toggle(){{}}, add(){{}}, remove(){{}}}}, remove() {{ this.removed = true; }}, closest() {{ return null; }} }};
+  return el;
+}};
+const documentRef = {{createElement: makeElement}}; const counts = {{skill:0, model:0, task:0}};
+const sandbox = {{window: {{document: documentRef, WorkbenchCanvas: {{STATES: ['ready']}},
+  WorkbenchTaskRichNode: {{compatible: node => node?.type === 'task', create: () => ({{
+    mountSkillSelector: () => {{ counts.skill++; }}, mountModelSelector: () => {{ counts.model++; }},
+    mountTaskPresentation: () => {{ counts.task++; return {{destroy(){{}}}}; }}, destroy(){{}},
+  }})}}
+}}}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(source_path))}, 'utf8'), sandbox);
+sandbox.window.WorkbenchNodeShell.create({{document: documentRef, node: {{id:'task-1', type:'task', title:'Task', state:'ready'}},
+  taskNode: {{id:'task-1', type:'task'}}, taskPresentationOptions: {{}}, skillSelectorOptions: {{registry: {{}}}}, modelSelectorOptions: {{availabilities: []}}}});
+console.log(JSON.stringify(counts));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, capture_output=True, text=True)
+        self.assertEqual(json.loads(result.stdout), {"skill": 0, "model": 0, "task": 1})
+
     def test_contract_exposes_generic_slots_and_intents_without_provider_logic(self):
         source_path = ROOT / "static/js/workbench/canvas/node-shell.js"
         source = source_path.read_text(encoding="utf-8")

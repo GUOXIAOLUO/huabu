@@ -28,11 +28,22 @@ They preserve architecture intent and decomposition:
 
 ## Activation
 
-After the previous card is reviewed and moved out of `active/`:
+Activation is a **manual bookkeeping edit**. There is no activation script;
+`scripts/agent-activate-task.sh` was retired on 2026-09-13.
 
-```bash
-./scripts/agent-activate-task.sh R5-01
-```
+After the previous card has passed independent Review and been moved to `done/`,
+activate exactly one dependency-satisfied card by editing, in the same change:
 
-This only activates the card.
-It does **not** run Codex or ZCode.
+1. the card's own `Status:` header →
+   `ACTIVE — dependency satisfied; implementation not started`
+   (the card **stays in `backlog/`**);
+2. `AGENT_NEXT_TASK.md` — `Active Task`, `Task Card`, `Status`, `Depends on`, and
+   the archived-through range;
+3. `docs/tasks/TASK_INDEX.md` — the card's row.
+
+`docs/tasks/README.md` → *Moving Cards* is the authoritative statement of this
+flow, and `tests/test_current_fact_documentation.py` pins the pointer and the
+index rows so the three files cannot drift apart silently.
+
+Activating a card only records *which* card is next.
+It does **not** authorize implementation, and does **not** run Codex or ZCode.

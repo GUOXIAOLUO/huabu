@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import Callable
+from typing import Callable, Protocol
 
 from workbench.application.execution_input_projection import ExecutionInputProjection
 from workbench.domain.execution import ExecutionPolicy, ExecutionRun, ExecutionRunStatus
 from workbench.repositories.execution_run_repository import ExecutionRunInvalidTransitionError, ExecutionRunNotFoundError, ExecutionRunRepository, ExecutionRunStaleRevisionError
+
+
+class KnowledgeSnapshotReader(Protocol):
+    def snapshot(self, *, project_id: str): ...
 
 
 class ExecutionRunServiceError(ValueError):
@@ -23,14 +27,16 @@ class ExecutionRunNotFoundServiceError(ExecutionRunServiceError):
 
 
 class ExecutionRunService:
-    def __init__(self, repository: ExecutionRunRepository, *, actor_id: str, id_factory: Callable[[], str] | None = None, clock: Callable[[], datetime] | None = None):
+    def __init__(self, repository: ExecutionRunRepository, *, actor_id: str, id_factory: Callable[[], str] | None = None, clock: Callable[[], datetime] | None = None, knowledge_context_service: KnowledgeSnapshotReader | None = None):
         self._repository = repository
         self._actor_id = actor_id
         self._id_factory = id_factory or (lambda: uuid.uuid4().hex)
         self._clock = clock or (lambda: datetime.now(UTC))
+        self._knowledge_context_service = knowledge_context_service
 
     def create(self, *, project_id: str, task_id: str, execution_profile_ref: str, policy: ExecutionPolicy, input_projection: ExecutionInputProjection, summary: dict[str, object] | None = None) -> ExecutionRun:
-        run = ExecutionRun(id=self._id_factory(), project_id=project_id, task_id=task_id, execution_profile_ref=execution_profile_ref, policy=policy, input_projection=input_projection, created_at=self._clock(), summary=summary or {})
+        knowledge_snapshot = self._knowledge_context_service.snapshot(project_id=project_id) if self._knowledge_context_service else None
+        run = ExecutionRun(id=self._id_factory(), project_id=project_id, task_id=task_id, execution_profile_ref=execution_profile_ref, policy=policy, input_projection=input_projection, knowledge_snapshot=knowledge_snapshot, created_at=self._clock(), summary=summary or {})
         return self._repository.create(run, actor_id=self._actor_id)
 
     def get(self, run_id: str) -> ExecutionRun:

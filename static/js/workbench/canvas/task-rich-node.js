@@ -5,10 +5,10 @@
 
     const PRESENTATIONS = Object.freeze(['card', 'expanded', 'workspace', 'inspector']);
     const DEFAULT_STATE = Object.freeze({
-        status: 'draft', inputs: [], definition: null, skill: null, skillBinding: null, modelSelection: null, presentation: 'card',
+        status: 'draft', inputs: [], definition: null, skill: null, skillBinding: null, modelSelection: null, prompt: '', outputMode: 'text', presentation: 'card',
         workspace: null, inspector: null,
     });
-    const PERSISTED_KEYS = Object.freeze(['status', 'inputs', 'definition', 'skill', 'skillBinding', 'modelSelection', 'presentation', 'workspace', 'inspector']);
+    const PERSISTED_KEYS = Object.freeze(['status', 'inputs', 'definition', 'skill', 'skillBinding', 'modelSelection', 'prompt', 'outputMode', 'presentation', 'workspace', 'inspector']);
 
     function text(value, fallback = '') {
         const normalized = String(value ?? '').trim();
@@ -36,6 +36,8 @@
             skill: value.skill == null ? null : text(value.skill),
             skillBinding: value.skillBinding && typeof value.skillBinding === 'object' ? Object.freeze({...value.skillBinding, parameters: value.skillBinding.parameters && typeof value.skillBinding.parameters === 'object' ? Object.freeze({...value.skillBinding.parameters}) : {}}) : null,
             modelSelection: value.modelSelection && typeof value.modelSelection === 'object' ? Object.freeze({selection: value.modelSelection.selection && typeof value.modelSelection.selection === 'object' ? Object.freeze({...value.modelSelection.selection}) : null, resolved: value.modelSelection.resolved && typeof value.modelSelection.resolved === 'object' ? Object.freeze({...value.modelSelection.resolved}) : null}) : null,
+            prompt: value.prompt == null ? '' : text(value.prompt),
+            outputMode: ['text', 'list', 'structured'].includes(value.outputMode) ? value.outputMode : 'text',
             presentation: PRESENTATIONS.includes(value.presentation) ? value.presentation : 'card',
             workspace: value.workspace == null ? null : text(value.workspace),
             inspector: value.inspector == null ? null : text(value.inspector),
@@ -64,7 +66,7 @@
             return Object.freeze({
                 nodeId: text(node.id), title: text(node.title, 'Task'), kind: 'task',
                 presentation: text(state.presentation, 'card'),
-                fields: Object.freeze({status: state.status, inputs: Object.freeze(state.inputs.slice()), definition: state.definition, skill: state.skill, skillBinding: state.skillBinding, modelSelection: state.modelSelection, workspace: state.workspace, inspector: state.inspector}),
+                fields: Object.freeze({status: state.status, inputs: Object.freeze(state.inputs.slice()), definition: state.definition, skill: state.skill, skillBinding: state.skillBinding, modelSelection: state.modelSelection, prompt: state.prompt, outputMode: state.outputMode, workspace: state.workspace, inspector: state.inspector}),
                 legacyCompatible: node.type === 'task',
             });
         }
@@ -82,11 +84,24 @@
             if (typeof settings.onChange === 'function') settings.onChange(snapshot());
             return snapshot();
         }
+        function currentState() {
+            return Object.freeze({...state, presentation: presentationController?.state() || state.presentation, inputs: Object.freeze(state.inputs.slice())});
+        }
         function mountSkillSelector(host, options) {
             if (!global.WorkbenchSkillSelector) throw new Error('Task Skill selector is unavailable');
             const settings = options || {};
             const selector = global.WorkbenchSkillSelector.create({...settings, task: {update}});
             return selector.mount(host, settings);
+        }
+        function mountTaskPresentation(host, options) {
+            if (!global.WorkbenchTaskCardPresentation) throw new Error('Task card presentation is unavailable');
+            const settings = options || {};
+            return global.WorkbenchTaskCardPresentation.create({...settings, task: {
+                state: currentState,
+                update,
+                mountSkillSelector,
+                mountModelSelector,
+            }}).mount(host);
         }
         function mountSkillPresentation(host, options) {
             if (!global.WorkbenchSkillDrivenPresentation) throw new Error('Task Skill presentation is unavailable');
@@ -115,6 +130,10 @@
             if (!global.WorkbenchCanvasResultCompare) throw new Error('Task result compare is unavailable');
             return global.WorkbenchCanvasResultCompare.create(options || {}).mount(host);
         }
+        function mountResultSelection(host, options) {
+            if (!global.WorkbenchCanvasResultSelection) throw new Error('Task result selection is unavailable');
+            return global.WorkbenchCanvasResultSelection.create(options || {}).mount(host);
+        }
         function mountExecutionBranch(host, options) {
             if (!global.WorkbenchCanvasExecutionBranch) throw new Error('Task execution branch is unavailable');
             return global.WorkbenchCanvasExecutionBranch.create(options || {}).mount(host);
@@ -127,9 +146,13 @@
             if (!global.WorkbenchCanvasResultMaterialization) throw new Error('Task result materialization is unavailable');
             return global.WorkbenchCanvasResultMaterialization.create(options || {}).mount(host);
         }
+        function mountResultWorkspace(host, options) {
+            if (!global.WorkbenchCanvasResultWorkspace) throw new Error('Task result workspace is unavailable');
+            return global.WorkbenchCanvasResultWorkspace.create(options || {}).mount(host);
+        }
         return Object.freeze({
-            presentations: PRESENTATIONS, snapshot, update, mountSkillSelector, mountSkillPresentation, mountSkillInspector, mountModelSelector, mountExecutionInputPreview, mountResultTray, mountResultCompare, mountExecutionBranch, mountResultCollection, mountResultMaterialization,
-            state: () => Object.freeze({...state, presentation: presentationController?.state() || state.presentation, inputs: Object.freeze(state.inputs.slice())}),
+            presentations: PRESENTATIONS, snapshot, update, mountTaskPresentation, mountSkillSelector, mountSkillPresentation, mountSkillInspector, mountModelSelector, mountExecutionInputPreview, mountResultTray, mountResultCompare, mountResultSelection, mountExecutionBranch, mountResultCollection, mountResultMaterialization, mountResultWorkspace,
+            state: currentState,
         });
     }
 

@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from workbench.domain.execution.input_projection import ExecutionInputProjection
 from workbench.domain.execution.policy import ExecutionPolicy
 from workbench.domain.value_types import OpaqueId, assert_safe_metadata, freeze_value
+from workbench.domain.knowledge import KnowledgeSnapshot
 
 
 EXECUTION_RUN_SCHEMA_VERSION = "workbench.execution-run/1"
@@ -32,6 +33,7 @@ class ExecutionRun(BaseModel):
     execution_profile_ref: OpaqueId
     policy: ExecutionPolicy
     input_projection: ExecutionInputProjection
+    knowledge_snapshot: KnowledgeSnapshot | None = None
     status: ExecutionRunStatus = "prepared"
     created_at: datetime
     started_at: datetime | None = None

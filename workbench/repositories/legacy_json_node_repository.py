@@ -90,6 +90,15 @@ class LegacyJsonNodeCreationRepository:
                         "url": str(node.config.get("url") or ""),
                         "mediaKind": str(node.config.get("mediaKind") or "image"),
                     })
+                asset_ref = node.config.get("asset_version_ref")
+                if isinstance(asset_ref, dict) and asset_ref.get("asset_id") and asset_ref.get("version_id"):
+                    # The Legacy payload remains the compatibility persistence
+                    # shape, but the reference itself is canonical identity;
+                    # never flatten it into a URL or copy content.
+                    payload["assetVersionRef"] = {
+                        "asset_id": str(asset_ref["asset_id"]),
+                        "version_id": str(asset_ref["version_id"]),
+                    }
             elif definition_id == "output":
                 payload["images"] = []
             elif definition_id == "collection":

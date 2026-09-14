@@ -19,5 +19,16 @@
         return Object.freeze({from, to, fromPort:'out', toPort:'in'});
     }
 
-    global.WorkbenchCanvasGraphInteraction = Object.freeze({endpoint, edgeIntentFromPortDrop});
+    function edgePresentationClass(options) {
+        const settings = options && typeof options === 'object' ? options : {};
+        const from = settings.fromNode && typeof settings.fromNode === 'object' ? settings.fromNode : {};
+        const to = settings.toNode && typeof settings.toNode === 'object' ? settings.toNode : {};
+        const classes = ['link'];
+        if (settings.hovered) classes.push('link-hover');
+        if (settings.selected) classes.push('link-active');
+        if ([from, to].some(node => node.state === 'running' || node.running === true)) classes.push('link-running');
+        return classes.join(' ');
+    }
+
+    global.WorkbenchCanvasGraphInteraction = Object.freeze({endpoint, edgeIntentFromPortDrop, edgePresentationClass});
 }(window));

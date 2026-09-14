@@ -5,12 +5,12 @@
 
 ## Active Task
 
-- Active Task: `R9-03`
-- Task Card: `docs/tasks/backlog/R9-03-asset-repository-and-migration.md`
-- Status: `ACTIVE — dependency satisfied; implementation not started`
-- Depends on: `R9-02` (DONE, independent Review PASS)
+- Active Task: `UX-12`
+- Task Card: `docs/tasks/backlog/UX-12-result-workspace-replica.md`
+- Status: `ACTIVE — implementation complete; independent Review pending`
+- Depends on: `UX-11` (DONE, independent Review PASS)
 
-R6-01 through R6-24, R7-01 through R7-13, R8-01 through R8-22, R9-01 and R9-02 are archived after independent Review PASS. Continue in dependency order.
+R6-01 through R6-24, R7-01 through R7-13, R8-01 through R8-22, R9-01 through R9-15, R10-01 through R10-08, UX-01 through UX-11 are archived after independent Review PASS. Continue in dependency order.
 
 ## Task Lifecycle
 
@@ -1132,20 +1132,59 @@ After implementation / verification:
 
 ## Recommended Successor
 
-`R9-04` is the next backlog card after `R9-03`. It is recommended only and
-must not be activated or executed by an `R9-03` run.
+`R9-10` is the next backlog card after `R9-09`. It is recommended only and
+must not be activated or executed by an `R9-09` run.
 
-`R9-02` is archived in `docs/tasks/done/` after its independent Review PASS, so
-`R9-03` Asset Repository and Migration is the sole ACTIVE card, activated but
-**not started**.
+`R9-09` ArtifactVersion and Lineage is the sole ACTIVE card, **activated but not
+started**. `R9-08` is archived in `docs/tasks/done/` after its third independent
+Review PASS; no `R9-09` implementation was started in this run.
 
-What `R9-03` inherits from `R9-01` and `R9-02`: `Asset` names its versions by id
-and owns no version content; `AssetVersion` owns content, checksum, provenance
-and ordinal and is immutable by construction. The rules a single record cannot
-enforce are `R9-03`'s to add — ordinal uniqueness per asset, gap-free sequences,
-and single-assignment version ids. `R9-03` also retires the legacy
-`data/asset_library.json` store, which is still the second owner of asset data.
-One open decision it must make: the published node-record schema addresses
-`asset_version` by a single `id`, while `AssetVersionRef` uses
-`asset_id` + `version_id` — pick one before wiring refs into nodes and
-Collections.
+What `R9-08` left for `R9-09` to pick up:
+
+- **There is no ArtifactVersion record yet.** `Artifact`
+  (`workbench/domain/artifact/models.py`) names versions by id in `version_ids`
+  and `with_version` is its only operation: it appends, refuses a duplicate, and
+  re-validates the whole record. Which version is current and what makes a
+  version immutable are R9-09's rules. R9-09 owns the immutable version record,
+  the run/attempt/input/prompt/model/skill lineage, and the
+  repository/service/API.
+- **Nothing in production constructs an Artifact yet.** Zero modules outside the
+  test suite import `workbench.domain.artifact`. The legacy result path is
+  untouched and still owns today's behavior: `ExecutionResultIdentity`
+  (run/attempt/output_name/ordinal), `ResultSelection`, the `result` node
+  definition and `ResultMaterializationService`, while `NodeRecord.output_refs`
+  still names `artifact_version` ids that no Core record defines. **Retiring that
+  second owner is R9-09's job** — R9-08 deliberately did not migrate it.
+- **`ArtifactType` and the Canvas `artifact.*` port types stay two independent
+  Core closed sets** (`port_type_registry.py` names what flows between nodes;
+  `ArtifactType` names what a produced output *is*). Recorded, not resolved —
+  the same drift class R9-01's reviewer flagged for `AssetType`.
+
+Contracts R9-08 made self-enforcing, which R9-09 should extend rather than
+duplicate: `tests/test_artifact_domain.py` pins both closed sets by exact
+equality, pins the record's field set as a whole (so "identity carries no version
+content" is testable), pins the 255/256 upper bound of **every** opaque id it
+carries (`id`, `project_id`, a version id — the last two only after the first
+review found them unguarded), pins append order against lexicographic order
+(found by the second review), and pins the absence of any Canvas import in the
+artifact package. Three probes survive as equivalent or out-of-scope mutants —
+`dict(self.__dict__)` for `model_dump(mode="python")`, `metadata: dict = {}` for
+`Field(default_factory=dict)`, and dropping the exported `ARTIFACT_SCHEMA_VERSION`
+(no consumer yet — **R9-09's repository will be the first, and should pin it
+then**); do not "fix" the record to catch them.
+
+Two guards in the shared `workbench/domain/value_types.py` are unguarded by any
+suite and are **not** R9-08's to close: a nested list or dict inside `metadata`
+stays mutable if `freeze_value`'s recursion is removed, and a nested credential
+(`{"origin": {"api_key": ...}}`) is accepted if `assert_safe_metadata`'s
+recursion is removed. `Asset` and `Collection` share both. Worth pinning when
+`value_types` is next owned or when metadata starts carrying real payloads.
+
+Contracts `R9-08` made self-enforcing, which later cards should extend rather than
+duplicate: `tests/test_artifact_domain.py` pins both closed sets by exact
+equality, pins the record's field set as a whole (so "identity carries no version
+content" is a testable claim), and pins the absence of any Canvas import in the
+artifact package. Two probes in its 19-probe mutation review survive as
+equivalent mutants — `dict(self.__dict__)` for `model_dump(mode="python")` and
+`metadata: dict = {}` for `Field(default_factory=dict)` — both measured
+equivalent rather than assumed; do not "fix" the record to catch them.

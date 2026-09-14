@@ -95,6 +95,7 @@ function ensureClassicCardBodyRenderer(){
             scheduleSave,
             render,
             runCanvasGenerate,
+            parameterPresentation: window.WorkbenchParameterPresentation,
         });
     }
     return classicCardBodyRenderer;

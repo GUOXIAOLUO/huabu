@@ -20,14 +20,15 @@
         if (!documentRef || !container) throw new TypeError('FloatingActionBar requires document and container');
         const onIntent = settings.onIntent;
         const actions = Object.freeze((settings.actions || []).map(normalizeAction).sort((a, b) => a.order - b.order || a.id.localeCompare(b.id)));
-        let context = Object.freeze({nodeIds: Object.freeze([]), nodes: Object.freeze([]), count: 0, mode: 'empty'});
+        let context = Object.freeze({nodeIds: Object.freeze([]), nodes: Object.freeze([]), capabilities: Object.freeze([]), count: 0, mode: 'empty'});
 
         container.classList.add('floating-action-bar');
         function update(nextContext) {
             const next = nextContext || {};
             const nodeIds = Object.freeze(Array.from(new Set((next.nodeIds || []).map(String))));
             const nodes = Object.freeze(Array.from(next.nodes || []));
-            context = Object.freeze({nodeIds, nodes, count: nodeIds.length, mode: nodeIds.length === 1 ? 'single' : nodeIds.length > 1 ? 'multiple' : 'empty'});
+            const capabilities = Object.freeze(Array.from(new Set((next.capabilities || []).map(String))));
+            context = Object.freeze({nodeIds, nodes, capabilities, count: nodeIds.length, mode: nodeIds.length === 1 ? 'single' : nodeIds.length > 1 ? 'multiple' : 'empty'});
             container.replaceChildren();
             const visible = actions.filter(action => action.when(context));
             visible.forEach(action => {
@@ -37,8 +38,16 @@
                 button.dataset.actionId = action.id;
                 button.setAttribute('aria-label', action.label);
                 button.title = action.label;
-                if (action.icon) button.dataset.lucide = action.icon;
-                button.textContent = action.label;
+                if (action.icon) {
+                    const icon = documentRef.createElement('i');
+                    icon.dataset.lucide = action.icon;
+                    icon.setAttribute('aria-hidden', 'true');
+                    button.appendChild(icon);
+                }
+                const label = documentRef.createElement('span');
+                label.className = 'hub-action-label';
+                label.textContent = action.label;
+                button.appendChild(label);
                 button.addEventListener('click', event => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -49,7 +58,7 @@
             container.classList.toggle('open', visible.length > 0 && context.count > 0);
             return Object.freeze({visible: visible.map(action => action.id), mode: context.mode});
         }
-        function clear() { return update({nodeIds: [], nodes: []}); }
+        function clear() { return update({nodeIds: [], nodes: [], capabilities: []}); }
         return Object.freeze({update, clear, actions});
     }
 

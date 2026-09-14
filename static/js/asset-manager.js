@@ -3,6 +3,34 @@ const statusEl = document.getElementById('assetStatus');
 const refreshBtn = document.getElementById('refreshBtn');
 const storageSettingsBtn = document.getElementById('storageSettingsBtn');
 const uploadInput = document.getElementById('assetUploadInput');
+const resourceShellEl = document.getElementById('resourceLibraryShell');
+
+/* One Resources registry for the whole section. The retained library tabs are
+ * registered with their own tab id as the category id, so the shell keeps the
+ * page's single tab-switch path instead of inventing a second one. Categories
+ * whose canonical surface lives in the Unified Canvas (Collection, Skill) are
+ * registered as `canvas` entries: the shell routes to the Canvas rather than
+ * growing a second library surface here. */
+const RESOURCE_CATEGORY_DEFINITIONS = [
+    {id:'assets', kind:'asset', label:'素材资产', surface:'library', tab:'assets', searchId:'assetSearch', icon:'image', order:10},
+    {id:'artifacts', kind:'artifact', label:'产物', surface:'library', tab:'artifacts', icon:'file-output', order:15},
+    {id:'catalogs', kind:'catalog', label:'目录', surface:'library', tab:'catalogs', searchId:'catalogSearch', icon:'book-open', order:18},
+    {id:'knowledge', kind:'knowledge', label:'知识', surface:'library', tab:'knowledge', searchId:'knowledgeSearch', icon:'book-open-check', order:19},
+    {id:'prompts', kind:'prompt', label:'提示词', surface:'library', tab:'prompts', searchId:'promptSearch', icon:'text-cursor-input', order:20},
+    {id:'collections', kind:'collection', label:'集合', surface:'canvas', entry:'canvas-list', icon:'layout-grid', order:30},
+    {id:'skills', kind:'skill', label:'技能', surface:'canvas', entry:'canvas-list', icon:'sparkles', order:40},
+    {id:'workflows', kind:'workflow', label:'工作流管理', surface:'library', tab:'workflows', searchId:'workflowSearch', icon:'workflow', order:50},
+    {id:'canvas-assets', kind:'asset', label:'画布资产', surface:'library', tab:'canvas-assets', searchId:'canvasAssetSearch', icon:'layout-dashboard', order:60},
+    {id:'local', kind:'asset', label:'本地素材', surface:'library', tab:'local', searchId:'localSearch', icon:'folder-open', order:70},
+];
+const resourceLibraryRegistry = window.WorkbenchResourceLibraryShell.createRegistry(RESOURCE_CATEGORY_DEFINITIONS);
+const resourceLibraryShell = window.WorkbenchResourceLibraryShell.createShell({
+    registry:resourceLibraryRegistry,
+    escapeHtml,
+    escapeAttr,
+    searchPlaceholder:'搜索资源'
+});
+let resourceShellSearchTimer = null;
 
 const LOCAL_CAPTION_SETTINGS_KEY = 'asset_manager_local_caption_settings_v1';
 function readLocalCaptionSettings(){
@@ -42,6 +70,23 @@ let activePromptCategory = 'all';
 let assetTreeFocus = 'category';
 let promptTreeFocus = 'category';
 let selectedAssetId = '';
+let selectedArtifactId = '';
+let artifactItems = [];
+let artifactHistory = null;
+let artifactInspectorLoading = false;
+let artifactInspectorError = '';
+let artifactInspectorVersionId = '';
+let artifactCompareVersionId = '';
+let catalogs = [];
+let catalogItems = [];
+let catalogVersions = [];
+let selectedCatalogId = '';
+let selectedCatalogItemId = '';
+let selectedCatalogVersionId = '';
+let catalogAttributeFilter = '';
+let catalogQuery = '';
+let knowledgeQuery = '';
+let knowledgeEntries = [];
 let selectedWorkflowId = '';
 let selectedPromptId = '';
 let selectedAssetIds = new Set();
@@ -119,7 +164,7 @@ let lastSearchCompositionEndAt = 0;
 let storageSettingsState = {open:false, tab:'prefs', editor:'', dirs:{}, defaults:{}, kind:'generated', items:[], selected:new Set(), loading:false, loadingMore:false, offset:0, total:0, hasMore:false, pageSize:80, restoreScrollTop:null, classificationPrompt:'', defaultClassificationPrompt:''};
 
 const LOCAL_MEDIA_EXTS = /\.(png|jpe?g|webp|gif|bmp|avif|svg|mp4|webm|mov|m4v|mp3|wav|flac|ogg|m4a|aac)(\?|#|$)/i;
-const SEARCH_INPUT_IDS = new Set(['assetSearch','workflowSearch','promptSearch','localSearch','localUploadSearch','canvasAssetSearch']);
+const SEARCH_INPUT_IDS = new Set(['assetSearch','workflowSearch','promptSearch','catalogSearch','knowledgeSearch','localSearch','localUploadSearch','canvasAssetSearch']);
 
 function refreshIcons(){ if(window.lucide) lucide.createIcons(); }
 function setStatus(text='准备就绪'){ if(statusEl) statusEl.textContent = text || '准备就绪'; }
@@ -1082,6 +1127,13 @@ function resourcePromptProjectId(){
     catch(_) { return 'default'; }
 }
 function resourcePromptHeaders(){ return {'X-User-ID':'local-workspace-actor'}; }
+async function loadKnowledgeEntries(query=knowledgeQuery){
+    const params = new URLSearchParams({project_id:resourcePromptProjectId()});
+    if(String(query || '').trim()) params.set('query', String(query).trim());
+    const data = await apiJson(`/api/v1/knowledge-entries/search?${params.toString()}`, {headers:resourcePromptHeaders()});
+    knowledgeEntries = Array.isArray(data) ? data : [];
+    render();
+}
 function resourcePromptEntries(){ return resourcePrompts; }
 function selectedResourcePrompt(){ return resourcePrompts.find(entry => entry.prompt?.prompt_id === selectedResourcePromptId) || resourcePromptEntries()[0] || null; }
 async function loadResourcePromptVersions(entry){
@@ -1337,16 +1389,32 @@ async function refreshCanvasAssets(){
 }
 async function loadAll(){
     setStatus('加载中...');
-    const [assetData, providerData, canvasAssetData, canonicalPromptData] = await Promise.all([
+    const [assetData, providerData, canvasAssetData, canonicalPromptData, artifactData, catalogData, knowledgeData] = await Promise.all([
         apiJson('/api/asset-library'),
         apiJson('/api/providers').catch(() => ({providers:[]})),
         apiJson('/api/canvas-assets').catch(() => ({categories:[], canvases:[], items:[]})),
         apiJson(`/api/v1/prompts?project_id=${encodeURIComponent(resourcePromptProjectId())}`, {headers:resourcePromptHeaders()}).catch(() => []),
+        apiJson(`/api/v1/artifacts?project_id=${encodeURIComponent(resourcePromptProjectId())}`, {headers:resourcePromptHeaders()}).catch(() => []),
+        apiJson(`/api/v1/catalogs?workspace_id=local&project_id=${encodeURIComponent(resourcePromptProjectId())}`, {headers:resourcePromptHeaders()}).catch(() => []),
+        apiJson(`/api/v1/knowledge-entries/search?project_id=${encodeURIComponent(resourcePromptProjectId())}`, {headers:resourcePromptHeaders()}).catch(() => []),
         loadSharedFolders(),
         loadLocalAssets()
     ]);
     assetLibrary = assetData.library || {libraries:[], categories:[]};
     resourcePrompts = Array.isArray(canonicalPromptData) ? canonicalPromptData : [];
+    artifactItems = Array.isArray(artifactData) ? artifactData : [];
+    catalogs = Array.isArray(catalogData) ? catalogData : [];
+    knowledgeEntries = Array.isArray(knowledgeData) ? knowledgeData : [];
+    selectedCatalogId = catalogs.some(item => item.id === selectedCatalogId) ? selectedCatalogId : (catalogs[0]?.id || '');
+    catalogItems = [];
+    catalogVersions = [];
+    selectedCatalogItemId = '';
+    selectedCatalogVersionId = '';
+    catalogAttributeFilter = '';
+    if(selectedCatalogId){
+        try { catalogItems = await loadCatalogItems(selectedCatalogId); }
+        catch(_) { catalogItems = []; }
+    }
     selectedResourcePromptId = resourcePrompts[0]?.prompt?.prompt_id || '';
     resourcePromptVersions = {};
     resourcePromptVersion = 0;
@@ -1364,6 +1432,10 @@ async function loadAll(){
     activeAssetCategoryId = '';
     activeWorkflowCategoryId = '';
     selectedAssetId = '';
+    selectedArtifactId = artifactItems[0]?.id || '';
+    artifactHistory = null;
+    artifactInspectorVersionId = '';
+    artifactCompareVersionId = '';
     selectedWorkflowId = '';
     selectedAssetIds.clear();
     selectedWorkflowIds.clear();
@@ -1372,16 +1444,85 @@ async function loadAll(){
     render();
     setStatus('准备就绪');
 }
+const artifactInspectorEl = document.getElementById('artifactInspector');
+const artifactInspectorPanel = window.WorkbenchArtifactInspector.createInspector({escapeHtml, escapeAttr});
+function selectedArtifact(){ return artifactItems.find(item => item.id === selectedArtifactId) || null; }
+function renderArtifactManager(){
+    const artifact = selectedArtifact();
+    root.innerHTML = `<div class="artifact-manager"><div class="artifact-list"><div class="asset-view-head"><div><h2>产物</h2><p>查看正式产物的版本、来源和内容引用。</p></div></div>${artifactItems.length ? artifactItems.map(item => `<button type="button" class="artifact-card ${item.id === selectedArtifactId ? 'active' : ''}" data-artifact-select="${escapeAttr(item.id)}"><strong>${escapeHtml(item.title || item.id)}</strong><span>${escapeHtml(item.type || 'other')} · ${escapeHtml(item.state || 'draft')} · ${item.version_ids?.length || 0} 个版本</span></button>`).join('') : '<p class="asset-empty">当前项目还没有正式产物。</p>'}</div></div>`;
+    if(artifactInspectorEl){
+        artifactInspectorEl.innerHTML = artifact
+            ? artifactInspectorPanel.render(artifact, artifactHistory, {selectedVersionId:artifactInspectorVersionId, compareVersionId:artifactCompareVersionId, loading:artifactInspectorLoading, error:artifactInspectorError})
+            : '';
+    }
+}
+function selectedCatalog(){ return catalogs.find(item => item.id === selectedCatalogId) || null; }
+function renderKnowledgeManager(){
+    root.innerHTML = `
+        <section class="asset-panel asset-content knowledge-manager">
+            <div class="content-toolbar"><div class="content-heading"><strong>项目知识</strong><span>共 ${knowledgeEntries.length} 条</span></div>
+                <div class="asset-tools"><label class="asset-search-wrap"><i data-lucide="search"></i><input id="knowledgeSearch" class="asset-search" type="search" value="${escapeAttr(knowledgeQuery)}" placeholder="搜索知识、标签、来源"></label></div></div>
+            <div class="content-scroll">${knowledgeEntries.length ? `<div class="knowledge-list">${knowledgeEntries.map(entry => `<article class="prompt-row knowledge-row" data-knowledge-entry="${escapeAttr(entry.id)}"><div class="prompt-row-main"><div class="prompt-row-title"><strong>${escapeHtml(entry.content || '结构化知识')}</strong><span class="prompt-tag">${escapeHtml(entry.scope || 'project')}</span></div><div class="prompt-row-scene">标签：${escapeHtml((entry.tags || []).join(' · ') || '无')}</div><div class="prompt-row-text">来源：${escapeHtml((entry.source_refs || []).join(' · '))}</div></div></article>`).join('')}</div>` : '<div class="empty-state">当前项目暂无匹配知识。</div>'}</div>
+        </section>
+        <aside class="asset-panel asset-detail"><div class="panel-head"><div class="panel-title"><strong>知识检索</strong><span>Lexical / Metadata</span></div></div><div class="detail-scroll"><div class="detail-body"><p class="asset-empty">检索覆盖正文、结构化内容、元数据、标签、来源引用和作用域。结果保留来源与作用域，供 Skill / Agent 继续追溯。</p></div></div></aside>`;
+}
+function selectedCatalogItem(){ return catalogItems.find(item => item.id === selectedCatalogItemId) || null; }
+function selectedCatalogVersion(){ return catalogVersions.find(item => item.id === selectedCatalogVersionId) || null; }
+function renderCatalogManager(){
+    const item = selectedCatalogItem();
+    const selectedVersion = selectedCatalogVersion() || catalogVersions.find(version => version.id === item?.current_version_id) || null;
+    if(item && !selectedCatalogVersionId && selectedVersion) selectedCatalogVersionId = selectedVersion.id;
+    root.innerHTML = window.WorkbenchCatalogLibrary.render({catalogs, items:catalogItems, versions:catalogVersions, query:catalogQuery, attributeKey:catalogAttributeFilter, selectedCatalogId, selectedItemId:selectedCatalogItemId, selectedItem:item, selectedVersionId:selectedCatalogVersionId, selectedVersion}, {escapeHtml});
+}
+async function selectCatalog(id){
+    selectedCatalogId = id || ''; selectedCatalogItemId = ''; selectedCatalogVersionId = ''; catalogVersions = []; catalogAttributeFilter = '';
+    try { catalogItems = selectedCatalogId ? await loadCatalogItems(selectedCatalogId) : []; }
+    catch(error){ catalogItems = []; setStatus(error.message || '读取目录条目失败'); }
+    render();
+}
+async function loadCatalogItems(catalogId){
+    const items = await apiJson(`/api/v1/catalogs/${encodeURIComponent(catalogId)}/items`, {headers:resourcePromptHeaders()});
+    return Promise.all((Array.isArray(items) ? items : []).map(async item => {
+        try {
+            const versions = await apiJson(`/api/v1/catalogs/items/${encodeURIComponent(item.id)}/versions`, {headers:resourcePromptHeaders()});
+            const current = versions.find(version => version.id === item.current_version_id) || versions.at(-1) || null;
+            return {...item, current_version:current};
+        } catch(_) { return item; }
+    }));
+}
+async function selectCatalogItem(id){
+    selectedCatalogItemId = id || ''; selectedCatalogVersionId = ''; catalogVersions = [];
+    try { catalogVersions = selectedCatalogItemId ? await apiJson(`/api/v1/catalogs/items/${encodeURIComponent(selectedCatalogItemId)}/versions`, {headers:resourcePromptHeaders()}) : []; }
+    catch(error){ setStatus(error.message || '读取目录版本失败'); }
+    selectedCatalogVersionId = selectedCatalogItem()?.current_version_id || catalogVersions.at(-1)?.id || '';
+    render();
+}
+async function loadArtifactHistory(){
+    const artifact = selectedArtifact();
+    if(!artifact) return;
+    artifactInspectorLoading = true; artifactInspectorError = ''; renderArtifactManager();
+    try { artifactHistory = await window.WorkbenchArtifactInspector.createClient({actorId:'local-workspace-actor', fetch:window.fetch.bind(window)}).history(artifact.id); }
+    catch(error){ artifactHistory = null; artifactInspectorError = error?.message || '读取产物版本失败'; }
+    finally { artifactInspectorLoading = false; renderArtifactManager(); }
+}
 function render(){
     const scrollState = [...document.querySelectorAll('.nav-scroll,.content-scroll,.detail-scroll')]
         .map((el, index) => ({index, top:el.scrollTop, left:el.scrollLeft}));
-    document.querySelectorAll('[data-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === activeTab));
-    if(activeTab === 'prompts') renderPromptManager();
+    /* The category rail's active state is owned by the Resources shell and is
+     * synced by syncResourceShell() below; the page no longer toggles a static
+     * [data-tab] set. */
+    if(activeTab === 'artifacts') renderArtifactManager();
+    else if(activeTab === 'catalogs') renderCatalogManager();
+    else if(activeTab === 'knowledge') renderKnowledgeManager();
+    else if(activeTab === 'prompts') renderPromptManager();
     else if(activeTab === 'workflows') renderWorkflowManager();
     else if(activeTab === 'local') renderLocalManager();
     else if(activeTab === 'canvas-assets') renderCanvasAssetsManager();
     else renderAssetManager();
     refreshIcons();
+    syncResourceShell();
+    syncAssetQueryPanel();
+    syncAssetInspector();
     if(scrollState.length){
         requestAnimationFrame(() => {
             document.querySelectorAll('.nav-scroll,.content-scroll,.detail-scroll').forEach((el, index) => {
@@ -1397,6 +1538,8 @@ function updateSearchQueryFromInput(id, value){
     if(id === 'assetSearch') assetQuery = value || '';
     else if(id === 'workflowSearch') workflowQuery = value || '';
     else if(id === 'promptSearch') promptQuery = value || '';
+    else if(id === 'catalogSearch') catalogQuery = value || '';
+    else if(id === 'knowledgeSearch') knowledgeQuery = value || '';
     else if(id === 'localSearch') localQuery = value || '';
     else if(id === 'localUploadSearch') localUploadQuery = value || '';
     else if(id === 'canvasAssetSearch') canvasAssetQuery = value || '';
@@ -1405,9 +1548,373 @@ function clearSearchSelection(id){
     if(id === 'assetSearch') selectedAssetId = '';
     else if(id === 'workflowSearch') selectedWorkflowId = '';
     else if(id === 'promptSearch') selectedPromptId = '';
+    else if(id === 'catalogSearch') selectedCatalogItemId = '';
+    else if(id === 'knowledgeSearch') return;
     else if(id === 'localSearch') selectedLocalId = '';
     else if(id === 'localUploadSearch') selectedLocalUploadId = '';
     else if(id === 'canvasAssetSearch') selectedCanvasAssetId = '';
+}
+function readSearchQuery(id){
+    if(id === 'assetSearch') return assetQuery;
+    if(id === 'workflowSearch') return workflowQuery;
+    if(id === 'promptSearch') return promptQuery;
+    if(id === 'catalogSearch') return catalogQuery;
+    if(id === 'knowledgeSearch') return knowledgeQuery;
+    if(id === 'localSearch') return localQuery;
+    if(id === 'localUploadSearch') return localUploadQuery;
+    if(id === 'canvasAssetSearch') return canvasAssetQuery;
+    return '';
+}
+function activeResourceCategoryId(){
+    const descriptor = resourceLibraryRegistry.get(activeTab);
+    if(descriptor && descriptor.surface === 'library') return descriptor.id;
+    return resourceLibraryRegistry.list()[0]?.id || '';
+}
+function activeResourceCategory(){
+    return resourceLibraryRegistry.get(activeResourceCategoryId());
+}
+/* The shell owns the category rail, the unified search control and the
+ * resource-kind filter row, including the rail's active state. It is
+ * re-rendered only when the selected category actually changes, so typing in
+ * the unified search never tears down the input the user is typing in. */
+function syncResourceShell(){
+    if(!resourceShellEl) return;
+    const categoryId = activeResourceCategoryId();
+    if(resourceLibraryShell.activeId() !== categoryId){
+        resourceLibraryShell.setCategory(categoryId);
+        resourceShellEl.innerHTML = resourceLibraryShell.render();
+        refreshIcons();
+    }
+    syncResourceShellSearchValue();
+}
+function syncResourceShellSearchValue(){
+    const input = resourceShellEl?.querySelector('#resourceShellSearch');
+    if(!input) return;
+    const value = readSearchQuery(activeResourceCategory()?.searchId || '');
+    if(input.value !== value) input.value = value;
+}
+function applyResourceShellQuery(value){
+    const descriptor = activeResourceCategory();
+    if(!descriptor?.searchId) return;
+    updateSearchQueryFromInput(descriptor.searchId, value || '');
+    clearSearchSelection(descriptor.searchId);
+    clearTimeout(resourceShellSearchTimer);
+    resourceShellSearchTimer = setTimeout(() => {
+        if(descriptor.searchId === 'knowledgeSearch') scheduleKnowledgeSearch(knowledgeQuery.length, 0);
+        else render();
+    }, 140);
+}
+/* The resource-kind filter narrows the category rail. It never switches the
+ * active category: entering a category is the rail's job, and the shell keeps
+ * the active category visible so the rail cannot contradict the body. */
+function selectResourceKind(kind){
+    resourceLibraryShell.setKindFilter(kind || '');
+    resourceShellEl.innerHTML = resourceLibraryShell.render();
+    refreshIcons();
+}
+function openResourceCategory(id){
+    const descriptor = resourceLibraryRegistry.get(id);
+    if(!descriptor) return;
+    if(descriptor.surface === 'canvas'){ openResourceCanvasSurface(descriptor); return; }
+    const tab = descriptor.tab || descriptor.id;
+    if(tab === activeTab){
+        resourceShellEl.innerHTML = resourceLibraryShell.render();
+        refreshIcons();
+        return;
+    }
+    activeTab = tab;
+    selectedAssetIds.clear();
+    selectedWorkflowIds.clear();
+    selectedPromptIds.clear();
+    selectedLocalIds.clear();
+    selectedLocalUploadIds.clear();
+    selectedCanvasAssetIds.clear();
+    render();
+}
+/* Collection / Skill canonical surfaces live in the Unified Canvas. The
+ * Resources page runs inside the studio shell iframe, so it asks the shell to
+ * activate the Canvas page; outside the shell it falls back to the Canvas list
+ * URL. No second Collection/Skill library is created here. */
+function openResourceCanvasSurface(descriptor){
+    const entry = descriptor?.entry || 'canvas-list';
+    const project = resourcePromptProjectId();
+    let url = '/static/canvas-list.html?project=' + encodeURIComponent(project || 'default');
+    try { url = window.WorkbenchCanvasEntryCompatibility.canvasListUrl(project); } catch(_) {}
+    try {
+        if(window.parent && window.parent !== window){
+            window.parent.postMessage({type:'studio-switch-page', page:'canvas', entry, url}, location.origin);
+            return;
+        }
+    } catch(_) {}
+    window.location.href = url;
+}
+/* Canonical asset search surface. The page owns the DOM, the transport actor
+ * and the events; WorkbenchAssetQueryPanel owns the query state, the request
+ * shape and the HTML. It is rendered only while an asset-kind library category
+ * is active, so it never competes with the prompt or workflow surfaces, and it
+ * never reads the legacy per-category tree: this is the canonical Asset query
+ * service, which is what lets a user find an asset without the Canvas. */
+const assetQueryEl = document.getElementById('assetQueryPanel');
+const assetQueryPanel = window.WorkbenchAssetQueryPanel.createPanel({
+    escapeHtml,
+    escapeAttr,
+    placeholder:'按名称、编号或元数据检索资产',
+    tagPlaceholder:'输入标签后回车'
+});
+let assetQueryState = null;
+let assetQueryPage = null;
+let assetQueryLoading = false;
+let assetQueryError = '';
+let assetQueryTimer = null;
+let assetQueryComposing = false;
+let assetQueryPendingFocus = null;
+let assetQueryRenderSeq = 0;
+let assetQueryLastSignature = '';
+
+function assetQueryClient(){
+    return window.WorkbenchAssetQueryPanel.createClient({
+        actorId:'local-workspace-actor',
+        fetch:window.fetch.bind(window)
+    });
+}
+function assetQueryVisible(){
+    const descriptor = activeResourceCategory();
+    return Boolean(descriptor) && descriptor.surface === 'library' && descriptor.kind === 'asset';
+}
+/* The state is rebuilt when the project changes, so a query can never page
+ * through one project's results under another project's heading. */
+function ensureAssetQueryState(){
+    const projectId = resourcePromptProjectId();
+    if(!assetQueryState || assetQueryState.projectId() !== projectId){
+        assetQueryState = window.WorkbenchAssetQueryPanel.createQuery({projectId});
+        assetQueryPage = null;
+        assetQueryError = '';
+        assetQueryLastSignature = '';
+    }
+    return assetQueryState;
+}
+/* Re-render only when something visible actually changed: `render()` runs on
+ * every page action, and rebuilding the panel on each one would tear down the
+ * input the user is typing in. The selected row is part of that signature, so
+ * selecting an asset marks its row without a second render path. */
+function assetQuerySignature(){
+    if(!assetQueryVisible()) return 'hidden';
+    const state = ensureAssetQueryState();
+    const page = assetQueryPage
+        ? [assetQueryPage.total, assetQueryPage.items.length, assetQueryPage.limit, assetQueryPage.offset]
+        : null;
+    return JSON.stringify([state.params(), assetQueryLoading, assetQueryError, page,
+        assetInspectorSelection, assetQueryRenderSeq]);
+}
+function renderAssetQueryPanel(){
+    if(!assetQueryEl) return;
+    const signature = assetQuerySignature();
+    if(signature === assetQueryLastSignature) return;
+    assetQueryLastSignature = signature;
+    if(!assetQueryVisible()){ assetQueryEl.innerHTML = ''; return; }
+    assetQueryEl.innerHTML = assetQueryPanel.render(ensureAssetQueryState(), assetQueryPage, {
+        loading:assetQueryLoading,
+        error:assetQueryError,
+        selectedAssetId:assetInspectorSelection
+    });
+    refreshIcons();
+}
+function restoreAssetQueryFocus(){
+    const pending = assetQueryPendingFocus;
+    assetQueryPendingFocus = null;
+    if(!pending) return;
+    const input = assetQueryEl?.querySelector(pending.selector);
+    if(!input) return;
+    input.focus();
+    try { input.setSelectionRange?.(pending.position, pending.position); } catch(_) {}
+}
+async function loadAssetQuery(){
+    if(!assetQueryEl || !assetQueryVisible()) return;
+    const state = ensureAssetQueryState();
+    assetQueryLoading = true;
+    assetQueryError = '';
+    renderAssetQueryPanel();
+    try {
+        assetQueryPage = await assetQueryClient().query(state);
+    } catch(err) {
+        assetQueryPage = null;
+        assetQueryError = err?.message || '资产检索失败';
+    } finally {
+        assetQueryLoading = false;
+        assetQueryRenderSeq += 1;
+        renderAssetQueryPanel();
+        restoreAssetQueryFocus();
+        /* The inspector is synced here as well as from render() and from a row
+         * click, because a reload can land on a page that no longer contains the
+         * selected asset. Without this the inspector would keep showing an asset
+         * the current results do not contain — the state the invariant documented
+         * at `selectedQueryAsset` forbids. Paging, filtering, changing the page
+         * size and every chip mutation all reload through here. */
+        syncAssetInspector();
+    }
+}
+function syncAssetQueryPanel(){
+    if(!assetQueryEl) return;
+    renderAssetQueryPanel();
+    if(!assetQueryVisible()) return;
+    if(!assetQueryPage && !assetQueryLoading && !assetQueryError) loadAssetQuery();
+}
+function scheduleAssetQuerySearch(){
+    if(assetQueryComposing) return;
+    clearTimeout(assetQueryTimer);
+    assetQueryTimer = setTimeout(() => {
+        const input = assetQueryEl?.querySelector('[data-asset-query-text]');
+        assetQueryPendingFocus = {selector:'[data-asset-query-text]', position:input?.selectionStart ?? 0};
+        loadAssetQuery();
+    }, 180);
+}
+function addAssetQueryTag(value){
+    const tag = String(value || '').trim();
+    if(!tag || !assetQueryState) return;
+    try { assetQueryState.addTag(tag); }
+    catch(err) { setStatus(err.message || '标签无效'); return; }
+    assetQueryPendingFocus = {selector:'[data-asset-query-tag-input]', position:0};
+    loadAssetQuery();
+}
+/* Canonical asset inspector surface. The page owns the DOM, the events, the
+ * actor and the fetch implementation; WorkbenchAssetInspector owns the
+ * presentation of one canonical asset and the shape of the version-history
+ * request. It is rendered only while an asset-kind library category is active
+ * and an asset from the canonical query is selected, and it never reads the
+ * legacy per-category store: these are the canonical Asset's own versions,
+ * provenance and preview. */
+const assetInspectorEl = document.getElementById('assetInspector');
+const assetInspectorPanel = window.WorkbenchAssetInspector.createInspector({escapeHtml, escapeAttr});
+let assetInspectorSelection = '';
+let assetInspectorAssetId = '';
+let assetInspectorVersionId = '';
+let assetInspectorHistory = null;
+let assetInspectorLoading = false;
+let assetInspectorError = '';
+let assetInspectorRenderSeq = 0;
+let assetInspectorLastSignature = '';
+/* No canonical record references an AssetVersion yet: the Canvas adopts one by
+ * reference in R9-07 and an execution result becomes an asset in R9-11. Until
+ * one of those lands the inspector reports that it *cannot* answer, rather than
+ * reporting an empty reference list, which would tell the user their asset is
+ * unused when the truth is that nobody has looked. This is the single place to
+ * change when such a source appears. */
+const ASSET_INSPECTOR_USAGE_UNAVAILABLE = Object.freeze({
+    available:false,
+    reason:'引用索引尚未接入：画布按引用使用资产版本的能力由 R9-07 引入。'
+});
+function assetInspectorUsage(){
+    return ASSET_INSPECTOR_USAGE_UNAVAILABLE;
+}
+function assetInspectorClient(){
+    return window.WorkbenchAssetInspector.createClient({
+        actorId:'local-workspace-actor',
+        fetch:window.fetch.bind(window)
+    });
+}
+/* The inspector shows one asset from the current result page, so it is visible
+ * only while that page exists and still contains the selected asset. Paging away
+ * from it hides the inspector instead of showing another page's asset. */
+function selectedQueryAsset(){
+    if(!assetQueryPage || !Array.isArray(assetQueryPage.items)) return null;
+    const wanted = String(assetInspectorSelection || '').trim();
+    if(!wanted) return null;
+    return assetQueryPage.items.find(asset => asset && asset.id === wanted) || null;
+}
+function assetInspectorVisible(){
+    return assetQueryVisible() && Boolean(selectedQueryAsset());
+}
+function assetInspectorSignature(){
+    if(!assetInspectorVisible()) return 'hidden';
+    const history = assetInspectorHistory
+        ? [assetInspectorHistory.assetId, assetInspectorHistory.currentVersionId, assetInspectorHistory.versions.length]
+        : null;
+    return JSON.stringify([assetInspectorAssetId, assetInspectorVersionId, history,
+        assetInspectorLoading, assetInspectorError, assetInspectorRenderSeq]);
+}
+function renderAssetInspector(){
+    if(!assetInspectorEl) return;
+    const signature = assetInspectorSignature();
+    if(signature === assetInspectorLastSignature) return;
+    assetInspectorLastSignature = signature;
+    const asset = selectedQueryAsset();
+    if(!asset){ assetInspectorEl.innerHTML = ''; return; }
+    assetInspectorEl.innerHTML = assetInspectorPanel.render(asset, assetInspectorHistory, {
+        selectedVersionId:assetInspectorVersionId,
+        usage:assetInspectorUsage(),
+        loading:assetInspectorLoading,
+        error:assetInspectorError
+    });
+    refreshIcons();
+}
+async function loadAssetInspector(){
+    const asset = selectedQueryAsset();
+    if(!assetInspectorEl || !asset) return;
+    const assetId = asset.id;
+    assetInspectorLoading = true;
+    assetInspectorError = '';
+    renderAssetInspector();
+    try {
+        assetInspectorHistory = await assetInspectorClient().history(assetId);
+    } catch(err) {
+        assetInspectorHistory = null;
+        assetInspectorError = err?.message || '读取资产版本失败';
+    } finally {
+        assetInspectorLoading = false;
+        assetInspectorRenderSeq += 1;
+        renderAssetInspector();
+    }
+}
+function syncAssetInspector(){
+    if(!assetInspectorEl) return;
+    const asset = selectedQueryAsset();
+    const assetId = asset ? asset.id : '';
+    if(assetId !== assetInspectorAssetId){
+        /* A different asset's history is not this asset's history: drop the
+         * loaded one rather than showing the previous asset's versions under the
+         * new asset's heading. */
+        assetInspectorAssetId = assetId;
+        assetInspectorVersionId = '';
+        assetInspectorHistory = null;
+        assetInspectorError = '';
+        assetInspectorLastSignature = '';
+    }
+    renderAssetInspector();
+    if(!assetId || assetInspectorHistory || assetInspectorLoading || assetInspectorError) return;
+    loadAssetInspector();
+}
+/* Clicking the selected row again clears the selection, which is the only way
+ * back to "nothing selected" without leaving the category. */
+function selectQueryAsset(assetId){
+    const id = String(assetId || '').trim();
+    assetInspectorSelection = id && id === assetInspectorSelection ? '' : id;
+    assetInspectorVersionId = '';
+    renderAssetQueryPanel();
+    syncAssetInspector();
+}
+function openAssetInspectorLocation(location){
+    const target = String(location || '').trim();
+    if(!target) return;
+    try { window.open(target, '_blank', 'noopener'); }
+    catch(err) { setStatus('无法打开该位置'); }
+}
+/* The inspector *exposes* the drag; it does not own the drop. It puts the
+ * version's identity on the transfer and stops there — the Canvas accepting it
+ * is R9-07's, and no bytes are moved here. */
+function startAssetInspectorDrag(event){
+    const source = event.target.closest?.('[data-asset-inspector-drag]');
+    if(!source || !event.dataTransfer) return;
+    const asset = selectedQueryAsset();
+    if(!asset) return;
+    const version = assetInspectorPanel.activeVersion(assetInspectorHistory, assetInspectorVersionId);
+    if(!version) return;
+    let payload;
+    try { payload = window.WorkbenchAssetInspector.dragPayload(asset, version); }
+    catch(err) { return; }
+    event.dataTransfer.effectAllowed = 'copy';
+    event.dataTransfer.setData('application/x-workbench-asset-version', JSON.stringify(payload));
+    event.dataTransfer.setData('text/plain', payload.label);
+    setStatus('已拿起资产版本，拖到画布即可按引用使用');
 }
 function scheduleSearchRender(id, pos=0, delay=140){
     clearTimeout(searchRenderTimer);
@@ -1429,6 +1936,19 @@ function scheduleResourcePromptSearch(pos=0, delay=140){
         catch(err) { setStatus(err.message || '搜索 Prompt 失败'); render(); }
         requestAnimationFrame(() => {
             const input = document.getElementById('promptSearch');
+            input?.focus();
+            try { input?.setSelectionRange?.(pos, pos); } catch(_) {}
+        });
+    }, Math.max(0, delay));
+}
+function scheduleKnowledgeSearch(pos=0, delay=140){
+    clearTimeout(searchRenderTimer);
+    searchRenderTimer = setTimeout(async () => {
+        clearSearchSelection('knowledgeSearch');
+        try { await loadKnowledgeEntries(knowledgeQuery); }
+        catch(err) { setStatus(err.message || '搜索知识失败'); render(); }
+        requestAnimationFrame(() => {
+            const input = document.getElementById('knowledgeSearch');
             input?.focus();
             try { input?.setSelectionRange?.(pos, pos); } catch(_) {}
         });
@@ -3344,9 +3864,47 @@ async function handleClick(event){
             return;
         }
     }
+    const resourceCategory = target.closest?.('[data-resource-category]');
+    if(resourceCategory && resourceCategory.dataset.resourceSurface === 'canvas'){ openResourceCategory(resourceCategory.dataset.resourceCategory || ''); return; }
     const tabBtn = target.closest?.('[data-tab]');
     if(tabBtn){ activeTab = tabBtn.dataset.tab || 'assets'; selectedAssetIds.clear(); selectedWorkflowIds.clear(); selectedPromptIds.clear(); selectedLocalIds.clear(); selectedLocalUploadIds.clear(); selectedCanvasAssetIds.clear(); render(); return; }
     if(target.closest?.('#refreshBtn')){ await loadAll(); return; }
+    const artifactSelect = target.closest?.('[data-artifact-select]');
+    if(artifactSelect){
+        const id = artifactSelect.dataset.artifactSelect || '';
+        selectedArtifactId = id === selectedArtifactId ? '' : id;
+        artifactHistory = null; artifactInspectorVersionId = ''; artifactCompareVersionId = '';
+        render();
+        if(selectedArtifactId) await loadArtifactHistory();
+        return;
+    }
+    const catalogSelect = target.closest?.('[data-catalog-select]');
+    if(catalogSelect){ await selectCatalog(catalogSelect.dataset.catalogSelect || ''); return; }
+    const catalogItemSelect = target.closest?.('[data-catalog-item-select]');
+    if(catalogItemSelect){ await selectCatalogItem(catalogItemSelect.dataset.catalogItemSelect || ''); return; }
+    const catalogAttribute = target.closest?.('[data-catalog-attribute-filter]');
+    if(catalogAttribute){
+        const key = catalogAttribute.dataset.catalogAttributeFilter || '';
+        catalogAttributeFilter = catalogAttributeFilter === key ? '' : key;
+        render();
+        return;
+    }
+    const catalogVersion = target.closest?.('[data-catalog-version]');
+    if(catalogVersion){ selectedCatalogVersionId = catalogVersion.dataset.catalogVersion || ''; render(); return; }
+    const artifactVersion = target.closest?.('[data-artifact-version]');
+    if(artifactVersion){ artifactInspectorVersionId = artifactVersion.dataset.artifactVersion || ''; renderArtifactManager(); return; }
+    const artifactCompare = target.closest?.('[data-artifact-compare]');
+    if(artifactCompare){ const id = artifactCompare.dataset.artifactCompare || ''; artifactCompareVersionId = artifactCompareVersionId === id ? '' : id; renderArtifactManager(); return; }
+    const artifactOpen = target.closest?.('[data-artifact-open]');
+    if(artifactOpen && !artifactOpen.disabled){ window.open(artifactOpen.dataset.artifactOpen, '_blank', 'noopener'); return; }
+    const artifactMaterialize = target.closest?.('[data-artifact-materialize]');
+    if(artifactMaterialize && !artifactMaterialize.disabled){
+        const versionId = artifactMaterialize.dataset.artifactMaterialize || '';
+        if(!selectedArtifactId || !versionId) return;
+        try { window.parent?.postMessage?.({type:'artifact-materialize-request', artifact_id:selectedArtifactId, artifact_version_id:versionId}, location.origin); } catch(_) {}
+        setStatus('已提交产物物化请求，等待画布正式服务处理');
+        return;
+    }
     const assetPreview = target.closest?.('[data-asset-preview]');
     if(assetPreview){ showDetailPreview('asset', assetPreview.dataset.assetPreview || ''); return; }
     const canvasAssetPreview = target.closest?.('[data-canvas-asset-preview]');
@@ -4697,6 +5255,20 @@ root.addEventListener('pointerdown', event => {
     managedSelectionPointerGuard = {...target, at:Date.now()};
     render();
 }, true);
+root.addEventListener('dragstart', event => {
+    if(activeTab !== 'catalogs') return;
+    const card = event.target.closest?.('[data-catalog-item]');
+    if(!card || !event.dataTransfer) return;
+    const item = catalogItems.find(entry => entry.id === card.dataset.catalogItem);
+    const version = catalogVersions.find(entry => entry.id === item?.current_version_id);
+    const payload = window.WorkbenchCatalogLibrary.dragPayload(selectedCatalog(), item, version);
+    const serialized = JSON.stringify(payload);
+    event.dataTransfer.effectAllowed = 'copy';
+    event.dataTransfer.setData('application/x-workbench-catalog-item-version+json', serialized);
+    event.dataTransfer.setData('application/json', serialized);
+    event.dataTransfer.setData('text/plain', serialized);
+    setStatus('已准备目录条目引用');
+});
 root.addEventListener('click', event => {
     handleClick(event).catch(err => setStatus(err.message || '操作失败'));
 });
@@ -4746,6 +5318,10 @@ root.addEventListener('compositionend', event => {
         scheduleResourcePromptSearch(event.target.selectionStart || String(event.target.value || '').length, 0);
         return;
     }
+    if(id === 'knowledgeSearch'){
+        scheduleKnowledgeSearch(event.target.selectionStart || String(event.target.value || '').length, 0);
+        return;
+    }
     scheduleSearchRender(id, event.target.selectionStart || String(event.target.value || '').length, 0);
 });
 root.addEventListener('input', event => {
@@ -4756,6 +5332,10 @@ root.addEventListener('input', event => {
         if(Date.now() - lastSearchCompositionEndAt < 40) return;
         if(searchId === 'promptSearch' && !promptCompatibilityMode){
             scheduleResourcePromptSearch(event.target.selectionStart || String(event.target.value || '').length);
+            return;
+        }
+        if(searchId === 'knowledgeSearch'){
+            scheduleKnowledgeSearch(event.target.selectionStart || String(event.target.value || '').length);
             return;
         }
         scheduleSearchRender(searchId, event.target.selectionStart || 0);
@@ -4861,19 +5441,116 @@ uploadInput?.addEventListener('change', event => {
     }
     event.target.value = '';
 });
-document.querySelectorAll('[data-tab]').forEach(btn => {
-    btn.addEventListener('click', () => {
-        activeTab = btn.dataset.tab || 'assets';
-        selectedAssetIds.clear();
-        selectedWorkflowIds.clear();
-        selectedPromptIds.clear();
-        selectedLocalIds.clear();
-        selectedLocalUploadIds.clear();
-        selectedCanvasAssetIds.clear();
-        render();
-    });
+/* The Resources category rail, unified search and resource-kind filter all live
+ * inside #resourceLibraryShell, which is outside #assetManagerRoot, so the rail
+ * clicks are delegated to the same handleClick path the page already uses. The
+ * category rail replaced the static [data-tab] markup, so the load-time
+ * [data-tab] binding that used to exist here is gone: there is exactly one
+ * tab-switch path. */
+resourceShellEl?.addEventListener('click', event => {
+    const kindChip = event.target.closest?.('[data-resource-kind-filter]');
+    if(kindChip){ selectResourceKind(kindChip.dataset.resourceKindFilter || ''); return; }
+    handleClick(event).catch(err => setStatus(err.message || '操作失败'));
 });
-refreshBtn?.addEventListener('click', () => loadAll().catch(err => setStatus(err.message || '加载失败')));
+resourceShellEl?.addEventListener('input', event => {
+    if(event.target?.id !== 'resourceShellSearch') return;
+    if(event.isComposing || searchCompositionActive) return;
+    if(Date.now() - lastSearchCompositionEndAt < 40) return;
+    applyResourceShellQuery(event.target.value || '');
+});
+resourceShellEl?.addEventListener('compositionstart', event => {
+    if(event.target?.id !== 'resourceShellSearch') return;
+    searchCompositionActive = true;
+    clearTimeout(resourceShellSearchTimer);
+});
+resourceShellEl?.addEventListener('compositionend', event => {
+    if(event.target?.id !== 'resourceShellSearch') return;
+    searchCompositionActive = false;
+    lastSearchCompositionEndAt = Date.now();
+    applyResourceShellQuery(event.target.value || '');
+});
+/* The canonical asset search surface lives in #assetQueryPanel, outside
+ * #assetManagerRoot, so its events are delegated here. Every control maps to
+ * one mutation of the query state followed by one canonical query request; the
+ * panel itself never fetches and the page never rebuilds the query by hand. */
+assetQueryEl?.addEventListener('click', event => {
+    const state = assetQueryState;
+    if(!state) return;
+    const row = event.target.closest?.('[data-asset-query-select]');
+    if(row){ selectQueryAsset(row.dataset.assetQuerySelect); return; }
+    const typeChip = event.target.closest?.('[data-asset-query-type]');
+    if(typeChip){ state.toggleType(typeChip.dataset.assetQueryType); loadAssetQuery(); return; }
+    const sourceChip = event.target.closest?.('[data-asset-query-source]');
+    if(sourceChip){ state.toggleSource(sourceChip.dataset.assetQuerySource); loadAssetQuery(); return; }
+    const tagChip = event.target.closest?.('[data-asset-query-tag]');
+    if(tagChip){ state.removeTag(tagChip.dataset.assetQueryTag); loadAssetQuery(); return; }
+    const pager = event.target.closest?.('[data-asset-query-page]');
+    if(pager){
+        if(pager.dataset.assetQueryPage === 'prev') state.previousPage();
+        else state.nextPage();
+        loadAssetQuery();
+        return;
+    }
+    if(event.target.closest?.('[data-asset-query-reset]')){
+        state.reset();
+        loadAssetQuery();
+    }
+});
+assetQueryEl?.addEventListener('input', event => {
+    if(!event.target.matches?.('[data-asset-query-text]') || !assetQueryState) return;
+    if(event.isComposing || assetQueryComposing) return;
+    assetQueryState.setText(event.target.value || '');
+    scheduleAssetQuerySearch();
+});
+assetQueryEl?.addEventListener('compositionstart', event => {
+    if(!event.target.matches?.('[data-asset-query-text]')) return;
+    assetQueryComposing = true;
+    clearTimeout(assetQueryTimer);
+});
+assetQueryEl?.addEventListener('compositionend', event => {
+    if(!event.target.matches?.('[data-asset-query-text]')) return;
+    assetQueryComposing = false;
+    scheduleAssetQuerySearch();
+});
+assetQueryEl?.addEventListener('change', event => {
+    if(!event.target.matches?.('[data-asset-query-size]') || !assetQueryState) return;
+    assetQueryState.setLimit(event.target.value);
+    loadAssetQuery();
+});
+assetQueryEl?.addEventListener('keydown', event => {
+    if(event.key !== 'Enter' || !assetQueryState) return;
+    if(event.target.matches?.('[data-asset-query-tag-input]')){
+        event.preventDefault();
+        addAssetQueryTag(event.target.value || '');
+        return;
+    }
+    if(event.target.matches?.('[data-asset-query-text]')){
+        event.preventDefault();
+        clearTimeout(assetQueryTimer);
+        assetQueryPendingFocus = {selector:'[data-asset-query-text]', position:event.target.selectionStart ?? 0};
+        loadAssetQuery();
+    }
+});
+assetInspectorEl?.addEventListener('click', event => {
+    const versionBtn = event.target.closest?.('[data-asset-inspector-version]');
+    if(versionBtn){
+        const id = versionBtn.dataset.assetInspectorVersion || '';
+        /* Selecting the version already being shown returns to following the
+         * current version, so there is a way back without reloading. */
+        assetInspectorVersionId = id && id === assetInspectorVersionId ? '' : id;
+        renderAssetInspector();
+        return;
+    }
+    const openBtn = event.target.closest?.('[data-asset-inspector-open]');
+    if(openBtn){
+        if(openBtn.disabled) return;
+        openAssetInspectorLocation(openBtn.dataset.assetInspectorOpen);
+    }
+});
+assetInspectorEl?.addEventListener('dragstart', startAssetInspectorDrag);
+refreshBtn?.addEventListener('click', () => loadAll()
+    .then(() => { if(assetQueryVisible()) return loadAssetQuery(); })
+    .catch(err => setStatus(err.message || '加载失败')));
 storageSettingsBtn?.addEventListener('click', () => openStorageSettings().catch(err => setStatus(err.message || '打开偏好设置失败')));
 window.addEventListener('message', event => {
     if(event.data?.type === 'studio-theme') window.StudioTheme?.apply?.(event.data.theme);

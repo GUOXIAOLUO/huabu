@@ -12,6 +12,7 @@ function createVersionedClassicConnectedNode(command, state, origin){
 }
 function createLinkedNode(type){
     const state = linkCreateState;
+    nodePicker?.close();
     closeLinkCreateMenu();
     if(!state) return;
     const origin = nodes.find(n => n.id === state.originId);
@@ -1843,7 +1844,7 @@ function ensureCanvasRenderSweep(){
 function render(){
     const result = ensureCanvasRenderSweep().run();
     if(window.WorkbenchInspectorPanel && window.WorkbenchNodeInspector){
-        if(!window.canvasInspectorPanel){
+        if(!window.canvasInspectorPanel || typeof window.canvasInspectorPanel.render !== 'function'){
             window.canvasInspectorPanel = window.WorkbenchInspectorPanel.create({element:document.getElementById('canvasInspectorPanel')});
         }
         const selectedNodes = (nodes || []).filter(node => selected.has(node.id));
@@ -1979,7 +1980,15 @@ function isNodeDragSurface(target){
 }
 function canUseCanvasMediaRenderer(node){
     if(!window.WorkbenchNodeClient?.isLoopback?.() || !window.WorkbenchMediaRenderer) return false;
+    // Task cards may carry result references, but their product presentation
+    // belongs to the shared TaskRichNode/Result Workspace shell, not the
+    // generic media renderer. Keep this explicit so result options reach the
+    // canonical task adapter instead of being swallowed by source-payload.
+    if(node?.type === 'task') return false;
     if(node?.type === 'collection') return Boolean(node.collection || node.config?.collection || node.extensions?.collection?.payload || node.extensions?.legacy?.payload?.collection);
+    if(node?.type === 'asset' || node?.type === 'artifact') {
+        return window.WorkbenchMediaRenderer.canRender(canvasMediaRecord(node));
+    }
     if(node?.type === 'image') return Boolean(node.url);
     return node?.type === 'group' && (node.items || []).some(id => {
         const item = nodes.find(candidate => candidate.id === id);
@@ -2050,6 +2059,95 @@ function canvasLegacyNodeShellPorts(node){
     // member membership and summarized text remain owned by the Legacy body.
     if(node?.type === 'promptGroup') return {input:false, output:true};
     return {input:true, output:true};
+}
+function canvasTaskResultAssetOptions(node){
+    const runId = String(node?.run_id || node?.runId || node?.execution_run_id || '').trim();
+    const projectId = String(canvas?.project || '').trim();
+    const outputs = [node?.result_outputs, node?.resultOutputs, node?.output_refs, node?.outputRefs]
+        .flatMap(value => Array.isArray(value) ? value : []).filter(Boolean);
+    if(!runId || !projectId) return null;
+    return {
+        runId, projectId, actorId:CLIENT_ID, type:'other',
+        contentFor: record => {
+            const match = outputs.find(item => String(item.attempt_id || item.attemptId || '').trim() === record.attempt_id
+                && String(item.output_name || item.outputName || item.name || '').trim() === record.output_name
+                && Number(item.ordinal) === record.ordinal);
+            if(!match) return null;
+            return {
+                location:String(match.location || match.url || match.uri || match.file || '').trim(),
+                checksum:String(match.checksum || '').trim(),
+                mime_type:String(match.mime_type || match.mimeType || 'application/octet-stream').trim(),
+                size_bytes:Number(match.size_bytes ?? match.sizeBytes ?? 0),
+            };
+        },
+    };
+}
+function canvasTaskRendererOptions(node){
+    const records = Array.isArray(node?.result_selections) ? node.result_selections
+        : (Array.isArray(node?.resultSelections) ? node.resultSelections : []);
+    const assetOptions = canvasTaskResultAssetOptions(node);
+    // R6-20 owns discovery.  Runtime hosts may expose either the shared
+    // registry bundle or its historical individual aliases; this adapter only
+    // reads those injected owners and never creates a registry in Canvas.
+    const canonicalRegistries = window.WorkbenchRuntimeRegistries || window.WorkbenchRegistries || {};
+    const canonicalSkillRegistry = canonicalRegistries.skills
+        || window.WorkbenchTaskSkillRegistry
+        || window.WorkbenchSkillRegistry;
+    const skillSelectorOptions = canonicalSkillRegistry && typeof canonicalSkillRegistry.discover === 'function'
+        ? {registry: canonicalSkillRegistry, recommended: node.skillBinding ? [{skill_id: node.skillBinding.skill_id, version: node.skillBinding.version}] : []}
+        : null;
+    const canonicalAvailabilityRegistry = canonicalRegistries.modelAvailability
+        || canonicalRegistries.modelAvailabilities
+        || window.WorkbenchModelAvailabilityRegistry;
+    const registryAvailabilities = canonicalAvailabilityRegistry && typeof canonicalAvailabilityRegistry.listForModel === 'function'
+        ? canonicalAvailabilityRegistry.listForModel(node.model_ref || node.model || '')
+        : (canonicalAvailabilityRegistry && typeof canonicalAvailabilityRegistry.list === 'function'
+            ? canonicalAvailabilityRegistry.list({model_ref: node.model_ref || node.model || ''})
+            : []);
+    const modelAvailabilities = Array.isArray(node.modelAvailabilities)
+        ? node.modelAvailabilities
+        : (Array.isArray(node.model_availabilities) ? node.model_availabilities : registryAvailabilities);
+    const taskRichNodeOptions = {
+        storage: null,
+        onChange: snapshot => {
+            const fields = snapshot?.fields || {};
+            ['status', 'inputs', 'definition', 'skill', 'skillBinding', 'modelSelection', 'prompt', 'outputMode', 'workspace', 'inspector'].forEach(key => {
+                if(Object.prototype.hasOwnProperty.call(fields, key)) node[key] = fields[key];
+            });
+            scheduleSave();
+        },
+    };
+    const options = {
+        taskNode: node,
+        taskRichNodeOptions,
+        taskPresentationOptions: {
+            routeLabel: node.routeLabel || node.platform || '平台 / 路由',
+            modelLabel: node.model || node.model_ref || '',
+            runLabel: '运行',
+        },
+    };
+    if(skillSelectorOptions) options.skillSelectorOptions = skillSelectorOptions;
+    if(modelAvailabilities.length) options.modelAvailabilities = modelAvailabilities;
+    if(records.length) options.resultSelectionOptions = {records};
+    if(assetOptions) options.resultAssetMaterializationOptions = assetOptions;
+    const resultItems = Array.isArray(node.result_items) ? node.result_items
+        : (Array.isArray(node.resultItems) ? node.resultItems : (Array.isArray(node.results) ? node.results : []));
+    const resultCandidates = Array.isArray(node.result_candidates) ? node.result_candidates
+        : (Array.isArray(node.resultCandidates) ? node.resultCandidates : resultItems);
+    if(resultItems.length || records.length || node.result_workspace) {
+        options.resultWorkspaceOptions = {
+            title: node.result_workspace?.title || 'Results',
+            items: resultItems,
+            tray: node.result_workspace?.tray || (resultItems.length ? {sessionId: node.id} : null),
+            compare: node.result_workspace?.compare || (resultCandidates.length ? {candidates: resultCandidates} : null),
+            selection: node.result_workspace?.selection || (records.length ? {records} : null),
+            collection: node.result_workspace?.collection || null,
+            materialization: node.result_workspace?.materialization || null,
+            onPreview: node.result_workspace?.onPreview,
+            onChange: node.result_workspace?.onChange,
+        };
+    }
+    return options;
 }
 function canvasShellPointer(detail={}){
     return {
@@ -2238,7 +2336,7 @@ function mountCanvasNodeShellForLegacy(node, body, el){
     const record = canvasMediaRecord(node);
     // Migrated generic families receive renderer-owned DOM through the
     // registry; state and page services stay behind rendererOptions callbacks.
-    const rendererOptions = node.type === 'prompt' ? {
+    const rendererOptions = node.type === 'task' ? canvasTaskRendererOptions(node) : node.type === 'prompt' ? {
         templateActive: Boolean(promptTemplateModal?.classList.contains('open') && promptTemplateNodeId === node.id),
         maxLength: PROMPT_TEXT_MAX_LENGTH,
         textLength: promptTextLength,

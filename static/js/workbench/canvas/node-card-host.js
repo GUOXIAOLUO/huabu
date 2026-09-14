@@ -29,6 +29,15 @@
                 }),
             });
         }
+        if (global.WorkbenchEntityRichNode && !hasRenderer('entity-rich', '1')) {
+            registry.register({
+                id: 'entity-rich', version: '1', priority: 125,
+                canRender: node => global.WorkbenchEntityRichNode.compatible(node),
+                mount: (shell, node, options) => global.WorkbenchEntityRichNode.mount(shell, node, {
+                    ...(options || {}), richNode: shell.entityRichNode,
+                }),
+            });
+        }
         if (global.WorkbenchMediaRenderer && !hasRenderer('media', '1')) {
             registry.register({
                 id: 'media',
@@ -67,7 +76,10 @@
         const node = settings.node;
         const renderer = resolveRenderer(settings);
         const resolvedRendererOptions = rendererOptions(settings);
-        const isTask = node.kind === 'task' || node.type === 'task';
+        // Legacy compatibility records retain the original Task node in
+        // rendererOptions so the shared Task presentation can still mount.
+        const taskCandidate = resolvedRendererOptions.taskNode || node;
+        const isTask = taskCandidate.kind === 'task' || taskCandidate.type === 'task';
         const modelSelectorOptions = isTask
             ? {
                 ...(resolvedRendererOptions.modelSelectorOptions || {}),
@@ -85,6 +97,37 @@
                 ...(resolvedRendererOptions.executionInputPreviewOptions || {}),
             }
             : null;
+        const taskPresentationOptions = isTask && resolvedRendererOptions.taskPresentationOptions
+            ? {
+                ...resolvedRendererOptions.taskPresentationOptions,
+                // The compact card owns the visible selector hosts. These
+                // options still flow through the canonical selector modules;
+                // no provider or credential data is copied into the node.
+                modelSelectorOptions,
+                ...(resolvedRendererOptions.skillSelectorOptions
+                    ? {skillSelectorOptions: resolvedRendererOptions.skillSelectorOptions}
+                    : {}),
+            }
+            : resolvedRendererOptions.taskPresentationOptions;
+        const resultAssetOptions = resolvedRendererOptions.resultAssetMaterializationOptions;
+        const resultSelectionOptions = resolvedRendererOptions.resultSelectionOptions || resultAssetOptions
+            ? {...(resolvedRendererOptions.resultSelectionOptions || {})}
+            : null;
+        if (resultSelectionOptions && resultAssetOptions && !resultSelectionOptions.onSaveAsAsset
+            && global.WorkbenchResultAssetMaterializationApiClient?.createHandler) {
+            resultSelectionOptions.onSaveAsAsset = global.WorkbenchResultAssetMaterializationApiClient.createHandler(resultAssetOptions);
+        }
+        const entityRichNodeOptions = node.kind === 'entity' || node.type === 'entity'
+            ? {
+                ...resolvedRendererOptions,
+                onEdit: detail => {
+                    resolvedRendererOptions.onEdit?.(detail);
+                    if (typeof settings.onIntent === 'function') {
+                        settings.onIntent({type: 'entity_edit', nodeId: node.id, detail});
+                    }
+                },
+            }
+            : resolvedRendererOptions;
         const shell = global.WorkbenchNodeShell.create({
             document: settings.document || global.document,
             node,
@@ -92,14 +135,34 @@
             onIntent: settings.onIntent,
             showDelete: settings.showDelete,
             ports: settings.ports,
+            taskNode: resolvedRendererOptions.taskNode,
+            taskRichNodeOptions: resolvedRendererOptions.taskRichNodeOptions,
+            taskPresentationOptions,
+            deferTaskPresentation: isTask && Boolean(resolvedRendererOptions.taskPresentationOptions),
             collectionRichNodeOptions: resolvedRendererOptions,
             skillSelectorOptions: resolvedRendererOptions.skillSelectorOptions,
             skillPresentationOptions: resolvedRendererOptions.skillPresentationOptions,
             skillInspectorOptions: resolvedRendererOptions.skillInspectorOptions,
             modelSelectorOptions,
             executionInputPreviewOptions,
+            resultSelectionOptions,
+            resultWorkspaceOptions: resolvedRendererOptions.resultWorkspaceOptions,
+            entityRichNodeOptions,
         });
-        const mountedRenderer = renderer.mount(shell, node, resolvedRendererOptions);
+        const mountedRenderer = renderer.mount(shell, node, {
+            ...resolvedRendererOptions,
+            contentFirst: renderer.id === 'media' || resolvedRendererOptions.contentFirst === true,
+        });
+        const mountedTaskPresentation = isTask && taskPresentationOptions && shell.taskRichNode
+            ? shell.taskRichNode.mountTaskPresentation(shell.contentHost, taskPresentationOptions)
+            : null;
+        let mountedResultWorkspace = null;
+        if (isTask && resolvedRendererOptions.resultWorkspaceOptions && shell.taskRichNode) {
+            const workspaceHost = (settings.document || global.document).createElement('section');
+            workspaceHost.setAttribute('data-result-workspace-host', '');
+            shell.contentHost.append(workspaceHost);
+            mountedResultWorkspace = shell.taskRichNode.mountResultWorkspace(workspaceHost, resolvedRendererOptions.resultWorkspaceOptions);
+        }
         shell.element.dataset.rendererId = renderer.id;
         shell.element.dataset.rendererVersion = renderer.version;
         return Object.freeze({
@@ -107,8 +170,11 @@
             shell,
             renderer,
             mountedRenderer,
+            mountedTaskPresentation,
+            mountedResultWorkspace,
             destroy() {
                 mountedRenderer && mountedRenderer.destroy && mountedRenderer.destroy();
+                mountedResultWorkspace?.destroy?.();
                 shell.destroy();
             },
         });

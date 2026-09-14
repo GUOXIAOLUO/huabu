@@ -10,7 +10,7 @@ from workbench.application.node_creation import NodeCreateCommand, NodeCreationE
 from workbench.application.node_mutation import NodeDeleteCommand, NodeMutationError, NodeMutationService, NodeUpdateCommand
 from workbench.application.graph_mutation import ConnectNodesCommand, CreateNodeAndEdgeFromCreationCommand, GraphMutationError, GraphMutationService
 from workbench.application.group_mutation import GroupMembershipCommand, GroupMembershipService, GroupMutationError
-from workbench.domain.canvas.models import DefinitionRef, ModelBinding, NodeRecord, Position
+from workbench.domain.canvas.models import ArtifactOrAssetVersionRef, DefinitionRef, ModelBinding, NodeRecord, Position
 from workbench.repositories.canvas_repository import StaleCanvasRevisionError
 
 
@@ -25,6 +25,7 @@ class NodeCreatePayload(BaseModel):
     expected_revision: int | None = Field(default=None, ge=1)
     title: str | None = Field(default=None, min_length=1, max_length=500)
     initial_bindings: list[dict[str, Any]] = Field(default_factory=list)
+    initial_output_refs: list[ArtifactOrAssetVersionRef] = Field(default_factory=list)
     initial_config: dict[str, Any] = Field(default_factory=dict)
     requested_model_binding: ModelBinding | None = None
     approval_id: str | None = Field(default=None, max_length=255)
@@ -124,6 +125,7 @@ def create_canvas_nodes_router(
                     expected_revision=payload.expected_revision,
                     title=payload.title,
                     initial_bindings=tuple(payload.initial_bindings),
+                    initial_output_refs=tuple(payload.initial_output_refs),
                     initial_config=payload.initial_config,
                     requested_model_binding=payload.requested_model_binding,
                     approval_id=payload.approval_id,

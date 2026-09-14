@@ -97,17 +97,21 @@ function ensureFloatingActionBar(){
         document,
         container: selectionHub,
         actions: [
-            {id:'open', label:langIsEn() ? 'Open' : '打开', icon:'external-link', order:10, when:context => context.count === 1},
-            {id:'copy', label:langIsEn() ? 'Copy' : '复制', icon:'copy', order:20, when:context => context.count > 0},
-            {id:'group', label:langIsEn() ? 'Group' : '分组', icon:'folder-plus', order:30, when:context => context.count > 1},
-            {id:'quick-collection', label:langIsEn() ? 'Collection' : '集合', icon:'library', order:35, when:context => window.WorkbenchQuickCollection?.eligibleReferences(context.nodes).length > 1},
-            {id:'delete', label:langIsEn() ? 'Delete' : '删除', icon:'trash-2', order:40, when:context => context.count > 0},
+            {id:'open', label:langIsEn() ? 'Open' : '打开', icon:'external-link', order:10, when:context => context.capabilities.includes('open')},
+            {id:'preview', label:langIsEn() ? 'Preview' : '预览', icon:'eye', order:15, when:context => context.capabilities.includes('preview')},
+            {id:'edit', label:langIsEn() ? 'Edit' : '编辑', icon:'pencil', order:20, when:context => context.capabilities.includes('edit')},
+            {id:'copy', label:langIsEn() ? 'Copy' : '复制', icon:'copy', order:30, when:context => context.capabilities.includes('copy')},
+            {id:'group', label:langIsEn() ? 'Group' : '分组', icon:'folder-plus', order:40, when:context => context.capabilities.includes('group')},
+            {id:'quick-collection', label:langIsEn() ? 'Collection' : '集合', icon:'library', order:45, when:context => context.capabilities.includes('collection')},
+            {id:'delete', label:langIsEn() ? 'Delete' : '删除', icon:'trash-2', order:50, when:context => context.capabilities.includes('delete')},
         ],
         onIntent: intent => {
             if(intent.actionId === 'open') {
                 openSelectedWorkspace(intent.nodeIds[0]);
                 exitZoomPreviewToNode(intent.nodeIds[0]);
             }
+            else if(intent.actionId === 'preview') openImageNodePreview(intent.nodeIds[0]);
+            else if(intent.actionId === 'edit') openImageEditor(intent.nodeIds[0]);
             else if(intent.actionId === 'copy') copySelectedNodes();
             else if(intent.actionId === 'group') groupSelectedImages();
             else if(intent.actionId === 'quick-collection') void createQuickCollectionFromSelection();
@@ -153,11 +157,32 @@ async function createQuickCollectionFromSelection(){
         setStatus(error.message || (langIsEn() ? 'Collection creation failed' : '集合创建失败'));
     }
 }
+function selectionCapabilities(selectedNodes){
+    const capabilitySet = new Set();
+    if(!selectedNodes.length) return capabilitySet;
+    capabilitySet.add('copy');
+    capabilitySet.add('delete');
+    if(selectedNodes.length === 1) capabilitySet.add('open');
+    if(selectedNodes.length > 1 && selectedNodes.every(node => node?.type === 'image' || node?.type === 'prompt')) capabilitySet.add('group');
+    if(selectedNodes.length === 1) {
+        const node = selectedNodes[0];
+        const media = window.WorkbenchMediaRenderer?.mediaItems(node)?.[0];
+        const url = node?.url || media?.url || '';
+        const kind = media
+            ? window.WorkbenchCanvasMediaKind.kindForItem({url, kind:media.mediaType, name:media.label}, {includeFlv:true})
+            : mediaKindForNode(node);
+        const usableUrl = Boolean(url) && !isMissingAssetUrl(url);
+        if(usableUrl && ['image', 'video'].includes(kind)) capabilitySet.add('preview');
+        if(node?.type === 'image' && usableUrl && kind === 'image') capabilitySet.add('edit');
+    }
+    if(window.WorkbenchQuickCollection?.eligibleReferences(selectedNodes).length > 1) capabilitySet.add('collection');
+    return capabilitySet;
+}
 function renderSelectionHub(){
     const bar = ensureFloatingActionBar();
     if(!bar) return;
     const selectedNodes = [...selected].map(id => nodes.find(node => node.id === id)).filter(Boolean);
-    const result = bar.update({nodeIds:selectedNodes.map(node => node.id), nodes:selectedNodes});
+    const result = bar.update({nodeIds:selectedNodes.map(node => node.id), nodes:selectedNodes, capabilities:[...selectionCapabilities(selectedNodes)]});
     if(!result.visible.length) return;
     const boardRect = board.getBoundingClientRect();
     const rects = selectedNodes.map(node => nodesEl.querySelector(`.node[data-id="${CSS.escape(node.id)}"]`)?.getBoundingClientRect()).filter(Boolean);
@@ -953,8 +978,12 @@ function renderLinks(){
         segments.push({c, a:portPoint(c.from, 'out'), b:portPoint(c.to, 'in')});
     });
     segments.forEach(({c, a, b}) => {
-        const relClass = isConnectionSelected(c) ? ' link-active' : '';
-        linksEl.appendChild(pathEl(a.x, a.y, b.x, b.y, `link${relClass}`));
+        const fromNode = nodes.find(node => node.id === c.from);
+        const toNode = nodes.find(node => node.id === c.to);
+        const edgeClass = window.WorkbenchCanvasGraphInteraction?.edgePresentationClass?.({
+            fromNode, toNode, selected:isConnectionSelected(c), hovered:hoveredConnectionId === c.id,
+        }) || (isConnectionSelected(c) ? 'link link-active' : 'link');
+        linksEl.appendChild(pathEl(a.x, a.y, b.x, b.y, edgeClass));
         linkControlsEl.appendChild(linkDeleteButton(c, a, b));
         linksEl.appendChild(linkHitEl(a.x, a.y, b.x, b.y, c.id));
     });
@@ -1194,9 +1223,58 @@ canvasArrangeBtn?.addEventListener('click', e => {
     e.stopPropagation();
     arrangeSelectedCanvasNodes();
 });
+canvasZoomOutBtn?.addEventListener('mousedown', e => e.stopPropagation());
+canvasZoomOutBtn?.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    adjustCanvasViewportScale(.88);
+});
+canvasFitBtn?.addEventListener('mousedown', e => e.stopPropagation());
+canvasFitBtn?.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    fitAllNodesViewport();
+});
+canvasZoomInBtn?.addEventListener('mousedown', e => e.stopPropagation());
+canvasZoomInBtn?.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    adjustCanvasViewportScale(1.14);
+});
 function isZoomPreviewIgnoredTarget(target){
     return !!target?.closest?.('#createMenu, #linkCreateMenu, #nodeInputMenu, #nodeOutputMenu, #imageNodeMenu, .minimap, #canvasAssetPanel, #assetManagerModal, #workflowTransferModal, #logModal, #promptTemplateModal, #imageEditModal, #outputLightbox');
 }
+async function materializePendingArtifact(request){
+    const artifactId = String(request?.artifact_id || '').trim();
+    const versionId = String(request?.artifact_version_id || '').trim();
+    if(!artifactId || !versionId || !canvas || !canUseVersionedImageCreation()) return false;
+    const point = defaultPoint(0, 0);
+    const undoSnapshot = {nodes:JSON.parse(JSON.stringify(serializableCanvasNodes())), connections:JSON.parse(JSON.stringify(connections))};
+    try {
+        await ensureCreationController().createNode({
+            canvasId:canvas.id, projectId:canvas.project, clientId:CLIENT_ID,
+            source:'result_materialization', definitionRef:{type:'workbench', id:'execution-result', version:'1'},
+            position:point, expectedRevision:currentCanvasRevision(), title:`产物 · ${versionId}`,
+            initialConfig:{artifact_version_ref:{artifact_id:artifactId, version_id:versionId}},
+            initialOutputRefs:[{type:'artifact_version', id:versionId}],
+            apply:{
+                nodes, undoStack, undoSnapshot, undoLimit:UNDO_MAX, canvas,
+                projectNode:created => ({id:created.id, type:'workbench-result', x:point.x, y:point.y, w:created.size?.width || 320, h:created.size?.height || 240, name:created.title || `产物 · ${versionId}`, output_refs:[{type:'artifact_version', id:versionId}], artifactVersionRef:{artifact_id:artifactId, version_id:versionId}}),
+                onRevision:revision => { adoptCanvasRevision(revision); },
+                onSelected:created => { selected.clear(); selected.add(created.id); },
+            },
+        });
+        window.pendingArtifactMaterialization = null;
+        render();
+        setStatus('产物已通过正式画布创建入口物化');
+        return true;
+    } catch(error) {
+        console.error('Artifact materialization failed', error);
+        setStatus(error.message || '产物物化失败');
+        return false;
+    }
+}
+window.addEventListener('workbench-artifact-materialization-request', event => { void materializePendingArtifact(event.detail); });
 board.addEventListener('mousedown', e => {
     if(!zoomPreviewState || e.button !== 0) return;
     if(isZoomPreviewIgnoredTarget(e.target)) return;
@@ -1322,7 +1400,7 @@ board.addEventListener('dragover', e => {
         dropOverlay.classList.remove('active');
         return;
     }
-    if(hasImageDropData(e.dataTransfer) || hasOutputImageDrag(e.dataTransfer)){
+    if(window.WorkbenchAssetReferenceMaterializer?.payload(e.dataTransfer) || hasImageDropData(e.dataTransfer) || hasOutputImageDrag(e.dataTransfer)){
         e.preventDefault();
         e.dataTransfer.dropEffect = 'copy';
         dropOverlay.classList.add('active');
@@ -1335,6 +1413,32 @@ board.addEventListener('drop', async e => {
     e.preventDefault();
     dropOverlay.classList.remove('active');
     if(e.target.closest?.('.image-node')) return;
+    const assetItem = window.WorkbenchAssetReferenceMaterializer?.payload(e.dataTransfer);
+    if(assetItem && canvas && canUseVersionedImageCreation()) {
+        try {
+            await window.WorkbenchAssetReferenceMaterializer.create({
+                dataTransfer:e.dataTransfer, projectId:canvas.project, canvasId:canvas.id,
+                position:screenToWorld(e.clientX, e.clientY), expectedRevision:currentCanvasRevision(),
+                createNode:request => ensureCreationController().createNode({
+                    ...request, clientId:CLIENT_ID,
+                    apply:{
+                        nodes, undoStack,
+                        undoSnapshot:{nodes:JSON.parse(JSON.stringify(serializableCanvasNodes())), connections:JSON.parse(JSON.stringify(connections))},
+                        undoLimit:UNDO_MAX, canvas,
+                        projectNode:created => ({id:created.id, type:'image', x:request.position.x, y:request.position.y, url:'', name:created.title || assetItem.label, mediaKind:request.initialConfig.mediaKind, assetVersionRef:request.initialConfig.asset_version_ref}),
+                        onRevision:revision => { adoptCanvasRevision(revision); },
+                        onSelected:created => { selected.clear(); selected.add(created.id); },
+                    },
+                }),
+            });
+            render();
+            setStatus('已按资产版本引用创建节点');
+        } catch(err) {
+            setStatus('资产引用创建失败');
+            console.error('Asset reference drop failed', err);
+        }
+        return;
+    }
     if(hasOutputImageDrag(e.dataTransfer)) {
         createImageCardFromOutput(e.dataTransfer.getData('application/x-canvas-output-image'), screenToWorld(e.clientX, e.clientY));
         return;

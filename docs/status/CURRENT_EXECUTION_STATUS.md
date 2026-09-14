@@ -6,11 +6,11 @@ status_schema: workbench.execution-status/2
 
 repository: local worktree (remote repository out of scope)
 verified_head: HEAD (local main)
-verified_commit: "b797f0bb2f5a3efbe8692e37b81727a54578dc6b (local main; R6-13 through R9-02 committed locally in six commits; R9-02 independent Review PASS and archived; R9-03 activated, implementation not started)"
+verified_commit: "df4bcd94ea99a03c209ae4bd3f71214b860ddde9 (current local main; R6-13 through R9-02 committed locally; R9-03 and R9-04 implementation complete in working tree, both independent Review PASS and archived in docs/tasks/done/; R9-05 implementation complete in working tree, independent Review pending)"
 branch: main
 remote_state: not checked; GitHub/remote synchronization is out of scope for this local task
-verified_at: 2026-09-13T09:52:00+08:00
-verification_source: R8-20 independent Review PASS (two disjoint mutation sets: developer 34 probes at 33/34, reviewer 26 probes raised from 5/26 to 22/26 after four blocking findings were fixed; every source restored byte-identical by sha256; DoD proven through the real main.app across two OS processes: 201/201/422/403, lineage_root run-1, run_count 3, source_revision 1; final gate 1053 tests, 216 Python AST files, 142 JavaScript files, 4 architecture guards, clean diff check); R8-20 archived in docs/tasks/done/; R8-21 implementation complete and developer-verified (gate 1078 tests, 219 Python AST files, 144 JavaScript files, 4 architecture guards, clean diff; 33-probe mutation review 25/33 then 32/33 after seven pins, every source restored byte-identical by sha256; DoD proven through the real main.app across two OS processes: 200 with 2 items, stranger 403, zero revision 422, canvas_count 0); R8-21 independent Review PASS (two disjoint mutation sets: developer 33 probes at 32/33, reviewer 22 probes raised from 8/22 to 16/22 after one functional defect and four coverage findings were fixed; every source restored byte-identical by sha256; final gate 1079 tests, 219 Python AST files, 144 JavaScript files, 4 architecture guards, clean diff check); R8-21 archived in docs/tasks/done/, R8-22 activated but not started; R8-22 independent Review PASS and archived with R9-01 activated; R9-01 implementation complete and developer-verified (18-probe developer mutation set 17/18 then 18/18 after pinning a guard that a ValidationError had masked; DoD proven across two OS processes through a durable JSON artifact); R9-01 independent Review PASS (11 reviewer probes on disjoint axes 9/11 then 9/11 after four requiredness pins; two survivors proven equivalent by measurement; all 29 probes restored byte-identical by sha256; final gate 1147 tests, 229 Python AST files, 146 JavaScript files, 4 architecture guards, clean diff check); R9-01 archived in docs/tasks/done/, R9-02 activated but not started
+verified_at: 2026-09-14T15:30:46+08:00
+verification_source: R8-20 independent Review PASS (two disjoint mutation sets: developer 34 probes at 33/34, reviewer 26 probes raised from 5/26 to 22/26 after four blocking findings were fixed; every source restored byte-identical by sha256; DoD proven through the real main.app across two OS processes: 201/201/422/403, lineage_root run-1, run_count 3, source_revision 1; final gate 1053 tests, 216 Python AST files, 142 JavaScript files, 4 architecture guards, clean diff check); R8-20 archived in docs/tasks/done/; R8-21 implementation complete and developer-verified (gate 1078 tests, 219 Python AST files, 144 JavaScript files, 4 architecture guards, clean diff; 33-probe mutation review 25/33 then 32/33 after seven pins, every source restored byte-identical by sha256; DoD proven through the real main.app across two OS processes: 200 with 2 items, stranger 403, zero revision 422, canvas_count 0); R8-21 independent Review PASS (two disjoint mutation sets: developer 33 probes at 32/33, reviewer 22 probes raised from 8/22 to 16/22 after one functional defect and four coverage findings were fixed; every source restored byte-identical by sha256; final gate 1079 tests, 219 Python AST files, 144 JavaScript files, 4 architecture guards, clean diff check); R8-21 archived in docs/tasks/done/, R8-22 activated but not started; R8-22 independent Review PASS and archived with R9-01 activated; R9-01 implementation complete and developer-verified (18-probe developer mutation set 17/18 then 18/18 after pinning a guard that a ValidationError had masked; DoD proven across two OS processes through a durable JSON artifact); R9-01 independent Review PASS (11 reviewer probes on disjoint axes 9/11 then 9/11 after four requiredness pins; two survivors proven equivalent by measurement; all 29 probes restored byte-identical by sha256; final gate 1147 tests, 229 Python AST files, 146 JavaScript files, 4 architecture guards, clean diff check); R9-01 archived in docs/tasks/done/, R9-02 activated but not started; R9-02 independent Review PASS and archived with R9-03 activated; R9-03 implementation complete and developer-verified (focused 5 tests; gate 1191 tests, 242 Python AST files, 146 JavaScript files, 4 architecture guards, clean diff check; migration reruns reject conflicting Asset/AssetVersion identities; asset/version reads require actor + project read authorization, 401/403 proven); R9-03 independent Review PASS and archived in docs/tasks/done/ with R9-04 activated but not started; R9-04 implementation complete and developer-verified (focused 6 tests; gate 1197 tests, 243 Python AST files, 147 JavaScript files, 4 architecture guards, clean diff check; browser acceptance through the real studio shell — one 素材库 top-level entry, 7 registry-driven categories, unified search keeping focus and mirroring into the active category's item query, resource-kind filter pinning the active category, canvas entries routing the studio to the Unified Canvas); R9-04 independent Review PASS and archived in docs/tasks/done/ with R9-05 activated but not started; R9-05 implementation complete and developer-verified (focused 11 + 6 tests; gate 1214 tests, 246 Python AST files, 148 JavaScript files, 4 architecture guards, clean diff check; indexed type/source/status/tag/text query with paging over the canonical Asset store, exposed as GET /api/v1/assets/query and searched from the Resources page without the Canvas; browser acceptance through the real local server on an isolated database copy — 1-24/30 paging to 25-30/30, 视频 filter 1-10/10, hero tag 1-2/2, 重置 restores 1-24/30, 提示词 tab removes the panel; real data files byte-identical by sha256); R9-06 implementation complete and developer-verified (pre-change baseline gate green at 1219 tests, so no truth reconciliation was needed; gate 1249 tests, 249 Python AST files, 149 JavaScript files, 4 architecture guards, clean diff check; independent DoD probe 59/59 through the real composition root booted as a server on an isolated port, an isolated database copy, four separate OS processes — write / serve / raw row read-back / browser module — and a sha256 digest of the whole real data/ tree unchanged; 17-probe mutation review 17/17 caught with every source restored byte-identical by sha256; one asset's versions are now readable in ordinal order with the current version named by the reply, every content and provenance field compared against what the writer stored, and the fetched reply rendered through the real asset-inspector.js; no canonical record references an AssetVersion yet, so the inspector's usage section reports that it cannot answer rather than an empty list)"
 worktree_before_R0: clean
 worktree_at_R4_03: HEAD a1195c9 plus the R4-03 card's own pending additions only —
 the authority policy seam, the main.py guard wiring, focused policy/wiring tests,
@@ -30,8 +30,8 @@ silent_model_provider_executor_fallback_allowed: false
 
 ## Active Round
 
-active_round: R8
-active_round_name: Execution Runtime + Integration Contracts
+active_round: UX
+active_round_name: UX Video Replica Wave
 round_status: in_progress
 blocking_issues: []
 
@@ -7962,6 +7962,31 @@ pydantic gives each instance its own dict and the record freezes it.
 
 R9-03 must not be implemented in the run that activates it.
 
+## R9-03 Asset Repository and Migration — DONE, independent Review PASS
+
+R9-03 is archived in `docs/tasks/done/` after independent Review PASS.
+`SqliteAssetRepository` owns Asset
+and AssetVersion persistence with foreign-key, unique-id, and gap-free ordinal
+constraints. `AssetLibraryMigrationService` reads the legacy asset-library JSON,
+rejects paths outside the configured library root, preserves source bytes, and
+records SHA-256 checksums and stable AssetVersionRefs. A read-only canonical
+Asset API exposes asset/version metadata without exposing file bytes. The legacy
+JSON store remains a compatibility source and is intentionally not retired in
+this card's implementation.
+
+Focused suite: `tests/test_asset_repository_migration.py` — **5 tests passed**.
+Full `./scripts/agent-verify.sh`: **PASS — 1191 tests**, 242 Python AST files,
+146 JavaScript files, 4 architecture guards, clean `git diff --check`.
+
+Developer review repair: migration reruns now reject existing Asset identities
+with different project/source/type ownership and existing AssetVersion IDs with
+different immutable content/provenance/ordinal metadata instead of swallowing
+the repository conflict. Focused coverage pins both conflict classes. Asset and
+AssetVersion reads now require `X-User-ID` and project `project.read`
+authorization through `AssetService`; missing actors return 401 and non-members
+return 403. The independent Review returned PASS. R9-04 is now the sole ACTIVE
+card, activated but not started.
+
 ## Local commit of the R6-13 … R9-02 batch (2026-09-13)
 
 R6-13 through R9-02 had all been reviewed, archived and status-synced, but none
@@ -7990,3 +8015,1547 @@ the same verdict as a bullet inside `## Developer Verification` (line 145 of
 `docs/tasks/done/R8-17-result-preview.md`, mirrored at line 7144 of this file).
 The review happened and is evidenced — the heading is what is missing. Lifting
 it into its own section is a documentation-only change, still outstanding.
+
+## R9-04 Resource Library Shell — DONE, independent Review PASS
+
+R9-04 is archived in `docs/tasks/done/` after independent Review PASS. The
+Resources section is now one shell instead of
+scattered per-kind UX, without adding a top-level navigation entry.
+
+New bounded module `static/js/workbench/canvas/resource-library-shell.js`
+exposes `window.WorkbenchResourceLibraryShell` with:
+
+- `createRegistry(seed)` — extensible, ordered category registry. Registration
+  validates eagerly and rejects duplicate ids, unknown surfaces (`library` /
+  `canvas`), unknown kinds (the target product surface's resource kinds) and
+  missing labels, so an extension cannot silently shadow a category.
+- `createShell({registry, escapeHtml, …})` — the Resources chrome. `render()` is
+  pure HTML: the category rail, the unified search control and the
+  resource-kind filter row. The kind filter narrows the rail and keeps the
+  active category pinned, so filtering can never hide the surface the host is
+  rendering. `setCategory` / `setKindFilter` reject unknown ids/kinds.
+
+`static/asset-manager.html` + `static/js/asset-manager.js` mount it as the
+section's single chrome. The page seeds the registry with seven categories
+covering this card's four canonical kinds — `asset`, `prompt`, `collection`,
+`skill` — plus the retained `workflow` / canvas-asset / local categories.
+Library-surface categories keep the page's existing `data-tab` switch path;
+canvas-surface categories (Collection, Skill) route to the Unified Canvas via
+the studio shell's new `studio-switch-page` message handler in `static/index.html`
+rather than growing a second resource library inside the page. The unified
+search writes into the active category's own canonical item query state (the
+existing `assetSearch` / `promptSearch` / … variables), so it reuses the
+canonical query rather than introducing a second one.
+
+Ownership: the static `[data-tab]` markup and the load-time
+`document.querySelectorAll('[data-tab]')` binding are removed; the shell is the
+single owner of the category rail and of its active state. The per-category item
+search inputs and every existing tab body stay page-owned compatibility and are
+deliberately not retired on this card. `docs/plans/R4_OWNERSHIP_MATRIX.md` is
+unchanged on purpose: it records Canvas *runtime* responsibilities, and this
+card moves Resources *UI-surface* ownership only.
+
+Focused suite: `tests/test_resource_library_shell.py` — **6 tests passed**
+(registry validation/extension/order, rail + search + filter rendering from the
+page's real `RESOURCE_CATEGORY_DEFINITIONS`, kind-filter projection with the
+active category pinned, page mounting, single-top-level-section + canvas-entry
+routing, `node --check`). Full `./scripts/agent-verify.sh`: **PASS — 1197 tests**,
+243 Python AST files, 147 JavaScript files, 4 architecture guards, clean
+`git diff --check`.
+
+Browser acceptance (headless Chrome + CDP against the real local server): the
+studio shell exposes exactly one `素材库` top-level entry and its page-id list is
+unchanged; inside it the rail renders all seven categories with `assets` active
+and `collections` / `skills` marked as canvas entries; typing in the unified
+search keeps focus and mirrors into the active category's `assetSearch` input;
+the `提示词` kind chip narrows the rail to the pinned active `assets` plus
+`prompts` without leaving the section; clicking `集合` routes the studio to the
+Unified Canvas frame (`studio_active_page` → `canvas`).
+
+R9-04 independent Review returned PASS. R9-05 is now the sole ACTIVE card,
+activated but not started.
+
+## Truth Reconciliation — stale R9-03/R9-04 contracts (2026-09-13)
+
+The pre-change baseline gate was **red**: 1191 tests, 1 failure.
+`tests/test_current_fact_documentation.py` asserted `- Active Task: `R9-03`` in
+`AGENT_NEXT_TASK.md` and `| `R9-03` | R9 | P0 | ACTIVE |` in
+`docs/tasks/TASK_INDEX.md`.
+
+Real repository fact: `docs/tasks/done/R9-03-asset-repository-and-migration.md`
+records `Status: DONE — independent Review PASS`, `AGENT_NEXT_TASK.md` and
+`TASK_INDEX.md` both name `R9-04` as the sole ACTIVE card, and this file's
+R9-03 section already recorded the PASS. The contract test was stale from the
+R9-03 close/activation and was the only thing still claiming R9-03 was active.
+
+Corrections applied: the contract now pins `R9-04`; the stale
+`verified_commit` and `verification_source` header narrative (which still said
+R9-03's independent Review was pending) was corrected to the real state. No
+production behavior changed. Bookkeeping drift still open: `docs/tasks/README.md`
+says `active/` is where `AGENT_NEXT_TASK.md` points, while R9-03 and R9-04 were
+both activated in `backlog/` and moved straight to `done/`; this card leaves the
+file where the pointer names it rather than moving it.
+
+## R9-05 Asset Search and Filter — implementation complete, independent Review CHANGES_REQUIRED (repaired), re-review pending
+
+R9-05 is the sole ACTIVE card. Assets can now be found without the Canvas: the
+Resources page searches the canonical Asset store by type, source, status, tag
+and free text, and pages through the result set.
+
+Canonical owner: `AssetService.query(AssetQuery, actor_id=...)`
+(`workbench/application/asset_service.py`) is the single application boundary for
+searching assets. It authorizes `project.read` against the query's *own*
+`project_id` — the query carries the project it is scoped to, so a caller cannot
+widen a query to a project it may not read by passing a second project id — and
+then delegates to the repository.
+
+New `workbench/application/asset_query.py` owns the contract:
+
+- `AssetQuery` — a frozen, validated filter plus page window: `project_id`,
+  `text`, `types`, `sources`, `statuses`, `tags`, `limit`, `offset`. The
+  vocabulary is the domain's own closed sets (`AssetType`, `AssetSource`,
+  `AssetStatus`) read through `get_args`, not a parallel copy, so a query that
+  named a value the domain does not define is rejected at construction instead
+  of returning an empty page forever. `tags` is an intersection ("carries
+  both"), which is the only reading that lets a filter narrow a result set.
+- `AssetQueryPage` — the page plus the unpaged `total`, with `has_more`.
+- `AssetQueryRepository` — the Protocol the repository implements structurally.
+
+`SqliteAssetRepository` (`workbench/repositories/asset_repository.py`) gains
+`query_assets(query)` — the SQL, one `COUNT(*)` plus one `LIMIT/OFFSET` page
+query — and the indexed/queryable metadata this card's In Scope asks for:
+
+- a derived `asset_tags` table (`PRIMARY KEY (asset_id, tag)`) projected from
+  `Asset.metadata["tags"]` at write time, plus `idx_asset_tags_tag`. The
+  canonical declaration stays in `metadata_json`; the table exists so a tag
+  filter is an index seek instead of a JSON scan. Assets are immutable and
+  append-only through this repository, so the projection is written once with
+  the record it indexes and cannot drift.
+- `idx_assets_project_type`, `idx_assets_project_source`,
+  `idx_assets_project_status`.
+- `migrate()` only adds (`CREATE TABLE/INDEX IF NOT EXISTS`), so an existing
+  database is extended in place and no stored asset row is rewritten.
+- `load_asset` / `list_assets` now hydrate version ids in one query per page
+  instead of one connection per asset; behavior is unchanged.
+
+Transport: `GET /api/v1/assets/query` (`workbench/api/assets.py`) returns
+`{items, total, limit, offset, has_more}`, mapping a value the domain rejects to
+422, a missing actor to 401 and a non-member to 403. It is declared before
+`/{asset_id}` so the query transport is never swallowed by the single-asset
+read. The existing `GET /api/v1/assets` list transport is untouched.
+
+UI: new bounded module `static/js/workbench/canvas/asset-query-panel.js`
+exposes `window.WorkbenchAssetQueryPanel` with `createQuery` (validated filter +
+page-window state, window reset on any change to what matches),
+`createClient` (one canonical request per page, `X-User-ID` actor header,
+normalized reply) and `createPanel` (pure `render(query, page, {loading, error})`
+returning HTML). `static/asset-manager.js` mounts it into `#assetQueryPanel`,
+owns the DOM, the transport actor and every event (click / input / change /
+keydown / IME composition), and re-renders only when a visible signature
+changes, so typing never tears down the input. The panel is rendered only while
+an asset-kind library category is active; the transport and the request shape
+stay in the module — the page never builds a canonical query URL.
+
+Ownership: no ownership move on this card. `docs/plans/R4_OWNERSHIP_MATRIX.md`
+records Canvas *runtime* responsibilities and is unchanged. The legacy
+per-category browse tree, its item search inputs and `data/asset_library.json`
+remain page-owned compatibility and are deliberately not retired here; the new
+surface is the canonical one, and it is the only path that reads the canonical
+Asset store. No duplicate owner was removed.
+
+Focused suites: `tests/test_asset_query.py` — **12 tests passed**;
+`tests/test_asset_query_panel.py` — **7 tests passed** (both counts include the
+two guards added by the independent-Review repair recorded below). Full
+`./scripts/agent-verify.sh`: **PASS — 1216 tests**, 246 Python AST files, 148
+JavaScript files, 4 architecture guards, clean `git diff --check`.
+
+Browser acceptance (headless Chrome + CDP against the real local server, on an
+isolated copy of `data/workbench.sqlite3` seeded with 30 assets): the page
+renders `#assetQueryPanel .asset-query` with all seven type chips and `1-24 / 30`;
+下一页 → `25-30 / 30` (next disabled); the 视频 chip → `1-10 / 10` with every row
+badged 视频; the `hero` tag added with Enter → `#hero` chip and `1-2 / 2`;
+重置 → `1-24 / 30` with no active chip; the 提示词 rail entry removes the panel.
+The real `data/workbench.sqlite3` and `data/asset_library.json` were
+byte-identical (sha256) before and after the run.
+
+## Truth Reconciliation — stale R9-04 contract (2026-09-13, R9-05 run)
+
+The pre-change baseline gate was red on one contract.
+`tests/test_current_fact_documentation.py` still asserted
+`- Active Task: `R9-04`` in `AGENT_NEXT_TASK.md` and
+`| `R9-04` | R9 | P0 | ACTIVE |` in `docs/tasks/TASK_INDEX.md`.
+
+Real repository fact: `docs/tasks/done/R9-04-resource-library-shell.md` records
+`Status: DONE — independent Review PASS`, and `AGENT_NEXT_TASK.md`,
+`docs/tasks/TASK_INDEX.md` and this file's R9-04 section all name `R9-05` as the
+sole ACTIVE card. The contract was stale from the R9-04 close/activation — the
+same drift class R9-04's own run repaired for R9-03.
+
+Corrections applied: the contract now pins `R9-05`; the R9-05 card's own
+`Status: BACKLOG` / `Depends on: R9-04` header was corrected to the real state;
+and the stale `verified_commit` / `verification_source` header narrative (which
+still said R9-04's independent Review was pending) was corrected and extended.
+No production behavior changed.
+
+Bookkeeping drift still open: `docs/tasks/README.md` says `active/` is where
+`AGENT_NEXT_TASK.md` points, while R9-03, R9-04 and R9-05 were all activated in
+`backlog/`; this card stays where the pointer names it rather than moving it.
+
+## R9-05 Independent Review — CHANGES_REQUIRED, repaired (2026-09-13)
+
+The independent Review reproduced the card's DoD through a different mechanism
+than the card's own tests — the real composition root, an isolated copy of
+`data/workbench.sqlite3`, three separate OS processes (write / HTTP read / raw
+`assets` + `asset_tags` row read-back) and a sha256 comparison proving the real
+data files were never written — and it passed 24/24. The verdict was nevertheless
+**CHANGES_REQUIRED**, on two *unpinned declarations* rather than DoD, architecture
+or ownership defects.
+
+**F1 — the composition root mounting the canonical transport was unguarded.**
+Deleting `app.include_router(create_canonical_assets_router(service_factory=asset_service))`
+left the full suite green. Four sibling cards that add a router
+(`test_result_selection`, `test_result_materialization`, `test_execution_branch`,
+`test_result_collection`) each carry a `test_composition_root_registers_the_*`
+guard with a comment explaining that it is the only place the real wiring is
+checked. The assets router had none — inherited from R9-03, which introduced the
+router; R9-05 adds `/query` to it.
+
+**F2 — the panel's filter vocabulary was a second copy of the domain's closed
+sets, pinned only against itself.** Widening `AssetType` in the domain left the
+suite green while `asset-query-panel.js` kept the old vocabulary, so the canonical
+search UI would silently lose the ability to filter a canonical member — a direct
+erosion of this card's own DoD. `tests/test_asset_query_panel.py` asserted the
+literals inside the JS source, which is tautological with respect to the domain.
+The repository already compares a derived artifact against its domain source for
+exact equality in
+`tests/test_node_record.py::test_published_node_kinds_are_exactly_the_domain_closed_set`,
+whose comment records that checking only the version let `collection` and `result`
+drift out of the published enum.
+
+**Repair.** Added
+`tests/test_asset_query.py::AssetQueryCompositionRootTests.test_composition_root_registers_the_canonical_query_route`
+(asserts `main.app.openapi()["paths"]` holds `/api/v1/assets/query` and
+`/api/v1/assets/{asset_id}` as distinct GET paths) and
+`tests/test_asset_query_panel.py::AssetQueryPanelTests.test_panel_filter_vocabulary_is_exactly_the_domain_closed_sets`
+(reads `TYPES`/`SOURCES`/`STATUSES` from the running module and asserts exact
+equality with `get_args(AssetType | AssetSource | AssetStatus)`, drives the
+text/tag bounds from the Python `MAX_TEXT_LENGTH` / `MAX_TAG_LENGTH` constants, and
+requires every offered page size to be one the server accepts).
+
+Both guards were proven load-bearing with a mutation harness (read bytes → require
+a unique anchor → one rewrite → run the owning suite → restore → re-verify
+sha256): deleting the `include_router` line is now caught by the full suite
+(1216 tests) and widening the domain closed set is now caught by the asset module
+set (63 tests). A third probe (`AssetQuery` frozenness) remains a non-blocking gap.
+
+Gate after the repair: **PASS — 1216 tests**, 246 Python AST files, 148 JavaScript
+files, 4 architecture guards, clean `git diff --check`.
+
+**What the next card inherits.** The card is still ACTIVE and not archived; the
+independent Review must be re-run against the repaired card before any archive,
+index sync or successor activation. Non-blocking items the Review recorded and
+this repair deliberately left open: `AssetQuery` frozenness is unguarded; the card
+asserts only the 422 status and does not pin the response shape distinguishing a
+framework validation error (`detail` + `errors` list) from the seam's own error
+(`detail` only); the text filter is a single contiguous substring over the raw
+metadata JSON; `AGENT_NEXT_TASK.md` still carries a `Status:` line that contradicts
+its own `Recommended Successor` section; and the panel's `DEFAULT_PAGE_SIZE` (24)
+shares a name with the server's (50). The R9-05 card section above and the card's
+own `Independent Review Repair` section record the same set.
+
+## R9-05 close-out — archived; R9-06 activated (2026-09-13)
+
+`R9-05` Asset Search and Filter is **DONE** and archived to
+`docs/tasks/done/R9-05-asset-search-and-filter.md`. `R9-06` Asset Inspector and
+Versions is the sole ACTIVE card — activated but **not started**.
+`AGENT_NEXT_TASK.md`, `docs/tasks/TASK_INDEX.md` and the card agree, and
+`tests/test_current_fact_documentation.py` now pins both the new ACTIVE row and the
+archived `R9-05` DONE row, so a botched archive fails the suite.
+
+Before archiving, the three non-blocking items the Review recorded were collected:
+`AssetQuery` / `AssetQueryPage` frozenness (`test_query_and_page_records_are_frozen`
+— the service reads `query.limit` / `query.offset` *after* the repository call, so a
+mutable query could describe a window it did not query); the 422 response shape (the
+isolated router app's two 422 sources asserted to differ — coded string vs pydantic
+detail list — plus the shipped `RequestValidationError` handler's `errors` list
+pinned directly, which is the discriminator a real client sees); and the
+`AGENT_NEXT_TASK.md` status line, now guarded by a *relationship* assertion against
+the card's own `Status:` rather than a literal, so the drift cannot recur.
+
+All six guards were proven load-bearing by mutation (read bytes → unique anchor →
+one rewrite → run the owning suite → restore → re-verify sha256): **6/6 caught** —
+composition-root registration, the panel's closed-set mirror, query/page frozenness,
+the seam's 422 detail type, the shipped handler's `errors` list, and the pointer's
+status line. Gate after the collection and the archive edits: **PASS — 1219 tests**,
+246 Python AST files, 148 JavaScript files, 4 architecture guards, clean
+`git diff --check`.
+
+What `R9-06` inherits: the canonical query surface (`AssetService.query`,
+`AssetQuery` / `AssetQueryPage`, `SqliteAssetRepository.query_assets`,
+`GET /api/v1/assets/query`); two contracts `R9-05` made self-enforcing (the assets
+router's composition-root registration, and any UI mirror of a domain closed set
+pinned against `get_args(...)` for exact equality); two open non-blocking items (the
+text filter is a single contiguous substring over the raw metadata JSON, and the
+panel's `DEFAULT_PAGE_SIZE` collides in name with the server's); and one hazard —
+`TestClient(main.app)` used as a context manager runs the startup hook, which
+migrates the real `data/` tree, so app-level contracts must be pinned without driving
+the lifespan.
+
+Bookkeeping drift **closed** (2026-09-13, bookkeeping close-out): `docs/tasks/README.md`
+now describes the real activation process, `docs/tasks/FULL_BACKLOG_README.md`'s
+`## Activation` section was rewritten to the same, the retired
+`scripts/agent-activate-task.sh` was removed, and the empty untracked
+`docs/tasks/active/` directory was deleted. `INSTALL_CHECKLIST.md` was corrected
+too. Activation is a manual bookkeeping edit; `docs/tasks/README.md` → *Moving
+Cards* is the authoritative statement of it, and
+`tests/test_current_fact_documentation.py` pins the pointer and the index rows so
+the three files cannot drift apart silently.
+
+## R9-06 Asset Inspector and Versions — DONE, independent Review PASS
+
+`R9-06` is archived in `docs/tasks/done/` after independent Review PASS. The
+pre-change baseline gate was
+green on this tree (**PASS — 1219 tests**), so this run needed no truth
+reconciliation — the first card in the R9 line for which that is true.
+
+One asset's versions are now understandable and traceable end to end, from the
+stored rows to the rendered panel.
+
+New `workbench/application/asset_versions.py` owns the read contract:
+
+- `AssetVersionHistory` — one asset's versions, with the sequence's end named as
+  the current version. Ordering is **derived** from the ordinals and never trusted
+  from the caller, so a repository returning rows in any order still yields the
+  one correct history; `current` is derived the same way, because a stored flag
+  would be a second owner for a fact the sequence already carries. A duplicate or
+  gapped ordinal, or a version belonging to another asset, is rejected rather than
+  rendered: `create_version` rejects any ordinal that is not `count + 1`, so a
+  stored sequence is gap-free from 1, and asserting it here makes that a testable
+  claim instead of a comment. The record is frozen because the transport reads it
+  more than once (the response body and the current-version id).
+- `AssetVersionHistoryRepository` — the Protocol the repository satisfies
+  structurally.
+
+`SqliteAssetRepository` gains `list_versions(asset_id)` — every version of one
+asset in ordinal order — and a shared `_version_from_row` mapping. An asset with
+no versions is an empty list rather than an error, because an asset is created
+before anything is stored in it; a missing *asset* is still a not-found, so a typo
+cannot look like an empty asset. `load_version` now uses the same mapping, which
+retires the one copy of it that existed. No migration: `migrate()` is unchanged,
+no new table, column or index, and no stored row is rewritten.
+
+`AssetService.history(asset_id, actor_id=...)` owns the read boundary. It loads
+the *identity* first and authorizes `project.read` against the **asset's own**
+project, so a caller never names a project and cannot widen a read; a missing
+asset fails at the load rather than being answered as an empty history.
+
+Transport: `GET /api/v1/assets/{asset_id}/versions` returns
+`{asset_id, current_version_id, versions}`. `current_version_id` is the end of the
+sequence as the *service* resolved it, so the rule "current means the highest
+ordinal" does not acquire a second owner in the client. Both version routes
+address more than one path segment, so neither can be swallowed by the
+single-segment `/{asset_id}` read; the projection is shared with the single-version
+read through `_version_response`.
+
+UI: new bounded module `static/js/workbench/canvas/asset-inspector.js` exposes
+`window.WorkbenchAssetInspector` with `previewKind`, `isServableLocation`,
+`formatSize`, `shortTimestamp`, `dragPayload`, `createClient` and
+`createInspector` (pure `render(asset, history, {selectedVersionId, usage,
+loading, error})` returning HTML). `static/asset-manager.js` mounts it into
+`#assetInspector`, owns the DOM and every event (row selection, version
+selection, open, dragstart), and re-renders only when a visible signature
+changes. `asset-query-panel.js` gained one additive thing — a result row is now a
+button carrying `data-asset-query-select` / `aria-pressed` — because an inspector
+needs something to select.
+
+Three rules the module deliberately does not own, each pinned by a test:
+
+- **Which version is current.** The reply names it. A reply naming a current
+  version its own list does not contain renders *no* version, with a message that
+  does not claim the asset has no versions.
+- **Whether anything references the asset.** No canonical record references an
+  `AssetVersion` yet — the Canvas adopts one by reference in `R9-07` and a result
+  becomes an asset in `R9-11` — so the host supplies `{available: false, reason}`
+  and the module renders that distinctly from `{available: true, references: []}`.
+  "We did not look" can never render as "unused".
+- **Whether a location can be fetched.** Only an absolute `http(s)` URL or a
+  site-absolute path reaches a `src`; `file://`, `asset://`, protocol-relative and
+  bare relative locations are shown as text and the open action is disabled.
+
+Ownership: no legacy panel was retired — the legacy per-category detail panes
+present a different store's items and retiring them is not authorized here, the
+same call R9-05 made for the legacy browse tree. The duplicate owners this card
+did remove are the two it would otherwise have created: the row→record mapping
+and the version projection, each now defined once. `R4_OWNERSHIP_MATRIX.md` is
+unchanged on purpose: it records Canvas *runtime* responsibilities and this card
+moves no runtime ownership.
+
+Focused suites: `tests/test_asset_versions.py` — **18 tests passed**;
+`tests/test_asset_inspector.py` — **12 tests passed**. Full
+`./scripts/agent-verify.sh`: **PASS — 1249 tests**, 249 Python AST files, 149
+JavaScript files, 4 architecture guards, clean `git diff --check` — exactly the
+baseline's 1219 plus this card's 30.
+
+DoD probe (independent mechanism: the real composition root booted as a server on
+an isolated port, an isolated copy of `data/workbench.sqlite3`, **four separate OS
+processes** — write / serve / raw row read-back / browser module — and a sha256
+digest of the whole real `data/` tree before and after): **59/59**. It proves
+401 without an actor, 403 for a non-member, 403 for an asset in a project the
+actor is not in, and 404 for an unknown asset that is *not* a 200 with zero
+versions; then that all three versions come back in ordinal order with the current
+one named, that every content and provenance field of all three matches what the
+writer process stored, that the raw `asset_versions` rows read back in a third
+process match, that the fetched reply renders through the real `asset-inspector.js`
+in a fourth (ordinals, checksums, sizes, timestamps, provenance, the single current
+badge, the selection, no `file://` request, and the honest usage note), and that
+the real `data/` tree was byte-identical afterwards.
+
+Mutation review: **17 probes, 17/17 caught** (read bytes → require a unique anchor
+→ one rewrite → run the owning suite → restore → re-verify sha256; a
+`unittest.loader._FailedTest` run is counted INVALID, never as a catch). The set
+covers the composition-root registration of the version-history route, the reply
+naming the current version, the derived ordering, all three sequence assertions,
+the repository's ordering and not-found behaviour, the shared row mapping, the
+service's authorization, the domain-widening axis, the location servability rule,
+the usage honesty rule, the no-guessing rule, the drag payload's contents, and the
+page's sync and click wiring. Every source was restored byte-identical.
+
+What `R9-07` inherits: the version-history read surface; a drag payload
+(`{kind:'asset_version', asset_id, version_id, ordinal, type, mime_type, label}`)
+that carries no bytes and no location, which is what makes the Canvas drop a
+*reference* rather than a copy — and the inspector installs no drop handler, so
+accepting the drop is `R9-07`'s to own; `ASSET_INSPECTOR_USAGE_UNAVAILABLE` in
+`static/js/asset-manager.js` as the single place to turn "cannot answer" into a
+real answer once `R9-07` creates the first canonical reference; and R9-05's two
+open non-blocking items, untouched (the text filter is one contiguous substring
+over the raw metadata JSON, and the panel's `DEFAULT_PAGE_SIZE` collides in name
+with the server's).
+
+## R9-06 close-out — archived; R9-07 activated (2026-09-14)
+
+`R9-06` Asset Inspector and Versions is DONE and archived after independent
+Review PASS. `R9-07` Drag Asset to Canvas by Reference is now the sole ACTIVE
+card, activated but not started. `AGENT_NEXT_TASK.md` and `TASK_INDEX.md` are
+synchronized; no R9-07 implementation was started in this run.
+
+## R9-07 Drag Asset to Canvas by Reference — implementation complete, independent Review pending (2026-09-14)
+
+Truth reconciliation: at the start of this run, `AGENT_NEXT_TASK.md` selected R9-07
+but incorrectly described it as implementation complete while the card still said
+`BACKLOG`; the status document and executable source agreed that R9-07 had only been
+activated. The selection entry is authoritative for which card may run, while the
+status/card lifecycle facts are authoritative for the pre-change state. The card is
+now explicitly ACTIVE and its bookkeeping is synchronized.
+
+R9-07 adds `asset-reference-materializer.js` as the Canvas-side consumer of the
+R9-06 `application/x-workbench-asset-version` payload. The payload is identity-only;
+the materializer sends the exact `{asset_id, version_id}` as `asset_version_ref`
+through the existing creation controller and `NodeCreationService`, with no bytes,
+location, upload, or new AssetVersion. The Canvas projection keeps the legacy image
+shape for compatibility and carries `assetVersionRef` for the reference.
+
+Focused tests and the full verification gate are required before independent Review.
+R9-08 remains recommendation-only and was not started.
+
+Independent Review repair (2026-09-14): the first review correctly found that a
+client-supplied reference could otherwise name a nonexistent version or cross a
+project boundary. `AssetVersionReferenceValidator` now sits in the existing
+`NodeCreationService` seam for `asset_reference_drag`; the composition root wires
+it to the canonical `AssetService`, so reads remain authorized and Canvas
+persistence is not duplicated. Invalid shape, missing asset/version, mismatched
+asset ownership and cross-project references fail before repository mutation.
+Focused suite: `tests/test_asset_reference_materializer.py`,
+`tests/test_node_creation_service.py`, `tests/test_canvas_nodes_runtime.py` —
+**34 tests passed**. Full `./scripts/agent-verify.sh`: **PASS — 1255 tests**,
+251 Python AST files, 150 JavaScript files, 4 architecture guards, clean
+`git diff --check`.
+
+Second independent-review repair (2026-09-14): the Legacy compatibility
+repository was dropping `asset_version_ref` while persisting an image node, so
+the API response could look correct but a reload lost the reference. It now
+retains only the validated identity as `assetVersionRef` in the compatibility
+payload; no bytes or location are copied. Composition-root runtime tests prove
+two separate creation requests persist the same AssetVersion reference and that
+a missing version is rejected before mutation. The targeted runtime/reference
+tests: **29 passed**;
+full `./scripts/agent-verify.sh`: **PASS — 1258 tests**, 251 Python AST files,
+150 JavaScript files, 4 architecture guards, clean `git diff --check`.
+
+## R9-07 close-out — archived; R9-08 activated (2026-09-14)
+
+R9-07 received independent Review PASS after the reference-validation and
+compatibility-persistence repairs. The card is archived in
+`docs/tasks/done/`, and R9-08 Artifact Domain is now the sole ACTIVE card,
+activated but not started. `AGENT_NEXT_TASK.md`, `TASK_INDEX.md` and the card
+status are synchronized. No R9-08 implementation was started in this run.
+
+## R9-08 Artifact Domain — implementation complete, independent Review pending (2026-09-14)
+
+Truth reconciliation: `AGENT_NEXT_TASK.md` selected R9-08, `TASK_INDEX.md` and
+the card both had it ACTIVE, and no Artifact record existed anywhere in the tree
+— the selection, the status document and the executable source agreed, so this
+run needed no reconciliation.
+
+R9-08 adds `workbench/domain/artifact/` as the single Core identity for a
+Workbench-produced formal output. `Artifact` carries `id` + `project_id` +
+`type` + `title` + `state` + `metadata` and names its versions by id in
+`version_ids`; it is frozen, rejects unknown fields (including `canvas_id`), and
+carries no content, checksum, storage location, lineage or Canvas reference.
+`with_version` is the only operation: versions are appended and never rewritten,
+and re-adding one is refused by the domain seam itself.
+
+Independence from the Canvas is pinned twice, because a field-level absence is
+not the same as a dependency-level one: the record's field set contains no
+canvas/node/position/renderer key, and
+`test_the_artifact_module_imports_nothing_from_the_canvas_domain` fails if
+`workbench/domain/artifact/*` ever imports `workbench.domain.canvas`.
+
+Scope: the domain record only, mirroring R9-01's decision. R9-09 owns the
+`ArtifactVersion` record together with `repository/service/API`, so nothing here
+touches SQLite, `main.py`, the execution/result services or any HTTP surface, and
+no legacy output/result record — `ExecutionResultIdentity`, `ResultSelection`,
+the `result` node definition, `ResultMaterializationService` — was modified or
+migrated.
+
+Evidence: focused suite `tests/test_artifact_domain.py` **26 tests** green; DoD
+probe through two OS processes sharing only a file (process 1 builds an Artifact,
+appends two versions and writes `model_dump_json()`; a brand-new process proves
+`schema_version`/`id`/`project_id`/`type`/`title`/`state`/`version_ids` from the
+stored bytes, plus the absence of any canvas/node key and any
+content/checksum/location key); 19-probe mutation review **17 caught**, two
+survivors measured equivalent (`dict(self.__dict__)` for
+`model_dump(mode="python")`; `metadata: dict = {}` for
+`Field(default_factory=dict)`), `workbench/domain/artifact/models.py` restored
+byte-identical by sha256 after every probe; full `./scripts/agent-verify.sh`
+**PASS — 1284 tests** (1258 → +26), 254 Python AST files, 150 JavaScript files,
+4 architecture guards, clean `git diff --check`.
+
+The card stays ACTIVE with its implementation complete and is **not archived**;
+R9-09 remains recommendation-only and was not started.
+
+### R9-08 independent Review — CHANGES_REQUIRED (2026-09-14)
+
+Reviewed while the card was still ACTIVE. **16 probes on axes disjoint from the
+developer's 19**, 14 caught; every source restored byte-identical by sha256.
+
+The DoD guards were attacked directly and both held: adding a `canvas_id` field
+fails three tests, and adding an unused `workbench.domain.canvas.models` import
+fails the import-scan test. An independent cross-process probe (fresh process,
+nested metadata, non-ASCII title, `state="ready"`) confirms the round-trip with
+no canvas/node key and no content key.
+
+**One required change:** the upper bound of every opaque id the record carries is
+not pinned. `id` is proven at 255/256, but widening `project_id` (V3) or the
+version-id element bound (V3b) to 5000 leaves the suite green, while the `id`
+(V3c) and `title` (V3d) controls are caught. The record itself is correct —
+measured 255 accepted / 300 rejected for both fields — so this is a missing pin,
+the same class as R9-01's four blocking findings, not a defect. Close it by
+extending `test_identity_bounds_are_enforced` to cover `project_id` and a version
+id.
+
+Non-blocking: shared `freeze_value` list-branch mutation (V13) survives the
+artifact, asset and collection suites — nested metadata immutability is
+unguarded, but the code is shared Core that predates this card;
+`model_copy(update=...)` bypasses validation (pydantic-wide); append-only ends at
+the record boundary (R9-09's repository). Nothing in production constructs an
+Artifact yet, as designed.
+
+The card is **not archived** and the required change was **not fixed** in that
+run — the review only reported.
+
+### R9-08 required change closed (2026-09-14) — re-Review pending
+
+The Owner authorized closing the one required change. `models.py` was **not**
+touched: only `tests/test_artifact_domain.py` moved.
+`test_identity_bounds_are_enforced` now loops the 255/256 boundary over `id` and
+`project_id` and adds the same boundary for a version id; a new
+`test_a_version_reference_is_bounded_through_the_append_seam` proves the bound
+also holds through `with_version`, the seam that re-validates the record, not
+only through the constructor.
+
+Re-running the surviving probes: **V3 caught** (1 failure), **V3b caught**
+(2 failures — constructor and append seam); the `id` (V3c) and `title` (V3d)
+controls still caught. Focused suite **26 → 27 tests**; full gate
+**PASS — 1285 tests** (1258 → +27), 254 Python AST files, 150 JavaScript files,
+4 architecture guards, clean `git diff --check`.
+
+The card stays ACTIVE and is **not archived**; a second independent Review is
+required — the developer cannot self-PASS a change made in response to a review.
+
+### R9-08 second independent Review — CHANGES_REQUIRED (2026-09-14)
+
+Axes disjoint from the developer's 19 probes and the first review's 16.
+
+Proved, not assumed: an import hook makes `workbench.domain.canvas*`
+**unimportable**, every `workbench` module is dropped from `sys.modules`, and the
+artifact package is imported fresh and exercised — build, append, dump, reload —
+succeeding with Canvas never in `sys.modules`. That proves the DoD at runtime
+rather than by source scan. Making `Artifact` inherit `Asset` is caught (21
+failures), colliding its marker with `workbench.asset/1` is caught, and both of
+the first review's probes are re-caught, so that closure is genuinely effective.
+
+**One required change:** append order through `with_version` is not pinned. The
+"version order" test only sets `version_ids` at construction. A `sorted(...)`
+mutation is **not** an equivalent mutant — measured with uuid-style ids,
+appending `("c3f9","a1b2","b7c8")` returns `("a1b2","b7c8","c3f9")` — and all 27
+tests stay green. Real ids are opaque, so append order and lexicographic order
+disagree in ordinary use.
+
+Non-blocking: two further survivors (nested-dict freeze, recursive credential
+check) both live in shared `workbench/domain/value_types.py` that predates this
+card and is shared with `Asset`/`Collection` — same classification as V13.
+
+The card stays ACTIVE and **not archived**; the required change was **not fixed**
+in that run.
+
+### R9-08 second required change closed (2026-09-14) — re-Review pending
+
+Owner-authorized; `models.py` again untouched — only
+`tests/test_artifact_domain.py` moved. New
+`test_append_order_is_the_append_order_not_the_lexicographic_one` appends
+`version-2` then `version-1` and asserts the tuple keeps the append order, so a
+sorted append can no longer pass silently. Re-running the probe: **R2-1 caught**;
+seven regression probes from earlier rounds (prepend, replace, `project_id`
+bound, version-id bound, unfrozen record, unknown fields allowed, duplicate
+version allowed) all still caught. Focused suite **27 → 28 tests**; full gate
+**PASS — 1286 tests** (1258 → +28), 254 Python AST files, 150 JavaScript files,
+4 architecture guards, clean `git diff --check`.
+
+The card stays ACTIVE and **not archived**; a third independent Review is
+required — the developer cannot self-PASS a change made in response to a review.
+
+### R9-08 third independent Review — PASS (2026-09-14)
+
+Verdict: **PASS**. No required change. Axes disjoint from the developer's 19
+probes and from both earlier reviews.
+
+The decisive axis was whether the two closures are load-bearing: weakening the
+append-order test makes the `sorted(...)` mutation survive again, and stripping
+the added bound assertions makes the widened-`project_id` mutation survive again
+— so each new test is the sole carrier of its invariant, not decoration. The
+suite also passes from a foreign CWD and passes test-by-test (28/28), so it is
+CWD-independent and free of shared state. Defaulting `type` is caught. Two
+remaining survivors are equivalent today (dropping the exported schema marker
+changes no behaviour while nothing consumes it — R9-09's repository will and
+should pin it then; and `state="ready"` with zero versions is the designed
+placeholder).
+
+Ownership re-verified: zero references to `workbench.domain.artifact` outside the
+test module; no legacy result-path file touched.
+
+The card is **not archived** by this run — archiving and activating R9-09 is a
+separate, separately-authorized step.
+
+## R9-08 close-out — archived; R9-09 activated (2026-09-14)
+
+`R9-08` Artifact Domain received independent Review **PASS** on its third review
+and is **DONE**, archived to `docs/tasks/done/R9-08-artifact-domain.md`. The
+record it leaves behind: `Artifact` in `workbench/domain/artifact/models.py` —
+the single Core identity for a Workbench-produced output (`id` + `project_id` +
+`type` + `title` + `state` + `metadata`, with `version_ids` naming versions by
+id), carrying no content, no lineage and no Canvas reference, with
+`tests/test_artifact_domain.py` at **28 tests** and the gate at
+**PASS — 1286 tests**.
+
+Two required changes were raised and closed along the way, both *missing pins*
+rather than defects: the upper bound of `project_id` and of a version id
+(first review), and append order through `with_version` (second review). The
+third review verified each closure is load-bearing by weakening the test that
+was added and showing the mutation survives again.
+
+`R9-09` ArtifactVersion and Lineage is now the sole ACTIVE card, **activated but
+not started**. `AGENT_NEXT_TASK.md`, `TASK_INDEX.md`, the current-fact
+documentation test and the card status are synchronized. No R9-09 implementation
+was started in this run.
+
+## R9-09 ArtifactVersion and Lineage — implementation complete, independent Review pending (2026-09-14)
+
+R9-09 adds the immutable `ArtifactVersion` record with content references and
+required execution/input lineage (`run_id`, `attempt_id`, input refs, prompt
+version, model and skill refs). `SqliteArtifactRepository` owns Artifact and
+ArtifactVersion persistence with append-only ordinal enforcement and project
+authorization; `ArtifactService` owns the application boundary; and
+`/api/v1/artifacts` exposes authorized identity/version creation and reads.
+Artifact remains independent from Canvas and prior versions are never overwritten.
+
+Focused suites: `tests/test_artifact_version.py`, `tests/test_artifact_domain.py`,
+`tests/test_current_fact_documentation.py` — **33 tests passed**. Full
+`./scripts/agent-verify.sh`: **PASS — 1289 tests**, 259 Python AST files,
+150 JavaScript files, 4 architecture guards, clean `git diff --check`.
+R9-10 remains recommendation-only and was not started.
+
+## R9-09 close-out — archived; R9-10 activated (2026-09-14)
+
+R9-09 ArtifactVersion and Lineage received independent Review **PASS**. The
+card is archived in `docs/tasks/done/`, and R9-10 Artifact Inspector and
+History is now the sole ACTIVE card, activated but not started. `AGENT_NEXT_TASK.md`,
+`TASK_INDEX.md`, the current-fact documentation test, and the card status are
+synchronized. No R9-10 implementation was started in this run.
+
+## R9-10 Artifact Inspector and History — implementation complete, independent Review pending (2026-09-14)
+
+R9-10 adds the Artifact resource surface to the existing Resources page and a
+pure Artifact Inspector for version history, current-version status, content
+references, lineage, comparison selection, open, and materialize entry points.
+Artifact list/history data continues through the canonical authorized
+ArtifactService/repository/API boundaries; no Canvas runtime or duplicate
+persistence owner was introduced.
+
+Focused suites: `tests/test_artifact_inspector.py`,
+`tests/test_artifact_version.py`, `tests/test_artifact_domain.py`, and
+`tests/test_current_fact_documentation.py` — **35 tests passed**. Browser
+acceptance switched the real local Resources page to `产物` and verified the
+Artifact empty state. Full `./scripts/agent-verify.sh`: **PASS — 1291 tests**,
+260 Python AST files, 151 JavaScript files, 4 architecture guards, clean
+`git diff --check`. R9-10 remains ACTIVE pending independent Review; R9-11 was
+not started.
+
+## R9-10 independent Review repair — re-review pending (2026-09-14)
+
+The review finding was repaired without starting R9-11. Artifact comparison
+now defaults its first side to the server-named current version, and the
+materialize control emits an explicit Artifact/ArtifactVersion handoff request
+instead of presenting a local placeholder or mutating Canvas directly. The
+Studio shell forwards that handoff to the existing Canvas iframe, and the
+Canvas state boundary queues it for confirmation through the formal creation
+entry without introducing a second runtime. The existing CreationController now
+consumes the request and performs the formal execution-result node creation,
+including revision, undo, selection, and pending-request clearing after success.
+ArtifactVersion project/version identity is validated by the application
+boundary before creation, and the canonical node command persists a typed
+`artifact_version` output reference so the relationship survives reload.
+Missing Artifact or ArtifactVersion identities are normalized to the controlled
+`artifact_reference_not_found` creation error rather than leaking a repository
+exception as HTTP 500.
+The Canvas API request contract now accepts and maps `initial_output_refs`, so
+the typed ArtifactVersion reference reaches NodeCreation instead of being
+rejected as an unknown field.
+Focused tests remain **35 PASS** and `./scripts/agent-verify.sh` remains
+**PASS — 1291 tests** with 260 Python AST files, 151 JavaScript files, 4
+architecture guards, and clean `git diff --check`. R9-10 remains ACTIVE
+pending independent Review.
+
+## R9-10 close-out — archived; R9-11 activated (2026-09-14)
+
+R9-10 Artifact Inspector and History completed its independent Review with
+**PASS**. The card is archived in `docs/tasks/done/`, and R9-11 Result to Asset
+is now the sole ACTIVE card with implementation complete and independent Review
+pending. `AGENT_NEXT_TASK.md` and
+`docs/tasks/TASK_INDEX.md` are synchronized. No R9-11 implementation was
+started before its activation.
+
+## R9-11 Result to Asset — implementation complete, independent Review pending (2026-09-14)
+
+R9-11 adds the explicit Asset materialization endpoint
+`POST /api/v1/execution-runs/{run_id}/assets`. The application service requires
+an existing selected ResultSelection, verifies the run/attempt relationship,
+creates the Asset and first AssetVersion through AssetService, preserves
+execution provenance, and returns the stable AssetVersionRef. Unselected or
+cross-run results are rejected before Asset writes; no silent save-all path was
+added.
+
+The Result Selection seam now exposes a visible `Save as asset` action only for
+selected records; a transport-only client posts declared `AssetVersionContent`
+to the same endpoint, and `TaskRichNode` exposes the shared selection mount.
+Focused suite — `tests/test_result_selection.py` plus result tray/task and
+result-asset suites — **57 tests passed**. The full `./scripts/agent-verify.sh`
+now passes: **1302 tests**, 265 Python AST files, 152 JavaScript files, 4
+architecture guards, and clean `git diff --check`.
+R9-11 remained ACTIVE pending independent Review at the time of this evidence;
+it was subsequently closed below after the Review PASS. R9-12 was not started.
+
+Independent Review repair: Asset identity creation and first AssetVersion
+persistence now use one canonical SQLite transaction through AssetService and
+AssetRepository, so a failed version write cannot leave an empty Asset. The
+selected-result UI action is explicit, requires declared content, and leaves
+unselected rows without a save action. Focused repair suites pass **57 tests**;
+the full gate remains **PASS — 1302 tests**, 265 Python AST files, 152 JavaScript
+files, 4 architecture guards, and clean `git diff --check`. Browser acceptance
+confirmed the local Canvas entry loads; the selected-result action requires a
+run result mounted by the task workspace and was not fabricated in an empty
+Canvas. R9-11 remained ACTIVE pending independent Review at the time of this
+repair evidence.
+
+## R9-12 Result to Artifact — archived after independent Review PASS (2026-09-14)
+
+R9-12 adds the explicit `POST /api/v1/execution-runs/{run_id}/artifacts`
+materialization route. `ResultArtifactMaterializationService` verifies the
+selected ResultSelection and run/attempt relationship, then delegates creation
+of an Artifact and first ArtifactVersion to the canonical ArtifactService with
+execution lineage for Task, run, attempt, inputs, Prompt, Model and Skill
+references.
+Artifact identity and first version are persisted in one SQLite transaction;
+there is no automatic Approved/Frozen behavior.
+
+Focused suite `tests/test_result_artifact_materialization.py` plus affected
+Artifact and result suites: **42 tests passed**. Full
+`./scripts/agent-verify.sh`: **PASS — 1306 tests**, 268 Python AST files, 152
+JavaScript files, 4 architecture guards, and clean `git diff --check`.
+R9-12 received independent Review **PASS** and is archived in
+`docs/tasks/done/R9-12-result-to-artifact.md`. R9-13 is now the sole ACTIVE
+card; its implementation was not started in this run.
+
+## R9-11 close-out — archived; R9-12 activated (2026-09-14)
+
+R9-11 received independent Review **PASS**. The card is archived in
+`docs/tasks/done/`, `AGENT_NEXT_TASK.md` and `docs/tasks/TASK_INDEX.md` now agree,
+and R9-12 Result to Artifact is the sole activated next card. No R9-12
+implementation was started in this run.
+
+## R9-12 close-out — archived; R9-13 activated (2026-09-14)
+
+R9-12 received independent Review **PASS** after the Task lineage repair. The
+card is archived in `docs/tasks/done/`, the task pointer and task index now
+agree, and R9-13 Generic Catalog Domain is the sole activated next card. No
+R9-13 implementation was started in this run.
+
+## R9-13 Generic Catalog Domain — implementation complete, independent Review pending (2026-09-14)
+
+R9-13 adds the generic, industry-neutral `Catalog`, `CatalogItem` and immutable
+`CatalogItemVersion` domain records. Catalogs represent both workspace and
+project scope; item versions validate schema-defined attributes and retain typed
+Asset/Artifact media references. `CatalogService` is the application owner and
+`SqliteCatalogRepository` is the canonical SQLite persistence owner, with atomic
+first-version creation and append-only version ordinals. The Catalog API is
+wired through `main.py`; no WholeHouse fields or Canvas ownership were added.
+
+Focused Catalog domain/persistence/API and current-fact suite: **7 tests passed**. Full
+`./scripts/agent-verify.sh`: **PASS — 1311 tests**, 275 Python AST files, 152
+JavaScript files, 4 architecture guards, and clean `git diff --check`.
+R9-13 received independent Review **PASS** and is archived in
+`docs/tasks/done/R9-13-generic-catalog-domain.md`. R9-14 is now the sole ACTIVE
+card; its implementation was not started in this run.
+
+## R9-13 close-out — archived; R9-14 activated (2026-09-14)
+
+R9-13 received independent Review **PASS**. The card is archived in
+`docs/tasks/done/`, the active-task pointer and task index now agree, and R9-14
+Catalog Item Versioning is the sole activated next card. No R9-14 implementation
+was started in this run.
+
+## R9-14 Catalog Item Versioning — implementation complete, independent Review pending (2026-09-14)
+
+R9-14 adds the explicit `CatalogItem.current_version_id` pointer while keeping
+CatalogItemVersion records immutable and append-only. New versions advance the
+pointer and retain old version IDs; historical Items without a pointer infer it
+from their last persisted version for compatibility. Collection references now
+support pinning a specific `catalog_item_version`. No pricing engine or
+WholeHouse Core type was added.
+
+Focused Catalog/Collection/Current Truth suite: **15 tests passed**. Full
+`./scripts/agent-verify.sh`: **PASS — 1312 tests**, 275 Python AST files, 152
+JavaScript files, 4 architecture guards, and clean `git diff --check`.
+R9-14 received independent Review **PASS** and is archived in
+`docs/tasks/done/R9-14-catalog-item-versioning.md`. R9-15 is now the sole ACTIVE
+card; its implementation was not started in this run.
+
+## R9-14 close-out — archived; R9-15 activated (2026-09-14)
+
+R9-14 received independent Review **PASS**. The card is archived in
+`docs/tasks/done/`, the active-task pointer and task index now agree, and R9-15
+Catalog Library UI is the sole activated next card. No R9-15 implementation was
+started in this run.
+
+## R9-15 Catalog Library UI — implementation complete, independent Review pending (2026-09-14)
+
+R9-15 adds a generic Catalog category to the existing Resources surface. The
+page reads Catalogs and CatalogItems through the canonical CatalogService API,
+hydrates current versions for generic attribute search/filtering, exposes
+version inspection, and emits a reference-only `catalog_item_version` drag
+payload for compatible Collection/Task receivers. The presentation seam is
+`static/js/workbench/canvas/catalog-library.js`; no WholeHouse-specific facet,
+NodeKind, persistence owner, or second Canvas runtime was added.
+
+Focused Catalog persistence/UI/resource-shell suite: **11 tests passed**. Full
+`./scripts/agent-verify.sh`: **PASS — 1314 tests**, 276 Python AST files, 153
+JavaScript files, 4 architecture guards, and clean `git diff --check`.
+Browser acceptance opened `/static/asset-manager.html`, selected Resources →
+目录, and verified the generic empty state and controls before WholeHouse
+installation. R9-15 remained ACTIVE pending independent Review at the time of
+this evidence.
+
+## R9-15 close-out — archived; R10-01 activated (2026-09-14)
+
+R9-15 received independent Review **PASS**. The card is archived in
+`docs/tasks/done/`, the active-task pointer and task index now agree, and
+R10-01 Entity Domain is the sole activated next card. No R10-01 implementation
+was started in this run.
+
+## R10-01 Entity Domain — implementation complete, independent Review pending (2026-09-14)
+
+R10-01 adds the industry-neutral `workbench.domain.entity` model: reusable
+EntityDefinition and EntitySchema contracts, typed property definitions, and a
+project-owned EntityRecord with generic state/properties/metadata. Metadata and
+properties use the shared credential-safety and recursive-freeze boundaries;
+there are no Customer/Room Core classes, EntityVersion, Relation, persistence,
+or API additions in this card.
+
+Focused Entity domain/Current Truth suite: **5 tests passed**. Full
+`./scripts/agent-verify.sh`: **PASS — 1317 tests**, 279 Python AST files, 153
+JavaScript files, 4 architecture guards, and clean `git diff --check`.
+R10-01 remains ACTIVE pending independent Review; R10-02 is only the
+recommended next card and was not started.
+
+## R10-01 close-out — archived; R10-02 activated (2026-09-14)
+
+R10-01 received independent Review **PASS**. The card is archived in
+`docs/tasks/done/`, the active-task pointer and task index now agree, and
+R10-02 EntityVersion is the sole activated next card. No R10-02 implementation
+was started in this run.
+
+## R10-02 EntityVersion — implementation complete, independent Review pending (2026-09-14)
+
+R10-02 adds immutable, project-scoped `EntityVersion` snapshots with explicit
+author, creation time, ordinal and lineage, plus `EntityVersionRef` for pinned
+entity references. `SqliteEntityRepository` is the canonical persistence owner;
+`EntityService` is the authorized application boundary and
+`/api/v1/entities` owns transport. EntityRecord remains the stable identity and
+current-version projection. No approval semantics, WholeHouse Core types,
+Canvas runtime, or duplicate persistence owner was added.
+
+Focused Entity domain/version/Current Truth suite: **10 tests passed**. Full
+`./scripts/agent-verify.sh`: **PASS — 1322 tests**, 283 Python AST files, 153
+JavaScript files, 4 architecture guards, and clean `git diff --check`.
+R10-02 remains ACTIVE pending independent Review; R10-03 is only the
+recommended next card and was not started.
+
+## R10-02 close-out — archived; R10-03 activated (2026-09-14)
+
+R10-02 received independent Review **PASS**. The card is archived in
+`docs/tasks/done/`, the active-task pointer and task index now agree, and
+R10-03 EntityRelation is the sole activated next card. No R10-03 implementation
+was started in this run.
+
+## R10-03 EntityRelation — implementation complete, independent Review pending (2026-09-14)
+
+R10-03 adds the industry-neutral `EntityRelation` contract with typed generic
+resource endpoints, optional version pinning, metadata and immutable revision.
+`SqliteEntityRelationRepository` is the canonical persistence/query owner;
+`EntityRelationService` is the authorized application boundary and
+`/api/v1/entity-relations` exposes relation creation and filtering outside
+Canvas. Canvas Edge remains graph topology and is not replaced. No WholeHouse
+relation types, approval semantics or second Canvas runtime were added.
+
+Focused Entity domain/version/relation/Current Truth suite: **15 tests passed**.
+Full `./scripts/agent-verify.sh`: **PASS — 1327 tests**, 287 Python AST files,
+153 JavaScript files, 4 architecture guards, and clean `git diff --check`.
+R10-03 remains ACTIVE pending independent Review; R10-04 is only the
+recommended next card and was not started.
+
+## R10-03 close-out — archived; R10-04 activated (2026-09-14)
+
+R10-03 received independent Review **PASS**. The card is archived in
+`docs/tasks/done/`, the active-task pointer and task index now agree, and
+R10-04 Entity Rich Node is the sole activated next card. No R10-04
+implementation was started in this run.
+
+## R10-04 Entity Rich Node — implementation complete, independent Review pending (2026-09-14)
+
+R10-04 adds the generic `WorkbenchEntityRichNode` presentation to the existing
+Unified Canvas NodeShell/NodeCardHost path. Entity definitions drive the field
+labels and values without package or industry branches; the inspector emits a
+version-aware edit intent containing entity identity, definition identity and
+`baseVersionId`, while relation rows are rendered from the generic relation
+projection. The module owns no persistence and does not bypass
+`EntityService`/`SqliteEntityRepository`.
+
+Focused entity-rich/NodeShell/RendererRegistry suite: **6 tests passed**. Full
+`./scripts/agent-verify.sh`: **PASS — 1329 tests**, 288 Python AST files, 154
+JavaScript files, 4 architecture guards, and clean `git diff --check`.
+Direct HTTP verification of `/static/canvas.html` returned 200 and included the
+new script. In-app browser navigation was attempted but blocked by the client
+(`ERR_BLOCKED_BY_CLIENT`), so no screenshot-based browser assertion is claimed.
+R10-04 remains ACTIVE pending independent Review; R10-05 is only the
+recommended next card and was not started.
+
+Independent Review repair for R10-04: `NodeCardHost` now maps the Entity Rich
+Node edit callback to the existing shared `onIntent` boundary as `entity_edit`
+with the version-aware detail payload, while retaining an optional observer
+callback. Focused suite remains **6 tests passed** and the rerun of
+`./scripts/agent-verify.sh` remains **PASS — 1329 tests**.
+
+## R10-04 close-out — archived; R10-05 activated (2026-09-14)
+
+R10-04 received independent Review **PASS** after the `entity_edit` intent
+repair. The card is archived in `docs/tasks/done/`, the active-task pointer and
+task index now agree, and R10-05 KnowledgeSource is the sole activated next
+card. No R10-05 implementation was started in this run.
+
+## R10-05 KnowledgeSource — implementation complete, independent Review pending (2026-09-14)
+
+R10-05 adds the industry-neutral `KnowledgeSource` domain record and typed
+`KnowledgeSourceProvenance`. Source type/ref, scope, status and provenance are
+explicit; asset, document and manual sources are supported without requiring a
+vector database. Scope/reference validation, immutable credential-safe metadata,
+and the draft → active → archived lifecycle are covered by the domain model.
+No repository, API, KnowledgeEntry, vector store or WholeHouse Core ownership
+was added.
+
+Focused KnowledgeSource suite: **3 tests passed**. Full
+`./scripts/agent-verify.sh`: **PASS — 1332 tests**, 291 Python AST files, 154
+JavaScript files, 4 architecture guards, and clean `git diff --check`.
+R10-05 remains ACTIVE pending independent Review; R10-06 is only the
+recommended next card and was not started.
+
+## R10-05 close-out — archived; R10-06 activated (2026-09-14)
+
+R10-05 received independent Review **PASS**. The card is archived in
+`docs/tasks/done/`, the active-task pointer and task index now agree, and
+R10-06 KnowledgeEntry is the sole activated next card. No R10-06 implementation
+was started in this run.
+
+## R10-06 KnowledgeEntry — implementation complete, independent Review pending (2026-09-14)
+
+R10-06 adds the normalized, industry-neutral `KnowledgeEntry` record with
+content or structured payload, non-empty source refs, tags and scope. Entries
+are persisted and queried by `SqliteKnowledgeEntryRepository` through the
+authorized `KnowledgeEntryService` and `/api/v1/knowledge-entries`; source refs
+remain explicit ids and no unverified source content is fabricated. No vector
+store, Knowledge Search, WholeHouse Core type or duplicate source owner was
+added.
+
+Focused KnowledgeSource/KnowledgeEntry suite: **6 tests passed**. Full
+`./scripts/agent-verify.sh`: **PASS — 1335 tests**, 296 Python AST files, 154
+JavaScript files, 4 architecture guards, and clean `git diff --check`.
+R10-06 remains ACTIVE pending independent Review; R10-07 is only the
+recommended next card and was not started.
+
+## R10-06 close-out — archived; R10-07 activated (2026-09-14)
+
+R10-06 received independent Review **PASS**. The card is archived in
+`docs/tasks/done/`, the active-task pointer and task index now agree, and
+R10-07 Knowledge Search is the sole activated next card. No R10-07
+implementation was started in this run.
+
+## R10-07 Knowledge Search — implementation complete, independent Review pending (2026-09-14)
+
+R10-07 adds the explicit authorized `KnowledgeEntryService.search` boundary and
+the repository `search` implementation. Lexical matching covers content,
+structured payload, metadata, tags, source refs and scope; explicit filters
+support tag, source ref and scope. The API exposes
+`/api/v1/knowledge-entries/search`, and the existing Resources shell exposes a
+Knowledge view without introducing a second Canvas runtime or ownership.
+
+Focused KnowledgeEntry/API tests: **3 passed**; Resources shell/UI contract
+tests also passed. Full `./scripts/agent-verify.sh`: **PASS — 1335 tests**, 296
+Python AST files, 154 JavaScript files, 4 architecture guards, and clean
+`git diff --check`. Browser acceptance opened the local Resources page and
+selected the Knowledge category, showing the unified shell and knowledge
+search surface. R10-07 remains ACTIVE pending independent Review.
+
+## R10-07 close-out — archived; R10-08 activated (2026-09-14)
+
+R10-07 received independent Review **PASS**. The card is archived in
+`docs/tasks/done/`, the active-task pointer and task index now agree, and
+R10-08 Project Knowledge Context is the sole activated next card. No R10-08
+implementation was started in this run.
+
+## R10-08 Project Knowledge Context — implementation complete, independent Review pending (2026-09-14)
+
+R10-08 adds the composition-only `ProjectKnowledgeContextService` and
+immutable `ProjectKnowledgeContext` projection. An explicit policy controls
+project Knowledge/resource scopes and limits; Entity and Knowledge data are
+read through their canonical services, while typed Asset/Artifact/Catalog
+references are provided by injected readers. Snapshot refs retain entity
+version ids, Knowledge source refs, resource versions and scopes. The inspectable API is
+`/api/v1/projects/{project_id}/knowledge-context` and requires the existing
+actor authorization boundary. No project file dump, mutation, package-specific
+Core type or second Canvas runtime was added.
+
+Focused ProjectKnowledgeContext/Entity/Knowledge suite: **8 tests passed**.
+Full `./scripts/agent-verify.sh`: **PASS — 1337 tests**, 300 Python AST files,
+154 JavaScript files, 4 architecture guards, and clean `git diff --check`.
+Browser acceptance is not applicable: this card adds an API/service boundary
+without a UI change. R10-08 remains ACTIVE pending independent Review.
+
+R10 Gate repair evidence: formal `KnowledgeSnapshot` now derives from the
+controlled context projection and is captured by `ExecutionRunService.create`
+when the canonical context service is wired. The snapshot is serialized as
+part of `ExecutionRun` and survives repository reload. Updated focused
+ExecutionRun/context tests: **7 passed**. Full gate: **PASS — 1338 tests**,
+300 Python AST files, 154 JavaScript files, 4 architecture guards, and clean
+`git diff --check`. Because this repair changed the active card after its
+earlier review, R10-08 remains ACTIVE pending a fresh independent Review.
+
+## R10-08 close-out — archived; R10 Gate PASS; UX-01 activated (2026-09-14)
+
+R10-08 Project Knowledge Context received independent Review **PASS** after
+the formal `KnowledgeSnapshot` repair. The R10 Round Gate is **PASS**: the
+execution path captures the formal knowledge snapshot, and the full gate
+passed with 1338 tests, 300 Python AST files, 154 JavaScript files, 4
+architecture guards, and clean `git diff --check`.
+
+R10-08 is archived in `docs/tasks/done/`. `AGENT_NEXT_TASK.md`,
+`docs/tasks/TASK_INDEX.md`, and the UX-01 card now agree that UX-01 is the
+sole active card with its dependency satisfied. No UX-01 implementation was
+started in this run.
+
+## UX-01 Video Replica Baseline + Design Tokens — archived after independent Review PASS (2026-09-14)
+
+UX-01 establishes the shared presentation token owner
+`static/css/workbench-canvas-tokens.css`, loaded before `static/css/canvas.css`
+by the single `static/canvas.html` entry. The Canvas root `body` and `.panel`
+shell consume semantic `--wb-*` tokens; compatibility aliases preserve the
+existing component styling without changing node, graph, execution, provider
+or persistence semantics. The duplicate variable owner was removed from
+`canvas.css`; no second Canvas runtime or new ownership boundary was added.
+
+Focused UX-01 token tests: **4 passed**; current-fact pointer tests: **2
+passed**. Full `./scripts/agent-verify.sh`: **PASS — 1342 tests**, 301 Python
+AST files, 154 JavaScript files, 4 architecture guards, and clean
+`git diff --check`.
+
+Browser characterization captured the local project workspace before and
+after, including the single Canvas editor in default and selected-node states.
+The late-loaded media-editor handlers bind lazily, the inspector guard
+distinguishes the browser's element global, and cache-busted script URLs ensure
+the repaired sources are exercised. The editor loaded with two nodes and no
+fresh console errors; selection actions were visible in the accessibility tree.
+UX-01 received independent Review **PASS** after the evidence-count repair and
+is archived in `docs/tasks/done/`. `AGENT_NEXT_TASK.md` and
+`docs/tasks/TASK_INDEX.md` now activate UX-02 as the sole next card. UX-02 is
+now active; implementation is recorded in the following section.
+
+Current active task after the UX-02 close: `UX-03` was the sole ACTIVE card,
+implementation complete and independent Review pending.
+
+## UX-03 NodeShell Visual Replica — DONE, independent Review PASS (2026-09-14)
+
+UX-03 refines the existing shared `WorkbenchNodeShell` presentation through
+the existing `static/css/canvas.css` owner. The shell now has compact shared
+header/content chrome, hover/selected action visibility, selected blue focus,
+running/done/error state projections, and presentation-specific sizing for
+card, expanded, workspace, and inspector states. Node semantics, renderer
+selection, execution, ports, persistence, and legacy content remain outside
+the visual shell.
+
+Focused tests: `tests.test_ux03_nodeshell_visual` (**4 passed**),
+`tests.test_nodeshell_v2` (**1 passed**),
+`tests.test_presentation_state` (**3 passed**), and the frontend workbench
+regression suite (**174 passed**). Browser acceptance loaded the shared Canvas
+surface without fresh Console errors; the local acceptance canvas contained
+zero nodes, so node-state visual evidence is supplemented by an instance-level
+NodeShell state projection test covering ready/selected, running, failed, and
+error transitions, plus the compatibility tests. Full `./scripts/agent-verify.sh`
+passed with **1348 tests**, 303 Python AST files, 154 JavaScript files, 4
+architecture guards, and clean `git diff --check`. Browser acceptance was
+rerun against an isolated SQLite copy: the real Canvas rendered the shared
+NodeShell with no fresh Console errors; default, selected, running and failed
+screenshots were captured, while the error transition remains covered by the
+instance-level NodeShell test. Independent Review returned **PASS**. UX-03 is
+archived in `docs/tasks/done/`; UX-04 is now the sole ACTIVE card, activated
+but not started. No UX-04 implementation was performed in this run.
+
+## UX-03 close-out — archived; UX-04 activated (2026-09-14)
+
+UX-03 was archived after independent Review **PASS**. `AGENT_NEXT_TASK.md`,
+`docs/tasks/TASK_INDEX.md`, and the card status now agree that UX-04 Ports and
+Edges Replica is the sole ACTIVE card. UX-04 is activated but implementation
+has not started.
+
+## UX-02 Canvas Surface Replica — DONE, independent Review PASS (2026-09-14)
+
+UX-02 refines the existing `static/css/canvas.css` surface owner using the
+shared UX-01 token layer. The board background, persistent chrome spacing,
+control density, minimap placement and semantic zoom indicator now follow the
+low-noise Canvas reference baseline. Pan, zoom, selection and semantic zoom
+remain owned by the existing `canvas-app-interaction.js`,
+`interaction-controller.js` and semantic-zoom modules. No second Canvas
+runtime, surface owner, node model or provider-specific UI was added.
+
+Focused UX-02 surface/ownership tests: **2 passed**. UX-01 token and current
+fact tests: **6 passed**; semantic zoom and Canvas runtime tests: **240
+passed**. Browser acceptance on the existing two-node Canvas
+verified default and selected states, selection action hub, wheel zoom from
+69% to 75%, the bottom-center surface `放大` control changing 69% to 79%,
+`适配全部节点` changing the view to 36%, board drag pan, minimap viewport
+movement and no fresh Console errors. Reference screenshots: `REF-001` and
+`REF-002`; before/after browser screenshots were captured. Full
+`./scripts/agent-verify.sh`: **PASS — 1344
+tests**, 302 Python AST files, 154 JavaScript files, 4 architecture guards,
+and clean `git diff --check`. Independent Review reran the focused UX-02 tests
+and `git diff --check`, returning PASS. UX-02 is archived in
+`docs/tasks/done/`; UX-03 is now the sole ACTIVE card, activated but not
+started.
+
+## UX-04 Ports and Edges Replica — implementation complete, independent Review pending (2026-09-14)
+
+UX-04 remains the sole ACTIVE card. The existing Unified Canvas now projects
+edge presentation through the shared `WorkbenchCanvasGraphInteraction` owner:
+idle edges are low-emphasis, hovered edges strengthen, selected edges use the
+active treatment, and edges connected to running nodes use the running
+treatment. Existing Canvas CSS keeps ports de-emphasized until node hover,
+focus, selection, or port focus, while preserving accessible port buttons.
+
+Canonical connection admission remains the existing typed compatibility path:
+`edgeIntentFromPortDrop` plus `WorkbenchCanvasPortCompatibility.isCompatible`,
+with `legacy.any` only as the compatibility fallback. No second compatibility
+owner, Canvas runtime, persistence schema, or node kind was added.
+
+Focused suite: `tests.test_ux04_ports_edges_visual`,
+`tests.test_canvas_runtime_state`, `tests.test_canvas_render_lifecycle`, and
+`tests.test_frontend_workbench_modules` — **402 tests passed**. The focused
+runtime coverage includes rejection of declared port-type mismatches and
+normalization of both drag directions through the shared compatibility seam.
+Full `./scripts/agent-verify.sh`: **PASS — 1350 tests**, 304 Python AST files,
+154 JavaScript files, 4 architecture guards, and clean `git diff --check`.
+
+Browser acceptance used an isolated SQLite copy and the real local server.
+The valid generator-to-output connection rendered in Unified Canvas as a
+low-emphasis idle edge; selecting the source node strengthened the edge; and
+changing the source to `running` produced the running edge treatment. The
+accessibility tree exposed input and output port buttons for both nodes, and
+the server fetched the cache-busted UX-04 CSS and shared graph module without
+fresh page errors. Reference guidance was read from
+`docs/video-replica/VIDEO_INTERACTION_SPEC.md` and the node-picker references
+under `docs/video-replica/references/node-picker/`.
+
+Developer Git review: the change is limited to the shared graph presentation
+projection, existing Canvas CSS/token consumers, cache-bust wiring, focused
+tests, and lifecycle evidence. `AGENT_NEXT_TASK.md` still points only to UX-04
+and records implementation complete; UX-05 was not started.
+
+## UX-04 close-out — archived; UX-05 activated (2026-09-14)
+
+UX-04 received independent Review **PASS** against its DoD, architecture
+constraints, ownership evidence, focused tests, regression gate, and isolated
+browser acceptance. The card is archived in `docs/tasks/done/`. `AGENT_NEXT_TASK.md`
+and `docs/tasks/TASK_INDEX.md` now agree that UX-05 Floating Action Toolbar is
+the sole ACTIVE card with its UX-04 dependency satisfied. UX-05 is activated but
+implementation has not started; no UX-05 code was executed in this run.
+
+## UX-05 Floating Action Toolbar — implementation complete, independent Review pending (2026-09-14)
+
+UX-05 remains the sole ACTIVE card. The existing Unified Canvas now derives
+selection actions from node capabilities and projects them through the shared
+`WorkbenchFloatingActionBar`. Single image nodes expose the existing open,
+preview, edit, copy, and delete intents as a compact icon toolbar; multi-node
+selection retains only actions whose capability predicates are satisfied. The
+toolbar keeps accessible labels and focus-visible styling while moving visual
+labels out of the node body. Existing node-local menus and Media Editor internals
+remain in place because their replacement was not in scope or not yet proven.
+
+Focused suite: `tests.test_ux05_floating_action_toolbar`,
+`tests.test_floating_action_bar`, `tests.test_ux03_nodeshell_visual`,
+`tests.test_canvas_runtime_state`, `tests.test_canvas_render_lifecycle`, and
+`tests.test_frontend_workbench_modules` — **407 tests passed**. Full
+`./scripts/agent-verify.sh`: **PASS — 1352 tests**, 305 Python AST files, 154
+JavaScript files, 4 architecture guards, and clean `git diff --check`.
+
+Browser acceptance used an isolated SQLite copy and the real local server at
+`127.0.0.1:3012`. A seeded image node was selected in Unified Canvas; the
+resulting dark compact toolbar visibly rendered five icon actions, the
+accessibility tree exposed 打开/预览/编辑/复制/删除, and keyboard Enter on 编辑
+opened the existing 裁剪图片 editor. No formal project data was changed.
+
+Canonical ownership remains the shared floating-action-bar presentation module
+plus the existing Canvas interaction/application handlers. No repository,
+application-service, API, runtime, NodeKind, or second Canvas ownership was added;
+no legacy/classic owner was expanded. At implementation completion,
+`AGENT_NEXT_TASK.md` authorized only UX-05 and recorded implementation complete;
+UX-06 was not started in that run.
+
+## UX-06 Node Picker — implementation complete, independent Review pending (2026-09-14)
+
+UX-06 remains the sole ACTIVE card. The Unified Canvas empty-space creation
+entry now uses the shared `WorkbenchNodePicker`, projected from the existing
+CreationCatalog/command metadata. It supports category filters plus searchable
+title, description, keywords, capability, package and definition metadata. A
+selection reuses the existing `menuAdd()` dispatch and canonical
+`NodeCreationService` route; no provider- or WholeHouse-specific creation
+branch was added.
+
+The versioned-node acceptance path uses the existing legacy Canvas JSON
+`updated_at` concurrency cursor when issuing node creation commands, while the
+logical revision cursor remains reserved for full Canvas-record CAS persistence.
+This fixes the observed browser 409 without bypassing the formal service.
+
+Focused suite: `./.venv/bin/python -m unittest -q tests.test_ux06_node_picker tests.test_frontend_workbench_modules` — **171 tests passed**.
+Full `./scripts/agent-verify.sh`: **PASS — 1355 tests**, 306 Python AST files,
+155 JavaScript files, 4 architecture guards, and clean `git diff --check`.
+
+Browser acceptance used an isolated SQLite copy and the real local server.
+The picker opened from empty space, displayed the catalog entries and metadata,
+filtered `语言` to `LLM 节点`, and selecting `提示词` created a second prompt
+node; the server-side formal node endpoint returned HTTP 201. No production
+database was changed.
+
+Canonical ownership remains `command-registry.js`/CreationCatalog for metadata,
+`node-picker.js` for presentation/filtering, and the existing
+`WorkbenchInteractionController` plus `NodeCreationService` route for
+creation. No repository, application-service, API, runtime, NodeKind, or
+second Canvas ownership was added; the bounded legacy menu fallback remains.
+
+Developer Git review: the change is limited to the shared picker projection,
+metadata, presentation styles, existing canonical creation dispatch, focused
+tests, and UX-06 evidence. `AGENT_NEXT_TASK.md` still authorizes only UX-06;
+UX-07 was not started.
+
+Independent-review repair: separated the Legacy node `updated_at` concurrency
+cursor from the logical full-record CAS cursor. `adoptCanvasRevision()` now
+updates only the page-level node cursor, while Canvas session persistence keeps
+ownership of the logical revision cursor. Focused UX-06/frontend/runtime tests
+passed (**402 tests**); `./scripts/agent-verify.sh` remains **PASS**.
+
+## UX-06 close-out — archived; UX-07 activated (2026-09-14)
+
+UX-06 received independent Review **PASS** against its Definition of Done,
+architecture constraints, ownership evidence, focused tests, regression gate,
+and isolated browser acceptance. The card is archived in
+`docs/tasks/done/`. `AGENT_NEXT_TASK.md` and `docs/tasks/TASK_INDEX.md` now
+agree that UX-07 Connect-to-Create is the sole ACTIVE card with its UX-06
+dependency satisfied. UX-07 is activated but implementation has not started;
+no UX-07 code was executed in this run.
+
+## UX-07 Connect-to-Create — implementation complete, independent Review pending (2026-09-14)
+
+UX-07 remains the sole ACTIVE card. Connection gestures now reuse the shared
+`WorkbenchNodePicker` with entries filtered by the existing typed
+`WorkbenchCanvasPortCompatibility` contract and the catalog's connected
+creation capability. Compatible selections delegate to the existing atomic
+`GraphMutationService.create-node-and-edge` path; the page applies the returned
+node/edge result through `WorkbenchNodeClient.applyGraphCreationResult`,
+preserving undo, side-effect synchronization and visible failure handling.
+
+Focused suite: `./.venv/bin/python -m unittest -q tests.test_ux07_connect_to_create tests.test_frontend_workbench_modules tests.test_canvas_runtime_state tests.test_canvas_nodes_runtime` — **426 tests passed**.
+Full `./scripts/agent-verify.sh`: **PASS — 1358 tests**, 307 Python AST files,
+155 JavaScript files, 4 architecture guards, and clean `git diff --check`.
+
+Browser acceptance used an isolated SQLite copy and the real local server.
+Dragging a Loop output port to empty space opened the shared picker with four
+compatible entries. Selecting `提示词` created a second node and one persisted
+connection; the server returned HTTP 201 for `graph/create-node-and-edge`.
+No production database was changed.
+
+Canonical ownership remains `WorkbenchNodePicker` for presentation,
+`canvas-app-interaction.js` plus `WorkbenchCanvasPortCompatibility` for intent
+and typed admission, and `GraphMutationService`/`NodeCreationService` for the
+atomic write. No second Canvas runtime, repository, API, NodeKind, provider
+ownership, or WholeHouse logic was added. At that implementation checkpoint,
+`AGENT_NEXT_TASK.md` still authorized only UX-07; UX-08 was not started.
+
+## UX-07 close-out — archived; UX-08 activated (2026-09-14)
+
+UX-07 received independent Review **PASS** against its Definition of Done,
+architecture constraints, ownership evidence, focused tests, regression gate,
+and isolated browser acceptance. The card is archived in
+`docs/tasks/done/`. `AGENT_NEXT_TASK.md` and `docs/tasks/TASK_INDEX.md` now
+agree that UX-08 Parameter Summary / Popover / Inspector is the sole ACTIVE
+card with its UX-07 dependency satisfied. UX-08 is activated but
+implementation has not started; no UX-08 code was executed in this run.
+
+## UX-05 close-out — archived; UX-06 activated (2026-09-14)
+
+UX-05 received independent Review **PASS** against its Definition of Done,
+architecture constraints, ownership evidence, focused tests, regression gate, and
+isolated browser acceptance. The card is archived in `docs/tasks/done/`.
+`AGENT_NEXT_TASK.md` and `docs/tasks/TASK_INDEX.md` now agree that UX-06 Node
+Picker is the sole ACTIVE card with its UX-05 dependency satisfied. UX-06 is
+activated but implementation has not started; no UX-06 code was executed in this
+run.
+
+## UX-08 Parameter Summary / Popover / Inspector — implementation complete, independent Review pending (2026-09-14)
+
+UX-08 adds the shared `parameter-presentation.js` seam for the existing
+generator card. The default card now presents a compact `比例 · 分辨率 · 数量`
+summary; common fields edit through a Popover; provider/model, quality and
+custom-size controls remain available behind the advanced toggle. The host
+continues to own node mutation and `scheduleSave`, so saved node records and
+execution semantics remain unchanged.
+
+Characterization found the previous generator body rendered all provider,
+ratio, resolution, quality, quantity and custom fields directly. Browser
+acceptance on an isolated SQLite copy verified `1:1 · 4K · ×1`, edited the
+Popover to `16:9 · 2K · ×3`, reloaded the canvas with those values, and expanded
+the advanced controls. No production database was changed.
+
+Focused suite: `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m unittest -q
+tests.test_ux08_parameter_presentation tests.test_frontend_workbench_modules
+tests.test_node_inspector tests.test_inspector_panel` — **182 tests passed**.
+Full `./scripts/agent-verify.sh`: **PASS — 1361 tests**, 308 Python AST files,
+156 JavaScript files, 4 architecture guards, and clean `git diff --check`.
+
+Canonical ownership is the shared `parameter-presentation.js` presentation
+module, the existing generator body seam for advanced controls, and the
+existing Canvas save scheduler for persistence. No repository, application
+service, API, runtime, NodeKind, provider, WholeHouse, or second Canvas owner
+was added. `AGENT_NEXT_TASK.md` still authorizes only UX-08; UX-09 was not
+implemented.
+
+## UX-08 close-out — archived; UX-09 activated (2026-09-14)
+
+UX-08 Parameter Summary / Popover / Inspector received independent Review
+**PASS** against its Definition of Done, architecture constraints, ownership
+evidence, focused tests, regression gate, and isolated browser acceptance. The
+card is archived in `docs/tasks/done/`. `AGENT_NEXT_TASK.md` and
+`docs/tasks/TASK_INDEX.md` now agree that UX-09 Task / LLM Node Replica is the
+sole ACTIVE card with its UX-08 dependency satisfied. UX-09 is activated but
+implementation has not started; no UX-09 code was executed in this run.
+
+## UX-09 Task / LLM Node Replica — implementation complete, independent Review pending (2026-09-14)
+
+UX-09 remains the sole ACTIVE card. The shared `task-card-presentation.js`
+composition now presents the generic Task hierarchy from the video reference:
+title/status, Skill summary and toggle, route/model summary with the canonical
+Model route selector, input resources, Prompt, text/list/structured output
+modes, and a Run action. Task state remains
+owned by `TaskRichNode`; edits flow through the existing Canvas save scheduler.
+The production path uses the shared NodeShell/NodeCardHost and mounts the Task
+presentation after the bounded Legacy compatibility adapter, preserving the
+One Unified Canvas runtime.
+
+Required Task references were read. Browser acceptance on a temporary formal
+Canvas API fixture verified the Task card and Prompt editing in the real local
+Canvas page; the temporary fixture was removed afterward. No provider
+credentials, WholeHouse Core logic, second runtime, new repository/service/API,
+or new NodeKind was introduced.
+
+Focused suite: `PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m unittest -q
+tests.test_ux09_task_llm_node_replica tests.test_task_rich_node
+tests.test_model_selector tests.test_execution_input_preview
+tests.test_nodeshell_v2 tests.test_presentation_state` — **30 tests passed**.
+The production renderer reuses the injected canonical registry bundle
+(`WorkbenchRuntimeRegistries`/`WorkbenchRegistries`) and its existing aliases,
+including `WorkbenchSkillRegistry` and `WorkbenchModelAvailabilityRegistry`;
+it creates neither registry nor a Node-local substitute. Full
+`./scripts/agent-verify.sh`: **PASS — 1371 tests**, 309 Python AST files,
+157 JavaScript files, 4 architecture guards, and clean `git diff --check`.
+
+`AGENT_NEXT_TASK.md` still authorizes only UX-09. UX-09 is not archived and
+UX-10 has not been implemented; independent Review is required before any
+task-card transition.
+
+## UX-09 close-out — archived; UX-10 activated (2026-09-14)
+
+UX-09 Task / LLM Node Replica received independent Review **PASS** against its
+Definition of Done, architecture constraints, ownership evidence, focused
+tests, regression gate, and selector ownership runtime coverage. The card is
+archived in `docs/tasks/done/`. `AGENT_NEXT_TASK.md` and `TASK_INDEX.md` now
+agree that UX-10 Asset / Media Node Replica is the sole ACTIVE card. UX-10 is
+activated but implementation has not started; no UX-10 code was executed in
+this run.
+
+## UX-10 Asset / Media Node Replica — archived; UX-11 activated (2026-09-14)
+
+UX-10 received independent Review **PASS** against its Definition of Done,
+architecture constraints, ownership evidence, focused tests, regression gate
+and task-card lifecycle evidence. The card is archived in
+`docs/tasks/done/`. The existing shared `MediaRenderer` now
+renders Asset/media content first in a compact card: labeled image, video and
+audio previews stay native to the renderer, while text/workflow/unknown media
+use a safe file placeholder instead of an invalid image element. The existing
+NodeShell/NodeCardHost composition remains the only Canvas card runtime. The
+existing floating preview action also resolves the first media reference from
+an Asset/Artifact card and forwards it to the existing lightbox service;
+image editing remains restricted to the existing image-node path.
+
+The Canvas media admission seam now sends `type=asset` and `type=artifact`
+records with media through the same shared NodeShell/MediaRenderer path; they
+no longer fall back to a Legacy empty body.
+
+Asset/Artifact identity and saved node payloads are unchanged. Floating
+open/preview/edit actions continue to call the existing Canvas interaction and
+media-editor services; metadata remains in the existing Inspector/workspace
+surfaces. No repository, application service, API, runtime, NodeKind,
+provider, WholeHouse or second Canvas owner was added.
+
+Focused suite: `./.venv/bin/python -m unittest -v
+tests.test_ux10_asset_media_node_replica tests.test_asset_rich_node
+tests.test_floating_action_bar tests.test_ux05_floating_action_toolbar
+tests.test_nodeshell_v2` — **12 tests passed**.
+Full `./scripts/agent-verify.sh`: **PASS — 1375 tests**, 310 Python AST
+files, 157 JavaScript files, 4 architecture guards, and clean
+`git diff --check`.
+
+Browser acceptance reached the real local Canvas page at `/static/canvas.html`;
+the available canvas contained no media fixture, so no user project was
+mutated. Runtime variant coverage is recorded by the focused test for
+image/video/audio/file. Required references were read from
+`docs/video-replica/references/media-editor/`.
+
+Developer Git review: the change was limited to the canonical media renderer,
+its shared NodeCardHost option, presentation CSS, focused UX-10 tests and
+task evidence. No UX-11 implementation was started in this run.
+
+`AGENT_NEXT_TASK.md` and `TASK_INDEX.md` now agree that UX-11 Collection /
+Table Replica is the sole ACTIVE card with its UX-10 dependency satisfied.
+UX-11 implementation is complete and developer Git Review is recorded below;
+independent Review is required before any task-card transition. UX-12 remains
+BACKLOG and was not started.
+
+## UX-11 Collection / Table Replica — implementation complete; independent Review pending (2026-09-14)
+
+The canonical Collection presentation now exposes a compact summary with title,
+row count, field count and schema labels, while preserving the same Collection
+identity for grid/list/card and editable Table workspace states. The Table
+workspace now carries a non-persistent selected row state and renders the
+selection through `aria-selected`/`.is-selected`; mixed image, text and prompt
+fields remain typed Collection cells. Existing `WorkbenchBindingTable` and
+versioned Collection API/application save boundaries remain unchanged.
+
+Canonical ownership is shared Workbench presentation: `collection-rich-node.js`
+owns card summary and gallery presentation, `collection-table-workspace.js`
+owns table editing/row selection, and the existing gallery Canvas adapter and
+NodeShell/NodeCardHost registry continue to compose the one Unified Canvas.
+No TableNode/SpreadsheetNode, repository, service, API, runtime, provider,
+WholeHouse logic or second Canvas runtime was introduced.
+
+Focused suite: `./.venv/bin/python -m unittest -v
+tests.test_collection_rich_node tests.test_collection_table_workspace
+tests.test_frontend_workbench_modules` — **185 tests passed**.
+Full `./scripts/agent-verify.sh`: **PASS — 1377 tests**, 310 Python AST files,
+157 JavaScript files, 4 architecture guards, and clean `git diff --check`.
+
+Browser acceptance used a temporary Collection fixture through the real local
+Canvas page: mixed image/text rows rendered, the Table workspace opened, and
+the fixture was deleted afterward. The browser cache served the pre-change
+gallery bundle during this run, so the new summary and row-selection markup
+are covered by the focused behavioral tests and remain a documented browser
+verification limitation.
+
+Developer Git Review: PASS for the bounded UX-11 delta. `AGENT_NEXT_TASK.md`
+still authorizes only UX-11; UX-12 was not implemented or activated.
+
+## UX-11 Collection / Table Replica — archived; UX-12 activated (2026-09-14)
+
+UX-11 received independent Review **PASS** against its Definition of Done,
+architecture constraints, ownership evidence, focused tests, regression gate
+and task-card lifecycle. The card is archived in `docs/tasks/done/`.
+`AGENT_NEXT_TASK.md` and `TASK_INDEX.md` now agree that UX-12 Result Workspace
+Replica is the sole ACTIVE card; its UX-11 dependency is satisfied. UX-12 was
+activated only and implementation was not started in this run.
+
+## UX-12 Result Workspace Replica — implementation complete; independent Review pending (2026-09-14)
+
+The shared `result-workspace-runtime.js` now provides one compact/expanded
+presentation seam for grid, preview, compare, selection/rating, collection and
+materialization. It owns only view navigation and composition; the existing
+Result Tray, Preview, Compare, Selection, Collection and Materialization
+runtimes remain the sources of truth for their respective state and formal
+actions. Task nodes reach the workspace through the existing
+TaskRichNode → NodeShell → NodeCardHost path. When the workspace is present,
+the old standalone selection host is not duplicated; its compatibility option
+remains available for non-workspace callers.
+
+No result data model, repository, application service, API, Canvas runtime,
+NodeKind, provider, WholeHouse or approval/frozen lifecycle was added. Saved
+project and result identities remain unchanged.
+
+Focused suite: `./.venv/bin/python -m unittest -v
+tests.test_ux12_result_workspace_replica tests.test_result_tray_runtime
+tests.test_result_preview tests.test_result_compare tests.test_result_selection
+tests.test_result_collection tests.test_result_materialization
+tests.test_frontend_workbench_modules` — **313 tests passed**.
+
+Full regression: `./scripts/agent-verify.sh` — **PASS: 1379 tests**, 311 Python AST files, 158 JavaScript files, 4 architecture guards, and clean `git diff --check`.
+
+Required result-workspace references `REF-301` through `REF-304` were read.
+Browser acceptance used and deleted a temporary local Canvas fixture. The real
+Canvas page rendered the task's unified workspace with two results; Preview
+showed `Preview A`, Compare opened its child view, and Select / rate opened the
+persisted preference row with Save as asset. No user project was mutated.
+
+Developer Git Review: PASS for the bounded UX-12 delta after reviewing the
+workspace composition, task-shell wiring, cache-busting versions, focused
+tests, and full gate. No next card was implemented.
+UX-13 remains the only recommended next card; it was not started.

@@ -6,9 +6,12 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from datetime import UTC, datetime
 
 import main
 from workbench.api.canvas_nodes import CreateNodeAndEdgePayload, NodeCreatePayload, NodeDeletePayload, NodeUpdatePayload
+from workbench.domain.asset import Asset, AssetVersion, AssetVersionContent, AssetVersionProvenance
+from workbench.domain.project.models import ProjectMember, ProjectRecord
 
 
 class CanvasNodesRuntimeTests(unittest.TestCase):
@@ -95,6 +98,62 @@ class CanvasNodesRuntimeTests(unittest.TestCase):
         self.assertEqual(len(saved["nodes"]), 1)
         self.assertEqual(saved["nodes"][0]["type"], "image")
         self.assertTrue(self.audit_path.exists())
+
+    def test_registered_asset_reference_route_persists_two_nodes_for_one_version(self):
+        try:
+            main.project_repository().load_project("default")
+        except LookupError:
+            main.project_repository().create_project(ProjectRecord(
+                id="default", name="Default", workspace_id="workspace-default", created_by="local-user",
+                created_at=datetime(2026, 1, 1, tzinfo=UTC), updated_at=datetime(2026, 1, 1, tzinfo=UTC),
+            ))
+        main.project_repository().add_member(ProjectMember(
+            project_id="default", actor_id="local-user", role="editor", created_at=datetime(2026, 1, 1, tzinfo=UTC)
+        ))
+        asset_repo = main.asset_repository()
+        asset_repo.create_asset(Asset(id="asset-ref-1", project_id="default", source="upload", type="image"))
+        asset_repo.create_version(AssetVersion(
+            id="asset-version-ref-1", asset_id="asset-ref-1", ordinal=1,
+            content=AssetVersionContent(
+                location="assets/library/ref.png",
+                checksum="sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+                mime_type="image/png", size_bytes=3,
+            ),
+            provenance=AssetVersionProvenance(source="upload"),
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        ))
+        canvas = main.new_canvas("asset reference API test", kind="classic", project="default")
+        create = self.endpoint("/api/v1/canvases/{canvas_id}/nodes", "POST")
+        def payload(request_id, position, revision):
+            return NodeCreatePayload(
+                request_id=request_id, project_id="default", source="asset_reference_drag",
+                definition_ref={"type": "legacy", "id": "image", "version": "0"},
+                position=position, expected_revision=revision,
+                initial_config={"asset_version_ref": {"asset_id": "asset-ref-1", "version_id": "asset-version-ref-1"}},
+            )
+        first = asyncio.run(create(canvas["id"], payload("asset-ref-request-1", {"x": 1, "y": 2}, canvas["updated_at"]), x_user_id="local-user"))
+        second = asyncio.run(create(canvas["id"], payload("asset-ref-request-2", {"x": 3, "y": 4}, first.canvas_revision), x_user_id="local-user"))
+        saved = main.load_canvas(canvas["id"])
+        self.assertEqual(len(saved["nodes"]), 2)
+        self.assertEqual([node["assetVersionRef"] for node in saved["nodes"]], [
+            {"asset_id": "asset-ref-1", "version_id": "asset-version-ref-1"},
+            {"asset_id": "asset-ref-1", "version_id": "asset-version-ref-1"},
+        ])
+        self.assertTrue(first.created)
+        self.assertTrue(second.created)
+
+    def test_registered_asset_reference_route_rejects_missing_version_before_persisting(self):
+        canvas = main.new_canvas("missing asset reference API test", kind="classic", project="default")
+        create = self.endpoint("/api/v1/canvases/{canvas_id}/nodes", "POST")
+        with self.assertRaises(main.HTTPException) as raised:
+            asyncio.run(create(canvas["id"], NodeCreatePayload(
+                request_id="asset-ref-missing-1", project_id="default", source="asset_reference_drag",
+                definition_ref={"type": "legacy", "id": "image", "version": "0"}, position={"x": 1, "y": 2},
+                expected_revision=canvas["updated_at"],
+                initial_config={"asset_version_ref": {"asset_id": "missing", "version_id": "missing"}},
+            ), x_user_id="local-user"))
+        self.assertEqual(raised.exception.status_code, 422)
+        self.assertEqual(main.load_canvas(canvas["id"])["nodes"], [])
 
     def test_registered_local_route_persists_a_smart_image_in_its_smart_shape(self):
         canvas = main.new_canvas("smart image API test", kind="smart", project="default")

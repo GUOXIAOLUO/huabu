@@ -43,7 +43,8 @@
     <script src="/static/js/theme.js?v=2026.08.28.1787881168"></script>
     <script src="/static/js/touch-mouse.js?v=2026.08.28.1787881168"></script>
     <script src="/static/js/i18n.js?v=2026.08.28.1787881168"></script>
-    <link rel="stylesheet" href="/static/css/canvas.css?v=2026.09.11.1">
+    <link rel="stylesheet" href="/static/css/workbench-canvas-tokens.css?v=2026.09.14.2">
+    <link rel="stylesheet" href="/static/css/canvas.css?v=2026.09.11.1&ux02=2026.09.14.3&ux03=2026.09.14.2&ux04=2026.09.14.1">
     <link rel="stylesheet" href="/static/css/theme.css?v=2026.08.28.1787881168">
 </head>
 <body>
@@ -114,6 +115,11 @@
                 <div id="nodes"></div>
             </div>
             <button id="canvasArrangeBtn" class="minimap-arrange-btn" type="button" title="整理选中节点" aria-label="整理选中节点"><i data-lucide="layout-grid" class="w-3.5 h-3.5"></i><span>整理选中</span></button>
+            <div id="canvasSurfaceControls" class="canvas-surface-controls" aria-label="画布控制">
+                <button id="canvasZoomOutBtn" class="canvas-surface-control" type="button" title="缩小" aria-label="缩小"><i data-lucide="minus" class="w-3.5 h-3.5"></i></button>
+                <button id="canvasFitBtn" class="canvas-surface-control canvas-surface-control-label" type="button" title="适配全部节点" aria-label="适配全部节点"><span id="canvasZoomLabel">69%</span></button>
+                <button id="canvasZoomInBtn" class="canvas-surface-control" type="button" title="放大" aria-label="放大"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
+            </div>
             <div id="minimap" class="minimap" title="导航地图">
                 <div id="minimapContent" class="minimap-content">
                     <div id="minimapViewport" class="minimap-viewport"></div>
@@ -382,6 +388,7 @@
     <script src="/static/js/workbench/canvas/canvas-entry-compatibility.js?v=2026.09.05.2"></script>
     <script src="/static/js/workbench/canvas/node-inspector.js?v=2026.08.28.1788441997"></script>
     <script src="/static/js/workbench/canvas/inspector-panel.js?v=2026.09.10.1"></script>
+    <script src="/static/js/workbench/canvas/parameter-presentation.js?v=2026.09.14.1"></script>
     <script src="/static/js/workbench/canvas/canvas-persistence-client.js?v=2026.09.05.1"></script>
     <script src="/static/js/workbench/canvas/canvas-save-scheduler.js?v=2026.09.06.1"></script>
     <script src="/static/js/workbench/canvas/canvas-http-error.js?v=2026.09.05.1"></script>
@@ -403,13 +410,15 @@
     <script src="/static/js/workbench/canvas/canvas-remote-sync.js?v=2026.09.05.1"></script>
     <script src="/static/js/workbench/canvas/canvas-update-message.js?v=2026.09.05.1"></script>
     <script src="/static/js/workbench/canvas/node-creation-client.js?v=2026.09.08.3"></script>
+    <script src="/static/js/workbench/canvas/asset-reference-materializer.js?v=2026.09.14.1"></script>
     <script src="/static/js/workbench/canvas/creation-catalog.js?v=2026.09.04.1"></script>
+    <script src="/static/js/workbench/canvas/node-picker.js?v=2026.09.14.1"></script>
     <script src="/static/js/workbench/canvas/generation-intent.js?v=2026.09.04.1"></script>
     <script src="/static/js/workbench/canvas/execution-compatibility.js?v=2026.08.28.1788533853"></script>
-    <script src="/static/js/workbench/canvas/command-registry.js?v=2026.09.06.6"></script>
+    <script src="/static/js/workbench/canvas/command-registry.js?v=2026.09.14.2"></script>
     <script src="/static/js/workbench/canvas/runtime-state.js?v=2026.09.06.4"></script>
     <script src="/static/js/workbench/canvas/graph-geometry.js?v=2026.08.28.1788487552"></script>
-    <script src="/static/js/workbench/canvas/graph-interaction.js?v=2026.08.28.1788487797"></script>
+    <script src="/static/js/workbench/canvas/graph-interaction.js?v=2026.09.14.1"></script>
     <script src="/static/js/workbench/canvas/port-compatibility.js?v=2026.08.28.1788533716"></script>
     <script src="/static/js/workbench/canvas/group-membership.js?v=2026.09.08.3"></script>
     <script src="/static/js/workbench/canvas/viewport-recovery.js?v=2026.08.28.1788488257"></script>
@@ -417,7 +426,8 @@
     <script src="/static/js/workbench/canvas/renderer-admission.js?v=2026.09.06.1"></script>
     <script src="/static/js/workbench/canvas/presentation-state.js?v=2026.09.10.1"></script>
     <script src="/static/js/workbench/canvas/asset-rich-node.js?v=2026.09.10.1"></script>
-    <script src="/static/js/workbench/canvas/task-rich-node.js?v=2026.09.10.1"></script>
+    <script src="/static/js/workbench/canvas/task-rich-node.js?v=2026.09.14.6"></script>
+    <script src="/static/js/workbench/canvas/task-card-presentation.js?v=2026.09.14.4"></script>
     <script src="/static/js/workbench/canvas/execution-input-preview.js?v=2026.09.12.1"></script>
     <script src="/static/js/workbench/canvas/model-selector.js?v=2026.09.11.1"></script>
     <script src="/static/js/workbench/canvas/skill-selector.js?v=2026.09.11.1"></script>
@@ -428,6 +438,7 @@
     <script src="/static/js/workbench/canvas/common-image-analysis-proof.js?v=2026.09.11.1"></script>
     <script src="/static/js/workbench/canvas/artifact-rich-node.js?v=2026.09.10.1"></script>
     <script src="/static/js/workbench/canvas/collection-rich-node.js?v=2026.09.11.1"></script>
+    <script src="/static/js/workbench/canvas/entity-rich-node.js?v=2026.09.14.1"></script>
     <script src="/static/js/workbench/canvas/collection-table-workspace.js?v=2026.09.11.1"></script>
     <script src="/static/js/workbench/canvas/binding-table.js?v=2026.09.11.1"></script>
     <script src="/static/js/workbench/canvas/collection-api-client.js?v=2026.09.11.1"></script>
@@ -437,19 +448,21 @@
     <script src="/static/js/workbench/canvas/result-compare-runtime.js?v=2026.09.12.3"></script>
     <script src="/static/js/workbench/canvas/result-selection-runtime.js?v=2026.09.12.4"></script>
     <script src="/static/js/workbench/canvas/result-selection-api-client.js?v=2026.09.12.4"></script>
+    <script src="/static/js/workbench/canvas/result-asset-materialization-api-client.js?v=2026.09.14.2"></script>
     <script src="/static/js/workbench/canvas/execution-branch-runtime.js?v=2026.09.12.1"></script>
     <script src="/static/js/workbench/canvas/execution-branch-api-client.js?v=2026.09.12.1"></script>
     <script src="/static/js/workbench/canvas/result-collection-runtime.js?v=2026.09.12.1"></script>
     <script src="/static/js/workbench/canvas/result-collection-api-client.js?v=2026.09.12.1"></script>
     <script src="/static/js/workbench/canvas/result-materialization-runtime.js?v=2026.09.12.1"></script>
     <script src="/static/js/workbench/canvas/result-materialization-api-client.js?v=2026.09.12.1"></script>
+    <script src="/static/js/workbench/canvas/result-workspace-runtime.js?v=2026.09.14.2"></script>
     <script src="/static/js/workbench/canvas/collection-gallery-canvas-adapter.js?v=2026.09.11.2"></script>
     <script src="/static/js/workbench/canvas/workspace-session.js?v=2026.09.10.1"></script>
     <script src="/static/js/workbench/canvas/canvas-workspace-session.js?v=2026.09.10.1"></script>
-    <script src="/static/js/workbench/canvas/node-shell.js?v=2026.09.04.2"></script>
+    <script src="/static/js/workbench/canvas/node-shell.js?v=2026.09.14.6"></script>
     <script src="/static/js/workbench/canvas/legacy-renderer.js?v=2026.08.28.1788438695"></script>
     <script src="/static/js/workbench/canvas/media-renderer.js?v=2026.08.28.1788438695"></script>
-    <script src="/static/js/workbench/canvas/node-card-host.js?v=2026.09.04.3"></script>
+    <script src="/static/js/workbench/canvas/node-card-host.js?v=2026.09.14.8"></script>
     <script src="/static/js/workbench/canvas/prompt-card-renderer.js?v=2026.09.04.3"></script>
     <script src="/static/js/workbench/canvas/prompt-template-data.js?v=2026.09.08.2"></script>
     <script src="/static/js/workbench/canvas/prompt-template-application.js?v=2026.09.08.1"></script>
@@ -462,7 +475,7 @@
     <script src="/static/js/workbench/canvas/semantic-zoom.js?v=2026.08.28.1788370356"></script>
     <script src="/static/js/workbench/canvas/semantic-zoom-apply.js?v=2026.09.06.1"></script>
     <script src="/static/js/workbench/canvas/screen-space-controls.js?v=2026.08.28.1788362721"></script>
-    <script src="/static/js/workbench/canvas/floating-action-bar.js?v=2026.09.10.1"></script>
+    <script src="/static/js/workbench/canvas/floating-action-bar.js?v=2026.09.14.1"></script>
     <script src="/static/js/workbench/canvas/legacy-graph-compatibility.js?v=2026.09.08.2"></script>
 <script src="/static/js/workbench/canvas/provider-controls.js?v=2026.09.07.1"></script>
 <script src="/static/js/workbench/canvas/classic-node-factories.js?v=2026.09.07.1"></script>
@@ -493,18 +506,18 @@
     <script src="/static/js/workbench/canvas/loop-layout-projection.js?v=2026.09.09.7"></script>
     <script src="/static/js/workbench/canvas/canvas-session.js?v=2026.09.08.1"></script>
     <script src="/static/js/workbench/canvas/app-bootstrap.js?v=2026.09.08.1"></script>
-    <script src="/static/js/workbench/canvas/render-sweep.js?v=2026.09.08.2"></script>
+    <script src="/static/js/workbench/canvas/render-sweep.js?v=2026.09.14.2"></script>
     <script src="/static/js/workbench/canvas/classic-executor-runtime.js?v=2026.09.07.2"></script>
     <script src="/static/js/workbench/canvas/classic-asset-runtime.js?v=2026.09.08.1"></script>
-    <script src="/static/js/workbench/canvas/canvas-app-state.js?v=2026.09.09.2"></script>
-    <script src="/static/js/workbench/canvas/canvas-app-records.js?v=2026.09.09.2"></script>
-    <script src="/static/js/workbench/canvas/canvas-app-media-editor.js?v=2026.09.09.2"></script>
+    <script src="/static/js/workbench/canvas/canvas-app-state.js?v=2026.09.14.5"></script>
+    <script src="/static/js/workbench/canvas/canvas-app-records.js?v=2026.09.14.5"></script>
+    <script src="/static/js/workbench/canvas/canvas-app-media-editor.js?v=2026.09.14.9"></script>
     <script src="/static/js/workbench/canvas/canvas-app-compat-host.js?v=2026.09.09.2"></script>
     <script src="/static/js/workbench/canvas/canvas-app-provider-ui.js?v=2026.09.09.2"></script>
     <script src="/static/js/workbench/canvas/canvas-app-execution.js?v=2026.09.09.2"></script>
     <script src="/static/js/workbench/canvas/canvas-app-output-ui.js?v=2026.09.09.2"></script>
     <script src="/static/js/workbench/canvas/legacy-canvas-mutation.js?v=2026.09.09.2"></script>
-    <script src="/static/js/workbench/canvas/canvas-app-interaction.js?v=2026.09.09.3"></script>
+    <script src="/static/js/workbench/canvas/canvas-app-interaction.js?v=2026.09.14.5"></script>
     <script src="/static/js/workbench/canvas/canvas-app-bootstrap.js?v=2026.09.09.2"></script>
 </body>
 </html>

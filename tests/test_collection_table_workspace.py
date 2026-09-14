@@ -190,6 +190,26 @@ console.log(JSON.stringify({{projection:workspace.bindingProjection(),row:worksp
         self.assertEqual(payload["row"]["missingRequired"], ["input"])
         self.assertEqual(payload["row"]["bindings"], [])
 
+    def test_table_rows_share_selection_state_without_mutating_collection(self):
+        module = ROOT / "static/js/workbench/canvas/collection-table-workspace.js"
+        script = f"""
+const fs=require('fs'),vm=require('vm');
+function element(tag) {{ return {{tagName:tag.toUpperCase(),children:[],dataset:{{}},listeners:{{}},className:'',
+  append(...items){{this.children.push(...items);}},replaceChildren(...items){{this.children=items; }},setAttribute(name,value){{this.dataset['attr-'+name]=String(value);}},addEventListener(type,callback){{(this.listeners[type]||(this.listeners[type]=[])).push(callback);}},remove(){{}} }}; }}
+const documentRef={{createElement:element}},sandbox={{window:{{document:documentRef}},document:documentRef}};
+vm.runInNewContext(fs.readFileSync({json.dumps(str(module))},'utf8'),sandbox);
+const node={{id:'selectable',type:'collection',collection:{{schema:{{columns:[{{id:'prompt',key:'prompt',label:'Prompt',value_type:'literal'}}]}},items:[
+  {{id:'row-1',order:1,values:{{prompt:{{type:'literal',value:'one'}}}}}},{{id:'row-2',order:2,values:{{prompt:{{type:'literal',value:'two'}}}}}}
+]}}}};
+let selected=''; const workspace=sandbox.window.WorkbenchCollectionTableWorkspace.create({{node,onSelectRow:id=>selected=id}});
+const host=element('section'); const mounted=sandbox.window.WorkbenchCollectionTableWorkspace.mount(host,workspace,{{document:documentRef}});
+const rows=mounted.element.children[1].children[1].children; rows[1].listeners.click[0]();
+const rerenderedRows=mounted.element.children[1].children[1].children;
+console.log(JSON.stringify({{selected,selectedRowId:workspace.snapshot().selectedRowId,selectedClass:rerenderedRows[1].className,ariaSelected:rerenderedRows[1].dataset['attr-aria-selected'],unchanged:node.collection.items[1].values.prompt.value==='two'}}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, capture_output=True, text=True)
+        self.assertEqual(json.loads(result.stdout), {"selected": "row-2", "selectedRowId": "row-2", "selectedClass": "is-selected", "ariaSelected": "true", "unchanged": True})
+
     def test_binding_table_rejects_reference_type_mismatch(self):
         binding = ROOT / "static/js/workbench/canvas/binding-table.js"
         script = f"""

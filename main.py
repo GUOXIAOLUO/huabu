@@ -64,6 +64,7 @@ from workbench.api.canvases import create_canonical_canvases_router
 from workbench.api.canvas_nodes import create_canvas_nodes_router
 from workbench.api.projects import create_canonical_projects_router
 from workbench.api.collections import create_canonical_collections_router
+from workbench.api.catalogs import create_catalogs_router
 from workbench.api.prompts import create_canonical_prompts_router
 from workbench.api.execution_branches import create_execution_branches_router
 from workbench.api.execution_runs import create_execution_runs_router
@@ -72,8 +73,17 @@ from workbench.api.execution_events import create_execution_events_router
 from workbench.api.result_selections import create_result_selections_router
 from workbench.api.result_collections import create_result_collections_router
 from workbench.api.result_materializations import create_result_materializations_router
+from workbench.api.result_asset_materializations import create_result_asset_materializations_router
+from workbench.api.result_artifact_materializations import create_result_artifact_materializations_router
+from workbench.api.assets import create_canonical_assets_router
+from workbench.api.entities import create_entities_router
+from workbench.api.entity_relations import create_entity_relations_router
+from workbench.api.knowledge_entries import create_knowledge_entries_router
+from workbench.api.project_knowledge_context import create_project_knowledge_context_router
 from workbench.application.collection_service import CollectionService
 from workbench.repositories.collection_repository import SqliteCollectionRepository
+from workbench.application.catalog_service import CatalogService
+from workbench.repositories.catalog_repository import SqliteCatalogRepository
 from workbench.application.prompt_service import PromptService
 from workbench.application.prompt_registry import PromptRegistry
 from workbench.repositories.prompt_repository import SqlitePromptRepository
@@ -84,6 +94,24 @@ from workbench.application.execution_event_service import ExecutionEventService
 from workbench.application.result_selection_service import ResultSelectionService
 from workbench.application.result_collection_service import ResultCollectionService
 from workbench.application.result_materialization_service import ResultMaterializationService
+from workbench.application.result_asset_materialization import ResultAssetMaterializationService
+from workbench.application.result_artifact_materialization import ResultArtifactMaterializationService
+from workbench.application.asset_service import AssetService
+from workbench.application.artifact_service import ArtifactService
+from workbench.application.entity_service import EntityService
+from workbench.application.entity_relation_service import EntityRelationService
+from workbench.application.knowledge_entry_service import KnowledgeEntryService
+from workbench.application.project_knowledge_context_service import ProjectKnowledgeContextService
+from workbench.domain.knowledge import ProjectKnowledgeContextResource
+from workbench.application.artifact_reference import ArtifactVersionReferenceValidator
+from workbench.api.artifacts import create_artifacts_router
+from workbench.application.asset_reference import AssetVersionReferenceValidator
+from workbench.application.authorization import AuthorizationService
+from workbench.repositories.asset_repository import SqliteAssetRepository
+from workbench.repositories.artifact_repository import SqliteArtifactRepository
+from workbench.repositories.entity_repository import SqliteEntityRepository
+from workbench.repositories.entity_relation_repository import SqliteEntityRelationRepository
+from workbench.repositories.knowledge_entry_repository import SqliteKnowledgeEntryRepository
 from workbench.application.result_node_definitions import ResultNodeDefinitionRegistry, ResultNodeModelCompatibilityPolicy
 from workbench.repositories.canonical_json_node_repository import CanonicalJsonNodeCreationRepository
 from workbench.application.execution_service import ExecutionControlRegistry, ExecutionService
@@ -2777,8 +2805,74 @@ def project_migration_service():
 def collection_repository():
     return SqliteCollectionRepository(WORKBENCH_DATABASE_PATH)
 
+def catalog_repository():
+    return SqliteCatalogRepository(WORKBENCH_DATABASE_PATH)
+
+def asset_repository():
+    repository = SqliteAssetRepository(WORKBENCH_DATABASE_PATH)
+    repository.migrate()
+    return repository
+
+def authorization_service():
+    return AuthorizationService(project_repository())
+
+def asset_service(actor_id: str):
+    return AssetService(asset_repository(), authorization_service())
+
+def artifact_service(actor_id: str):
+    return ArtifactService(artifact_repository(), actor_id=actor_id)
+
+def artifact_repository():
+    repository = SqliteArtifactRepository(WORKBENCH_DATABASE_PATH)
+    repository.migrate()
+    return repository
+
+def entity_repository():
+    repository = SqliteEntityRepository(WORKBENCH_DATABASE_PATH)
+    repository.migrate()
+    return repository
+
+def entity_service(actor_id: str):
+    return EntityService(entity_repository(), actor_id=actor_id)
+
+def entity_relation_repository():
+    repository = SqliteEntityRelationRepository(WORKBENCH_DATABASE_PATH)
+    repository.migrate()
+    return repository
+
+def entity_relation_service(actor_id: str):
+    return EntityRelationService(entity_relation_repository(), actor_id=actor_id)
+
+def knowledge_entry_repository():
+    repository = SqliteKnowledgeEntryRepository(WORKBENCH_DATABASE_PATH)
+    repository.migrate()
+    return repository
+
+def knowledge_entry_service(actor_id: str):
+    return KnowledgeEntryService(knowledge_entry_repository(), actor_id=actor_id)
+
+def project_knowledge_context_service(actor_id: str):
+    def resource_reader(project_id: str):
+        resources = []
+        for asset in asset_service(actor_id).list(project_id=project_id, actor_id=actor_id):
+            resources.append(ProjectKnowledgeContextResource(resource_type="asset", resource_id=asset.id, scope="project", provenance=asset.version_ids))
+        for artifact in artifact_service(actor_id).list(project_id):
+            resources.append(ProjectKnowledgeContextResource(resource_type="artifact", resource_id=artifact.id, scope="project", provenance=artifact.version_ids))
+        for catalog in catalog_service(actor_id).list(workspace_id="local", project_id=project_id):
+            resources.append(ProjectKnowledgeContextResource(resource_type="catalog", resource_id=catalog.id, scope=catalog.scope, provenance=catalog.item_ids))
+        return resources
+
+    return ProjectKnowledgeContextService(
+        entity_service=entity_service(actor_id),
+        knowledge_service=knowledge_entry_service(actor_id),
+        resource_readers=(resource_reader,),
+    )
+
 def collection_service(actor_id: str) -> CollectionService:
     return CollectionService(collection_repository(), actor_id=actor_id)
+
+def catalog_service(actor_id: str) -> CatalogService:
+    return CatalogService(catalog_repository(), actor_id=actor_id)
 
 def prompt_repository():
     return SqlitePromptRepository(WORKBENCH_DATABASE_PATH)
@@ -2793,7 +2887,7 @@ def execution_run_repository():
     return SqliteExecutionRunRepository(WORKBENCH_DATABASE_PATH)
 
 def execution_run_service(actor_id: str) -> ExecutionRunService:
-    return ExecutionRunService(execution_run_repository(), actor_id=actor_id)
+    return ExecutionRunService(execution_run_repository(), actor_id=actor_id, knowledge_context_service=project_knowledge_context_service(actor_id))
 
 def execution_branch_repository():
     return SqliteExecutionBranchRepository(WORKBENCH_DATABASE_PATH)
@@ -2822,6 +2916,18 @@ def result_selection_service(actor_id: str) -> ResultSelectionService:
 def result_collection_service(actor_id: str) -> ResultCollectionService:
     return ResultCollectionService(collection_service(actor_id), result_selection_service(actor_id), execution_run_service(actor_id), actor_id=actor_id)
 
+def result_asset_materialization_service(actor_id: str) -> ResultAssetMaterializationService:
+    return ResultAssetMaterializationService(
+        asset_service(actor_id), result_selection_service(actor_id),
+        execution_run_service(actor_id), execution_attempt_service(actor_id), actor_id=actor_id,
+    )
+
+def result_artifact_materialization_service(actor_id: str) -> ResultArtifactMaterializationService:
+    return ResultArtifactMaterializationService(
+        artifact_service(actor_id), result_selection_service(actor_id),
+        execution_run_service(actor_id), execution_attempt_service(actor_id), actor_id=actor_id,
+    )
+
 def local_result_materialization_service(actor_id: str) -> ResultMaterializationService:
     """Materialize a selected result as a canonical node on the localhost-only Canvas store."""
     repository = canvas_repository()
@@ -2834,6 +2940,7 @@ def local_result_materialization_service(actor_id: str) -> ResultMaterialization
             audit_sink=JsonlAuditSink(CANVAS_NODE_AUDIT_PATH, lock=CANVAS_NODE_AUDIT_LOCK),
             node_id_factory=lambda: uuid.uuid4().hex,
             port_types=create_core_port_type_registry(),
+            artifact_version_reference_validator=ArtifactVersionReferenceValidator(artifact_service(actor_id)),
         ),
         selections=result_selection_service(actor_id),
         runs=execution_run_service(actor_id),
@@ -2863,6 +2970,7 @@ def local_node_creation_service(actor_id: str) -> NodeCreationService:
         audit_sink=JsonlAuditSink(CANVAS_NODE_AUDIT_PATH, lock=CANVAS_NODE_AUDIT_LOCK),
         node_id_factory=lambda: uuid.uuid4().hex,
         port_types=create_core_port_type_registry(),
+        asset_reference_validator=AssetVersionReferenceValidator(asset_service(actor_id)),
     )
 
 def local_node_lookup() -> LegacyJsonNodeLookup:
@@ -18676,6 +18784,13 @@ if canonical_api_is_enabled_for_host(WORKBENCH_HOST):
     ))
     app.include_router(create_canonical_projects_router(project_service_factory=project_service))
     app.include_router(create_canonical_collections_router(service_factory=collection_service))
+    app.include_router(create_catalogs_router(service_factory=catalog_service))
+    app.include_router(create_canonical_assets_router(service_factory=asset_service))
+    app.include_router(create_artifacts_router(service_factory=artifact_service))
+    app.include_router(create_entities_router(service_factory=entity_service))
+    app.include_router(create_entity_relations_router(service_factory=entity_relation_service))
+    app.include_router(create_knowledge_entries_router(service_factory=knowledge_entry_service))
+    app.include_router(create_project_knowledge_context_router(service_factory=project_knowledge_context_service))
     app.include_router(create_canonical_prompts_router(service_factory=prompt_service, registry_factory=prompt_registry))
     app.include_router(create_execution_runs_router(service_factory=execution_run_service, execution_service_factory=execution_service))
     app.include_router(create_execution_branches_router(service_factory=execution_branch_service))
@@ -18684,6 +18799,8 @@ if canonical_api_is_enabled_for_host(WORKBENCH_HOST):
     app.include_router(create_result_selections_router(service_factory=result_selection_service))
     app.include_router(create_result_collections_router(service_factory=result_collection_service))
     app.include_router(create_result_materializations_router(service_factory=local_result_materialization_service))
+    app.include_router(create_result_asset_materializations_router(service_factory=result_asset_materialization_service))
+    app.include_router(create_result_artifact_materializations_router(service_factory=result_artifact_materialization_service))
 
 if WORKBENCH_NODE_API_ENABLED:
     try:

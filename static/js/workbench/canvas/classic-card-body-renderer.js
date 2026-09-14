@@ -504,6 +504,27 @@
                     scheduleSave();
                 };
             });
+            if (host.parameterPresentation) {
+                host.parameterPresentation.create({
+                    document,
+                    container: wrap,
+                    node,
+                    advancedSelector: '.gen-settings',
+                    onChange: (field, value) => {
+                        if (field === 'count') {
+                            node.count = Math.max(1, Math.min(8, Number(value) || 1));
+                            countInput.value = String(node.count);
+                            scheduleSave();
+                            return;
+                        }
+                        const control = field === 'ratio' ? ratioSelect : field === 'resolution' ? resolutionSelect : null;
+                        if (control) {
+                            control.value = value;
+                            control.dispatchEvent(new Event('change', {bubbles: false}));
+                        }
+                    },
+                });
+            }
             const list = wrap.querySelector('.input-list');
             renderImageInputList(list, node, mediaInputs);
             renderPromptPreview(wrap.querySelector('.prompt-list'), promptInputs);

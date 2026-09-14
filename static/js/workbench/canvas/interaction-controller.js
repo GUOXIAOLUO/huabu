@@ -345,6 +345,7 @@
                 expected_revision: entry.expectedRevision,
                 ...(entry.title !== undefined ? {title: entry.title} : {}),
                 ...(entry.initialConfig ? {initial_config: entry.initialConfig} : {}),
+                ...(entry.initialOutputRefs ? {initial_output_refs: entry.initialOutputRefs} : {}),
             };
             const result = await settings.create(entry.canvasId, command, entry.clientId);
             return settings.applyResult(result, entry.apply);

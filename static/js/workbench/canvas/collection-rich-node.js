@@ -100,7 +100,13 @@
             return snapshot();
         }
         function snapshot() {
-            return Object.freeze({nodeId: text(node.id), title: text(node.title, 'Collection'), presentation: presentation.state(), viewMode, items, selectedItemId});
+            const collection = collectionOf(node);
+            const columns = collection?.schema?.columns || [];
+            return Object.freeze({nodeId: text(node.id), title: text(node.title, 'Collection'), presentation: presentation.state(), viewMode, items, selectedItemId,
+                rowCount: Array.isArray(collection?.items) ? collection.items.length : 0,
+                columnCount: columns.length,
+                columnLabels: Object.freeze(columns.map(column => text(column.label || column.key)).filter(Boolean)),
+            });
         }
         return Object.freeze({
             presentations: PRESENTATIONS, viewModes: VIEW_MODES, snapshot, state: presentation.state,
@@ -125,6 +131,22 @@
             const snapshot = rich.snapshot();
             root.dataset.viewMode = snapshot.viewMode;
             root.className = `workbench-collection-gallery workbench-collection-gallery--${snapshot.viewMode}`;
+            const summary = documentRef.createElement('div');
+            summary.className = 'workbench-collection-gallery__summary';
+            const heading = documentRef.createElement('strong');
+            heading.className = 'workbench-collection-gallery__title';
+            heading.textContent = snapshot.title;
+            const metadata = documentRef.createElement('span');
+            metadata.className = 'workbench-collection-gallery__meta';
+            metadata.textContent = `${snapshot.rowCount} rows · ${snapshot.columnCount} fields`;
+            summary.append(heading, metadata);
+            if (snapshot.columnLabels.length) {
+                const fields = documentRef.createElement('span');
+                fields.className = 'workbench-collection-gallery__fields';
+                fields.textContent = snapshot.columnLabels.join(' · ');
+                summary.append(fields);
+            }
+            root.append(summary);
             snapshot.items.forEach(item => {
                 const tile = documentRef.createElement('button');
                 tile.type = 'button';

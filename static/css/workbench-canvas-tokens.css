@@ -1,0 +1,92 @@
+/* UX-01: shared presentation tokens for the single Workbench Canvas shell.
+ * Keep these tokens presentation-only: node records, graph semantics and
+ * execution state must not depend on this file. */
+:root {
+    --wb-canvas-bg: #f8fafc;
+    --wb-canvas-grid: #d9e1ea;
+    --wb-surface: #ffffff;
+    --wb-surface-panel: rgba(255,255,255,.92);
+    --wb-surface-card: rgba(255,255,255,.96);
+    --wb-border: #e8edf3;
+    --wb-border-strong: #cbd5e1;
+    --wb-text-primary: #111827;
+    --wb-text-secondary: #64748b;
+    --wb-text-tertiary: #94a3b8;
+    --wb-selection: #2563eb;
+    --wb-edge: #d9e1ea;
+    --wb-edge-hover: #94a3b8;
+    --wb-edge-active: #2563eb;
+    --wb-action-primary: #111827;
+    --wb-action-primary-text: #ffffff;
+    --wb-radius-card: 16px;
+    --wb-radius-control: 10px;
+    --wb-shadow-low: rgba(15,23,42,.08);
+    --wb-ease-standard: cubic-bezier(.4,0,.2,1);
+    --wb-canvas-grid-size: 24px;
+    --wb-canvas-dot-size: 1px;
+    --wb-shell-inset: 20px;
+    --wb-shell-top: 18px;
+    --wb-control-height: 32px;
+    --wb-control-radius: 10px;
+
+    /* Compatibility aliases retained for the existing Canvas components. */
+    --ease: var(--wb-ease-standard);
+    --page: var(--wb-canvas-bg);
+    --grid: var(--wb-canvas-grid);
+    --panel: var(--wb-surface-panel);
+    --card: var(--wb-surface-card);
+    --card-solid: var(--wb-surface);
+    --soft: var(--wb-canvas-bg);
+    --soft-2: #f1f5f9;
+    --line: var(--wb-border);
+    --line-2: var(--wb-border-strong);
+    --text: var(--wb-text-primary);
+    --muted: var(--wb-text-secondary);
+    --faint: var(--wb-text-tertiary);
+    --shadow: var(--wb-shadow-low);
+    --strong: var(--wb-action-primary);
+    --strong-text: var(--wb-action-primary-text);
+}
+
+.theme-dark {
+    --wb-edge-hover: #94a3b8;
+    --wb-edge-active: #93c5fd;
+}
+
+.theme-dark {
+    --wb-canvas-bg: #0b1020;
+    --wb-canvas-grid: rgba(148,163,184,.16);
+    --wb-surface: #111827;
+    --wb-surface-panel: rgba(17,24,39,.9);
+    --wb-surface-card: rgba(15,23,42,.96);
+    --wb-border: #334155;
+    --wb-border-strong: #64748b;
+    --wb-text-primary: #f8fafc;
+    --wb-text-secondary: #cbd5e1;
+    --wb-text-tertiary: #94a3b8;
+    --wb-action-primary: #f8fafc;
+    --wb-action-primary-text: #0f172a;
+    --wb-shadow-low: rgba(0,0,0,.28);
+    --wb-canvas-grid-size: 24px;
+    --wb-canvas-dot-size: 1px;
+    --wb-shell-inset: 20px;
+    --wb-shell-top: 18px;
+    --wb-control-height: 32px;
+    --wb-control-radius: 10px;
+
+    --page: var(--wb-canvas-bg);
+    --grid: var(--wb-canvas-grid);
+    --panel: var(--wb-surface-panel);
+    --card: var(--wb-surface-card);
+    --card-solid: var(--wb-surface);
+    --soft: #1e293b;
+    --soft-2: #263449;
+    --line: var(--wb-border);
+    --line-2: var(--wb-border-strong);
+    --text: var(--wb-text-primary);
+    --muted: var(--wb-text-secondary);
+    --faint: var(--wb-text-tertiary);
+    --shadow: var(--wb-shadow-low);
+    --strong: var(--wb-action-primary);
+    --strong-text: var(--wb-action-primary-text);
+}

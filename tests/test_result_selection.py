@@ -44,6 +44,7 @@ from workbench.repositories.sqlite_project_canvas_repository import SqliteProjec
 ROOT = Path(__file__).resolve().parents[1]
 SELECTION = ROOT / "static/js/workbench/canvas/result-selection-runtime.js"
 CLIENT = ROOT / "static/js/workbench/canvas/result-selection-api-client.js"
+ASSET_CLIENT = ROOT / "static/js/workbench/canvas/result-asset-materialization-api-client.js"
 
 # A preference seam owns no transport and no client persistence.
 FORBIDDEN_TRANSPORT_MARKERS = ("fetch(", "XMLHttpRequest", "localStorage", "sessionStorage", "require(")
@@ -581,6 +582,52 @@ console.log(JSON.stringify({
         self.assertNotIn("<b>x</b>", payload["html"])
         self.assertEqual(payload["count"], 1)
 
+    def test_selected_row_exposes_explicit_asset_action_and_callback(self):
+        payload = run_program("""
+const api=sandbox.window.WorkbenchCanvasResultSelection;
+const calls=[];
+const host={attributes:{},listeners:{},setAttribute(n,v){this.attributes[n]=v;},removeAttribute(n){delete this.attributes[n];},innerHTML:'',addEventListener(n,fn){this.listeners[n]=fn;},removeEventListener(){}};
+const c=api.create({onSaveAsAsset: record => calls.push(record)});
+c.mount(host);
+c.setPreference({attempt_id:'attempt-1', output_name:'poster', ordinal:0},{selected:true});
+const key=JSON.stringify(['attempt-1','poster',0]);
+host.listeners.click({target:{closest: selector => selector === '[data-result-save-asset]' ? {getAttribute: () => key} : null}});
+console.log(JSON.stringify({hasAction:host.innerHTML.includes('data-result-save-asset'), calls}));
+""", SELECTION)
+        self.assertTrue(payload["hasAction"])
+        self.assertEqual(payload["calls"][0]["attempt_id"], "attempt-1")
+        self.assertEqual(payload["calls"][0]["output_name"], "poster")
+
+    def test_asset_materialization_client_posts_declared_result_content(self):
+        payload = run_program("""
+const client=sandbox.window.WorkbenchResultAssetMaterializationApiClient;
+const calls=[];
+const fakeFetch=async (url, options)=>{calls.push({url, options, body:JSON.parse(options.body)});return {ok:true,status:201,json:async()=>({ref:{asset_id:'a1',version_id:'v1'}})};};
+(async()=>{
+  await client.materialize('run/1', {project_id:'project-1',attempt_id:'attempt-1',output_name:'poster',ordinal:0,title:'Poster',type:'image',content:{location:'/output/poster',checksum:'sha256:'+'a'.repeat(64),mime_type:'image/png',size_bytes:12}}, {actorId:'owner',fetch:fakeFetch});
+  console.log(JSON.stringify({url:calls[0].url, method:calls[0].options.method, actor:calls[0].options.headers['X-User-ID'], body:calls[0].body}));
+})();
+""", ASSET_CLIENT)
+        self.assertEqual(payload["url"], "/api/v1/execution-runs/run%2F1/assets")
+        self.assertEqual(payload["method"], "POST")
+        self.assertEqual(payload["actor"], "owner")
+        self.assertEqual(payload["body"]["content"]["checksum"], "sha256:" + "a" * 64)
+
+    def test_asset_materialization_client_builds_explicit_selection_handler(self):
+        payload = run_program("""
+const client=sandbox.window.WorkbenchResultAssetMaterializationApiClient;
+const calls=[];
+const fakeFetch=async (url, options)=>{calls.push({url, body:JSON.parse(options.body)});return {ok:true,status:201,json:async()=>({ref:'asset-ref'})};};
+(async()=>{
+  const handler=client.createHandler({runId:'run-1',projectId:'project-1',actorId:'owner',fetch:fakeFetch,type:'image',contentFor:record=>({location:'/output/'+record.output_name,checksum:'sha256:'+'b'.repeat(64),mime_type:'image/png',size_bytes:3})});
+  await handler({attempt_id:'attempt-1',output_name:'poster',ordinal:0,selected:true});
+  console.log(JSON.stringify({url:calls[0].url, body:calls[0].body}));
+})();
+""", ASSET_CLIENT)
+        self.assertEqual(payload["url"], "/api/v1/execution-runs/run-1/assets")
+        self.assertEqual(payload["body"]["project_id"], "project-1")
+        self.assertEqual(payload["body"]["content"]["location"], "/output/poster")
+
     def test_seam_has_no_transport_no_scoring_and_no_approval_semantics(self):
         source = SELECTION.read_text(encoding="utf-8")
         for marker in FORBIDDEN_TRANSPORT_MARKERS:
@@ -601,6 +648,20 @@ console.log(JSON.stringify({
         self.assertEqual(page.count("workbench/canvas/result-selection-api-client.js"), 1)
         self.assertLess(page.index("result-compare-runtime.js"), page.index("result-selection-runtime.js"))
         self.assertLess(page.index("result-selection-runtime.js"), page.index("canvas-app-bootstrap.js"))
+
+    def test_task_node_exposes_the_shared_selection_mount(self):
+        source = (ROOT / "static/js/workbench/canvas/task-rich-node.js").read_text(encoding="utf-8")
+        self.assertIn("function mountResultSelection(host, options)", source)
+        self.assertIn("mountResultSelection,", source)
+        shell = (ROOT / "static/js/workbench/canvas/node-shell.js").read_text(encoding="utf-8")
+        host = (ROOT / "static/js/workbench/canvas/node-card-host.js").read_text(encoding="utf-8")
+        self.assertIn("settings.resultSelectionOptions", shell)
+        self.assertIn("taskRichNode.mountResultSelection(resultSelectionHost, settings.resultSelectionOptions)", shell)
+        self.assertIn("const resultSelectionOptions = resolvedRendererOptions.resultSelectionOptions", host)
+        self.assertIn("WorkbenchResultAssetMaterializationApiClient.createHandler", host)
+        page = (ROOT / "static/js/workbench/canvas/canvas-app-media-editor.js").read_text(encoding="utf-8")
+        self.assertIn("function canvasTaskRendererOptions(node)", page)
+        self.assertIn("node.type === 'task' ? canvasTaskRendererOptions(node)", page)
 
     def test_pending_feed_the_client_into_the_api_payload_shape(self):
         # The seam reports what to persist and the client is the only transport;

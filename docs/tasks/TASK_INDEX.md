@@ -5,7 +5,7 @@
 
 | Card | Round | Priority | State | Depends | Title |
 |---|---|---:|---|---|---|
-| `R4-01` | R4 | P0 | ACTIVE | None | Re-establish Local Truth |
+| `R4-01` | R4 | P0 | DONE | None | Re-establish Local Truth |
 | `R4-02` | R4 | P0 | BACKLOG | R4-01 | SQLite / Legacy Canvas Reconciliation |
 | `R4-03` | R4 | P0 | BACKLOG | R4-02 | SQLite Authority Split-Brain Guard |
 | `R4-04` | R4 | P0 | BACKLOG | R4-03 | Split-Brain Regression Suite |
@@ -120,28 +120,43 @@
 | `R8-22` | R8 | P0 | DONE | R8-21 | Result to Canvas Materialization |
 | `R9-01` | R9 | P0 | DONE | R8-22 | Asset Domain |
 | `R9-02` | R9 | P0 | DONE | R9-01 | AssetVersion |
-| `R9-03` | R9 | P0 | ACTIVE | R9-02 | Asset Repository and Migration |
-| `R9-04` | R9 | P0 | BACKLOG | R9-03 | Resource Library Shell |
-| `R9-05` | R9 | P1 | BACKLOG | R9-04 | Asset Search and Filter |
-| `R9-06` | R9 | P1 | BACKLOG | R9-05 | Asset Inspector and Versions |
-| `R9-07` | R9 | P0 | BACKLOG | R9-06 | Drag Asset to Canvas by Reference |
-| `R9-08` | R9 | P0 | BACKLOG | R9-07 | Artifact Domain |
-| `R9-09` | R9 | P0 | BACKLOG | R9-08 | ArtifactVersion and Lineage |
-| `R9-10` | R9 | P1 | BACKLOG | R9-09 | Artifact Inspector and History |
-| `R9-11` | R9 | P1 | BACKLOG | R9-10 | Result to Asset |
-| `R9-12` | R9 | P0 | BACKLOG | R9-11 | Result to Artifact |
-| `R9-13` | R9 | P0 | BACKLOG | R9-12 | Generic Catalog Domain |
-| `R9-14` | R9 | P0 | BACKLOG | R9-13 | Catalog Item Versioning |
-| `R9-15` | R9 | P1 | BACKLOG | R9-14 | Catalog Library UI |
-| `R10-01` | R10 | P0 | BACKLOG | R9-15 | Entity Domain |
-| `R10-02` | R10 | P0 | BACKLOG | R10-01 | EntityVersion |
-| `R10-03` | R10 | P0 | BACKLOG | R10-02 | EntityRelation |
-| `R10-04` | R10 | P1 | BACKLOG | R10-03 | Entity Rich Node |
-| `R10-05` | R10 | P0 | BACKLOG | R10-04 | KnowledgeSource |
-| `R10-06` | R10 | P0 | BACKLOG | R10-05 | KnowledgeEntry |
-| `R10-07` | R10 | P1 | BACKLOG | R10-06 | Knowledge Search |
-| `R10-08` | R10 | P0 | BACKLOG | R10-07 | Project Knowledge Context |
-| `R11-01` | R11 | P0 | BACKLOG | R10-08 | WorkflowDefinition |
+| `R9-03` | R9 | P0 | DONE | R9-02 | Asset Repository and Migration |
+| `R9-04` | R9 | P0 | DONE | R9-03 | Resource Library Shell |
+| `R9-05` | R9 | P1 | DONE | R9-04 | Asset Search and Filter |
+| `R9-06` | R9 | P1 | DONE | R9-05 | Asset Inspector and Versions |
+| `R9-07` | R9 | P0 | DONE | R9-06 | Drag Asset to Canvas by Reference |
+| `R9-08` | R9 | P0 | DONE | R9-07 | Artifact Domain |
+| `R9-09` | R9 | P0 | DONE | R9-08 | ArtifactVersion and Lineage |
+| `R9-10` | R9 | P1 | DONE | R9-09 | Artifact Inspector and History |
+| `R9-11` | R9 | P1 | DONE | R9-10 | Result to Asset |
+| `R9-12` | R9 | P0 | DONE | R9-11 | Result to Artifact |
+| `R9-13` | R9 | P0 | DONE | R9-12 | Generic Catalog Domain |
+| `R9-14` | R9 | P0 | DONE | R9-13 | Catalog Item Versioning |
+| `R9-15` | R9 | P1 | DONE | R9-14 | Catalog Library UI |
+| `R10-01` | R10 | P0 | DONE | R9-15 | Entity Domain |
+| `R10-02` | R10 | P0 | DONE | R10-01 | EntityVersion |
+| `R10-03` | R10 | P0 | DONE | R10-02 | EntityRelation |
+| `R10-04` | R10 | P1 | DONE | R10-03 | Entity Rich Node |
+| `R10-05` | R10 | P0 | DONE | R10-04 | KnowledgeSource |
+| `R10-06` | R10 | P0 | DONE | R10-05 | KnowledgeEntry |
+| `R10-07` | R10 | P1 | DONE | R10-06 | Knowledge Search |
+| `R10-08` | R10 | P0 | DONE | R10-07 | Project Knowledge Context |
+| `UX-01` | UX | P0 | DONE | R10-08 | Video Replica Baseline + Design Tokens |
+| `UX-02` | UX | P0 | DONE | UX-01 | Canvas Surface Replica |
+| `UX-03` | UX | P0 | DONE | UX-02 | NodeShell Visual Replica |
+| `UX-04` | UX | P0 | DONE | UX-03 | Ports and Edges Replica |
+| `UX-05` | UX | P0 | DONE | UX-04 | Floating Action Toolbar |
+| `UX-06` | UX | P0 | DONE | UX-05 | Node Picker |
+| `UX-07` | UX | P0 | DONE | UX-06 | Connect-to-Create |
+| `UX-08` | UX | P0 | DONE | UX-07 | Parameter Summary / Popover / Inspector |
+| `UX-09` | UX | P0 | DONE | UX-08 | Task / LLM Node Replica |
+| `UX-10` | UX | P1 | DONE | UX-09 | Asset / Media Node Replica |
+| `UX-11` | UX | P0 | DONE | UX-10 | Collection / Table Replica |
+| `UX-12` | UX | P0 | ACTIVE | UX-11 | Result Workspace Replica |
+| `UX-13` | UX | P0 | BACKLOG | UX-12 | Generic Generation + Provider / Model Presentation |
+| `UX-14` | UX | P0 | BACKLOG | UX-13 | ComfyUI Workflow Builder + Presentation |
+| `UX-15` | UX | P0 | BACKLOG | UX-14 | Browser Acceptance + Classic Responsibility Gate |
+| `R11-01` | R11 | P0 | BACKLOG | UX-15 | WorkflowDefinition |
 | `R11-02` | R11 | P0 | BACKLOG | R11-01 | WorkflowVersion |
 | `R11-03` | R11 | P0 | BACKLOG | R11-02 | WorkflowStep Contract |
 | `R11-04` | R11 | P0 | BACKLOG | R11-03 | WorkflowRun |
@@ -243,7 +258,9 @@ R8  Execution Runtime + Result Tray
 R9  Asset / Artifact / Resource Library / Catalog
  ↓
 R10 Entity / Knowledge
- ↓
+ ↓ PASS
+UX  Video Replica Wave (UX-01 → UX-15)
+ ↓ PASS
 R11 Workflow / Approval / Frozen / Handoff
  ↓
 R12 Package Runtime + Integration Runtime
