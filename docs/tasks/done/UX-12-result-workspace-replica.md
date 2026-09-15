@@ -1,13 +1,13 @@
-# CARD UX-15 — Browser Acceptance + Classic Responsibility Gate
+# CARD UX-12 — Result Workspace Replica
 
 - Round: UX Video Replica Wave
 - Priority: P0
-- Status: BACKLOG
-- Depends on: `UX-14`
+- Status: DONE — independent Review PASS; archived 2026-09-15
+- Depends on: `UX-11`
 
 ## Goal
 
-Close the UI Replica Wave only after end-to-end browser acceptance and bounded retirement of replaced Classic presentation responsibilities.
+Unify ResultTray/Preview/Compare/Selection/Collection/Materialization into the video-style result experience.
 
 ## Why Now
 
@@ -23,18 +23,16 @@ The existing canonical Workbench owner(s), refined so the new presentation/inter
 
 ## In Scope
 
-- Run full visual/interaction acceptance against reference checklist.
-- Exercise default/hover/selected/editing/running/success/error/workspace states.
-- Inventory Classic presentation responsibilities replaced by UX-01..14.
-- Remove only duplicate ownership proven safe; leave unresolved compat seams explicitly documented.
-- Run focused, regression and browser acceptance gates.
+- Inventory existing result runtimes and ownership seams.
+- Create a coherent compact card + expanded/workspace result presentation.
+- Expose preview, compare, select/rate, collect and materialize actions without duplicating result state.
+- Verify multiple result types.
 
 
 ## Out of Scope
 
-- No blanket deletion of classic-* files.
-- No R11 implementation.
-- No architecture scope expansion to WholeHouse.
+- No new result data model.
+- Do not move approval/frozen lifecycle earlier than R11.
 
 
 ## Characterization
@@ -49,9 +47,8 @@ Before editing:
 
 ## Required Video / Design References
 
-- `docs/design/video-replica/VIDEO_ACCEPTANCE_CHECKLIST.md`
-- `docs/design/video-replica/ARCHITECTURE_GUARDRAILS.md`
-- `docs/design/video-replica/REFERENCE_INDEX.md`
+- `docs/video-replica/VIDEO_NODE_SPEC.md`
+- `docs/video-replica/references/result-workspace/`
 
 
 `ARCHITECTURE_GUARDRAILS.md` applies to every UX card even when not repeated above.
@@ -85,14 +82,12 @@ Run the repository regression gate required by the active repository contract (c
 
 ## Definition of Done
 
-- [ ] Reference checklist has evidence for all required flows.
-- [ ] Canonical architecture guards pass.
-- [ ] Any removed Classic responsibility has named before/after ownership evidence.
-- [ ] Full regression gate passes.
-- [ ] Independent Review can evaluate a bounded UX wave closure.
-- [ ] `AGENT_NEXT_TASK.md` still authorizes only this card during implementation.
-- [ ] No next card or later Round was implemented in the same Agent run.
-- [ ] Focused tests and regression gate results are recorded with evidence.
+- [x] Result features appear as one coherent experience.
+- [x] Existing Result runtime remains source of truth.
+- [x] Compare/select/materialize flows pass focused and browser acceptance tests.
+- [x] `AGENT_NEXT_TASK.md` still authorizes only this card during implementation.
+- [x] No next card or later Round was implemented in the same Agent run.
+- [x] Focused tests and regression gate results are recorded with evidence.
 
 ## Rollback
 
@@ -107,20 +102,20 @@ Revert only this card's bounded presentation/interaction change or re-enable the
 
 ## Final Ownership Evidence
 
-Before:
+Before: `result-tray-runtime.js`, `result-preview-runtime.js`, `result-compare-runtime.js`, `result-selection-runtime.js`, `result-collection-runtime.js` and `result-materialization-runtime.js` each owned separate presentation hosts. `NodeShell` only composed them independently, and the Canvas task adapter exposed selection separately.
 
-After:
+After: `result-workspace-runtime.js` is the shared Workbench presentation owner for navigation and composition. It delegates result state and actions to the existing six runtimes; `NodeShell`/`NodeCardHost` mount it as the task-card workspace.
 
-Duplicate owner removed:
+Duplicate owner removed: no result domain/repository/service/runtime was added. The standalone selection host is suppressed when the unified workspace is present; legacy individual options remain available for callers without the workspace.
 
-Browser/reference evidence:
+Browser/reference evidence: required result-workspace references `REF-301` through `REF-304` were read. A temporary local Canvas fixture rendered the unified workspace with two results; Preview showed `Preview A`, Compare opened, and Select / rate showed the persisted preference row and Save as asset. The fixture was deleted afterward and no user project was mutated.
 
-Focused tests:
+Focused tests: `./.venv/bin/python -m unittest -v tests.test_ux12_result_workspace_replica tests.test_result_tray_runtime tests.test_result_preview tests.test_result_compare tests.test_result_selection tests.test_result_collection tests.test_result_materialization tests.test_frontend_workbench_modules` — 313 tests passed. The repair additionally pins that persisted result items initialize the existing Tray state, so Grid does not report zero staged results for a populated workspace.
 
-Regression:
+Regression: `./scripts/agent-verify.sh` — PASS: 1379 tests, 311 Python AST files, 158 JavaScript files, 4 architecture guards, clean `git diff --check`.
 
 ## Next Recommended Card
 
-`R11-01`
+`UX-13`
 
 Do not execute the next card in the same Agent run.

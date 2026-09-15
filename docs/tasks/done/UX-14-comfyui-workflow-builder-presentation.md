@@ -1,13 +1,13 @@
-# CARD UX-12 — Result Workspace Replica
+# CARD UX-14 — ComfyUI Workflow Builder + Presentation
 
 - Round: UX Video Replica Wave
 - Priority: P0
 - Status: ACTIVE — implementation complete; independent Review pending
-- Depends on: `UX-11`
+- Depends on: `UX-13`
 
 ## Goal
 
-Unify ResultTray/Preview/Compare/Selection/Collection/Materialization into the video-style result experience.
+Expose version-pinned ComfyUI workflows as simplified Workbench definitions with mapped user-facing inputs/outputs, matching the reference videos.
 
 ## Why Now
 
@@ -23,16 +23,17 @@ The existing canonical Workbench owner(s), refined so the new presentation/inter
 
 ## In Scope
 
-- Inventory existing result runtimes and ownership seams.
-- Create a coherent compact card + expanded/workspace result presentation.
-- Expose preview, compare, select/rate, collect and materialize actions without duplicating result state.
-- Verify multiple result types.
+- Characterize current ComfyUIExecutor and classic-comfy-controls behavior.
+- Implement/import workflow definition builder around workflow_id@version.
+- Discover/map exposed roles to node_id + input_name and select outputs.
+- Render simplified Workbench node using generic shell/parameter patterns.
 
 
 ## Out of Scope
 
-- No new result data model.
-- Do not move approval/frozen lifecycle earlier than R11.
+- Do not recreate the full ComfyUI graph editor inside Canvas.
+- Do not use implicit latest workflow versions.
+- Do not bypass ComfyUIExecutor.
 
 
 ## Characterization
@@ -47,8 +48,8 @@ Before editing:
 
 ## Required Video / Design References
 
-- `docs/video-replica/VIDEO_NODE_SPEC.md`
-- `docs/video-replica/references/result-workspace/`
+- `docs/video-replica/VIDEO_INTERACTION_SPEC.md`
+- `docs/video-replica/references/comfy-mapping/`
 
 
 `ARCHITECTURE_GUARDRAILS.md` applies to every UX card even when not repeated above.
@@ -82,9 +83,9 @@ Run the repository regression gate required by the active repository contract (c
 
 ## Definition of Done
 
-- [x] Result features appear as one coherent experience.
-- [x] Existing Result runtime remains source of truth.
-- [x] Compare/select/materialize flows pass focused and browser acceptance tests.
+- [x] A stored workflow version can produce a simplified mapped Workbench definition.
+- [x] Input mappings are explicit and version-pinned.
+- [x] Local/remote connection semantics remain executor/integration concerns.
 - [x] `AGENT_NEXT_TASK.md` still authorizes only this card during implementation.
 - [x] No next card or later Round was implemented in the same Agent run.
 - [x] Focused tests and regression gate results are recorded with evidence.
@@ -102,20 +103,38 @@ Revert only this card's bounded presentation/interaction change or re-enable the
 
 ## Final Ownership Evidence
 
-Before: `result-tray-runtime.js`, `result-preview-runtime.js`, `result-compare-runtime.js`, `result-selection-runtime.js`, `result-collection-runtime.js` and `result-materialization-runtime.js` each owned separate presentation hosts. `NodeShell` only composed them independently, and the Canvas task adapter exposed selection separately.
+Before:
+`workbench/comfyui/executor.py` owned exact-version workflow resolution, input
+injection and runtime transport behind `ComfyUIExecutor`; the page-side
+`classic-comfy-controls.js` owned legacy workflow selection and field DOM.
 
-After: `result-workspace-runtime.js` is the shared Workbench presentation owner for navigation and composition. It delegates result state and actions to the existing six runtimes; `NodeShell`/`NodeCardHost` mount it as the task-card workspace.
+After:
+`ComfyUIWorkflowDefinitionBuilder` owns version-pinned mapping/discovery and
+`comfy-workflow-presentation.js` owns only the generic mapped projection.
+`ComfyUIExecutor` remains the runtime owner and the classic module remains a
+bounded compatibility adapter.
 
-Duplicate owner removed: no result domain/repository/service/runtime was added. The standalone selection host is suppressed when the unified workspace is present; legacy individual options remain available for callers without the workspace.
+Duplicate owner removed:
+None. No second Canvas/runtime/repository/service was added; legacy controls
+remain for unversioned saved records.
 
-Browser/reference evidence: required result-workspace references `REF-301` through `REF-304` were read. A temporary local Canvas fixture rendered the unified workspace with two results; Preview showed `Preview A`, Compare opened, and Select / rate showed the persisted preference row and Save as asset. The fixture was deleted afterward and no user project was mutated.
+Browser/reference evidence:
+Read the Comfy mapping interaction spec, node spec, architecture guardrails and
+REF-501 through REF-504. The real Canvas entry remains the single runtime;
+versioned mapped workflow presentation is covered by focused DOM contract tests.
 
-Focused tests: `./.venv/bin/python -m unittest -v tests.test_ux12_result_workspace_replica tests.test_result_tray_runtime tests.test_result_preview tests.test_result_compare tests.test_result_selection tests.test_result_collection tests.test_result_materialization tests.test_frontend_workbench_modules` — 313 tests passed.
+Focused tests:
+`./.venv/bin/python -m unittest tests.test_comfyui_workflow_definition_builder
+tests.test_ux14_comfy_workflow_presentation tests.test_comfyui_executor
+tests.test_frontend_workbench_modules` — 199 passed, including the independent
+Review repair regression and the end-to-end VM projection assertion.
 
-Regression: `./scripts/agent-verify.sh` — PASS: 1379 tests, 311 Python AST files, 158 JavaScript files, 4 architecture guards, clean `git diff --check`.
+Regression:
+`./scripts/agent-verify.sh` — **PASS: 1391 tests**, 315 Python AST files,
+160 JavaScript files, 4 architecture guards, and clean `git diff --check`.
 
 ## Next Recommended Card
 
-`UX-13`
+`UX-15`
 
 Do not execute the next card in the same Agent run.

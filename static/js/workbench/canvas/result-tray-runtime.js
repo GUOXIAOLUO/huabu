@@ -48,13 +48,16 @@
 
     function createSession(options) {
         const settings = options && typeof options === 'object' ? options : {};
+        const initialItems = Array.isArray(settings.initialItems)
+            ? settings.initialItems.filter(item => item && typeof item === 'object' && text(item.item_id)).map(clone)
+            : [];
         return {
             session_id: sessionIdOf(settings),
             project_id: text(settings.projectId),
             task_id: text(settings.taskId),
             run_id: text(settings.runId),
             attempt_id: text(settings.attemptId),
-            items: [],
+            items: initialItems,
             materialized: false,
         };
     }

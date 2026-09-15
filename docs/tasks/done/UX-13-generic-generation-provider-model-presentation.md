@@ -1,13 +1,13 @@
-# CARD UX-14 — ComfyUI Workflow Builder + Presentation
+# CARD UX-13 — Generic Generation + Provider / Model Presentation
 
 - Round: UX Video Replica Wave
 - Priority: P0
-- Status: BACKLOG
-- Depends on: `UX-13`
+- Status: ACTIVE — implementation complete; independent Review pending
+- Depends on: `UX-12`
 
 ## Goal
 
-Expose version-pinned ComfyUI workflows as simplified Workbench definitions with mapped user-facing inputs/outputs, matching the reference videos.
+Replace provider-shaped generation cards with a generic generation presentation driven by model availability/capabilities and execution profile.
 
 ## Why Now
 
@@ -23,17 +23,17 @@ The existing canonical Workbench owner(s), refined so the new presentation/inter
 
 ## In Scope
 
-- Characterize current ComfyUIExecutor and classic-comfy-controls behavior.
-- Implement/import workflow definition builder around workflow_id@version.
-- Discover/map exposed roles to node_id + input_name and select outputs.
-- Render simplified Workbench node using generic shell/parameter patterns.
+- Characterize generator/msgen/minimax/runninghub/video provider-specific presentation branches.
+- Define generic model/execution footer and parameter summary presentation.
+- Keep ProviderConnection/credentials in settings, not node records.
+- Migrate only presentation responsibilities proven by characterization.
 
 
 ## Out of Scope
 
-- Do not recreate the full ComfyUI graph editor inside Canvas.
-- Do not use implicit latest workflow versions.
-- Do not bypass ComfyUIExecutor.
+- Do not collapse Model, ProviderConnection and Executor concepts.
+- Do not delete Classic seams until each replaced responsibility is accepted.
+- No API key in node state.
 
 
 ## Characterization
@@ -48,8 +48,9 @@ Before editing:
 
 ## Required Video / Design References
 
-- `docs/design/video-replica/VIDEO_INTERACTION_SPEC.md`
-- `docs/design/video-replica/references/comfy-mapping/`
+- `docs/video-replica/VIDEO_NODE_SPEC.md`
+- `docs/video-replica/references/generation-node/`
+- `docs/video-replica/references/provider-settings/`
 
 
 `ARCHITECTURE_GUARDRAILS.md` applies to every UX card even when not repeated above.
@@ -83,12 +84,12 @@ Run the repository regression gate required by the active repository contract (c
 
 ## Definition of Done
 
-- [ ] A stored workflow version can produce a simplified mapped Workbench definition.
-- [ ] Input mappings are explicit and version-pinned.
-- [ ] Local/remote connection semantics remain executor/integration concerns.
-- [ ] `AGENT_NEXT_TASK.md` still authorizes only this card during implementation.
-- [ ] No next card or later Round was implemented in the same Agent run.
-- [ ] Focused tests and regression gate results are recorded with evidence.
+- [x] At least common generation flows use generic presentation.
+- [x] Provider-specific differences are expressed through definitions/capabilities/parameter schema where possible.
+- [x] No credentials leak into Canvas persistence.
+- [x] `AGENT_NEXT_TASK.md` still authorizes only this card during implementation.
+- [x] No next card or later Round was implemented in the same Agent run.
+- [x] Focused tests and regression gate results are recorded with evidence.
 
 ## Rollback
 
@@ -104,19 +105,38 @@ Revert only this card's bounded presentation/interaction change or re-enable the
 ## Final Ownership Evidence
 
 Before:
+Provider-shaped generator, ModelScope and video bodies owned their visible
+provider/model presentation independently; parameter summary existed only on
+the API generator body.
 
 After:
+`generation-presentation.js` owns the shared model/route/execution/capability
+projection and is mounted by the existing compatibility body seams. Existing
+parameter presentation remains the parameter-summary owner.
 
 Duplicate owner removed:
+No new owner. Provider settings and execution remain in their existing bounded
+Classic compatibility seams; the new module has no persistence or execution API.
 
 Browser/reference evidence:
+Real local Canvas page opened successfully and existing Unified Canvas task
+presentation was verified. No populated generation fixture was available in
+the current project list; generation projection and credential exclusion were
+verified by focused behavioral tests.
 
 Focused tests:
+`./.venv/bin/python -m unittest tests.test_ux13_generation_presentation
+tests.test_ux08_parameter_presentation tests.test_ux09_task_llm_node_replica`
+— 16 passed. Review repair coverage verifies the injected canonical
+ModelAvailability registry is preferred and msgen/video retain shared
+parameter-summary wiring.
 
 Regression:
+`./scripts/agent-verify.sh` — PASS: 1382 tests, 312 Python AST files, 159
+JavaScript files, 4 architecture guards, and `git diff --check`.
 
 ## Next Recommended Card
 
-`UX-15`
+`UX-14`
 
 Do not execute the next card in the same Agent run.

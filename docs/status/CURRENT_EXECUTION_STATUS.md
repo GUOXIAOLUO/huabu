@@ -9559,3 +9559,156 @@ Developer Git Review: PASS for the bounded UX-12 delta after reviewing the
 workspace composition, task-shell wiring, cache-busting versions, focused
 tests, and full gate. No next card was implemented.
 UX-13 remains the only recommended next card; it was not started.
+
+Independent Review repair (2026-09-15): Review identified that a populated
+workspace could report results while its Tray child remained empty, and that
+the Materialize/asset path required an explicit task adapter configuration.
+The existing Result Tray now accepts its canonical persisted result items as
+initial staging state; the task adapter supplies those items without creating
+a second result store. The existing asset materialization handler remains
+behind the Selection runtime's Save as asset action. Added coverage verifies
+the Tray contains the same two items as the Workspace projection. The repair
+focused suite passed; the full regression gate is recorded below after this
+repair.
+
+## UX-12 Result Workspace Replica — archived; UX-13 activated (2026-09-15)
+
+UX-12 received independent Review **PASS** after the Result Tray initialization
+repair. The card is archived in `docs/tasks/done/`. `AGENT_NEXT_TASK.md` and
+`TASK_INDEX.md` now agree that UX-13 Generic Generation + Provider / Model
+Presentation is the sole ACTIVE card; its UX-12 dependency is satisfied.
+UX-13 is activated only and implementation has not started in this run.
+
+## UX-13 Generic Generation + Provider / Model Presentation — implementation complete; independent Review pending (2026-09-15)
+
+The shared `generation-presentation.js` provides a generic presentation for
+common generator, ModelScope generation and video generation bodies. It
+projects model identity, availability route, execution profile and declared
+capabilities without owning provider settings, credentials, persistence or
+execution. Existing provider-specific controls remain in bounded compatibility
+bodies, and the existing parameter presentation remains the parameter-summary
+owner.
+
+No new NodeKind, repository, application service, API, runtime, provider
+connection, executor, WholeHouse logic or Canvas runtime was introduced. The
+surface is wired through the existing Classic body compatibility host and the
+existing Unified Canvas page.
+
+Review repair: the presentation now prefers the injected canonical
+ModelAvailability registry and the ModelScope/video bodies also mount the
+shared parameter summary with their own parameter schema. Existing hosts may
+still omit the optional presentation dependency for compatibility.
+
+Focused suite: `./.venv/bin/python -m unittest
+tests.test_ux13_generation_presentation tests.test_ux08_parameter_presentation
+tests.test_ux09_task_llm_node_replica` — **16 tests passed**.
+
+Browser acceptance opened the real local Canvas page and verified the current
+Unified Canvas entry and existing task-card presentation. A populated
+generation fixture was not available in the current project list, so the new
+generation presentation DOM projection and credential exclusion are covered
+by focused behavioral tests; no generation execution or provider credential
+was triggered.
+
+Developer Git Review: PASS for the bounded UX-13 delta. No next card was
+implemented.
+
+## UX-13 Generic Generation + Provider / Model Presentation — archived; UX-14 activated (2026-09-15)
+
+UX-13 received independent Review **PASS** against its Definition of Done,
+architecture constraints, ownership evidence, focused tests and regression
+gate. The card is archived in `docs/tasks/done/`. `AGENT_NEXT_TASK.md` and
+`TASK_INDEX.md` now agree that UX-14 ComfyUI Workflow Builder + Presentation
+is the sole ACTIVE card; its UX-13 dependency is satisfied. UX-14 is activated
+only and implementation has not started in this run.
+
+## UX-14 ComfyUI Workflow Builder + Presentation — implementation complete; independent Review pending (2026-09-15)
+
+Review repair: the Comfy compatibility seam now resolves cached workflow data
+from the full node object (the canonical `currentComfyWorkflow(node)` contract)
+and also accepts a versioned definition or explicit `workflow_id@version` stored
+on a node. The regression test catches the prior string-argument defect.
+
+`ComfyUIWorkflowDefinitionBuilder` now builds immutable simplified definitions
+from an explicit `workflow_id@version`, discovers deterministic semantic input
+candidates, validates input node slots and selected output mappings, and never
+infers a latest version. `ComfyUIExecutor` remains the canonical runtime and
+connection owner. The shared `comfy-workflow-presentation.js` projects only
+the version, mapped input roles and selected outputs through the existing
+classic compatibility host; it does not render the internal Comfy graph or
+own persistence, credentials or execution.
+
+No new NodeKind, repository, application service, API, runtime, provider
+connection, executor, WholeHouse logic or Canvas runtime was introduced. The
+existing unversioned classic controls remain available for compatibility, and
+no UX-15 or later Round work was started.
+
+Focused suite: `./.venv/bin/python -m unittest
+tests.test_comfyui_workflow_definition_builder
+tests.test_ux14_comfy_workflow_presentation tests.test_comfyui_executor
+tests.test_frontend_workbench_modules` — **200 tests passed**, including the
+end-to-end VM assertion from the canonical Comfy seam into the mapped
+presentation.
+
+Browser acceptance opened the real local Canvas entry, created a temporary
+UX-14 acceptance canvas, added a ComfyUI node, and verified the existing
+Unified Canvas node and bounded custom-workflow controls. The available local
+workflow list contained no versioned mapping fixture, so the new mapped
+projection was verified by the focused DOM and seam behavior tests; no execution or
+credential was triggered.
+
+Regression: `./scripts/agent-verify.sh` — **PASS: 1391 tests**, 315 Python AST
+files, 160 JavaScript files, 4 architecture guards, and clean `git diff --check`.
+
+Developer Git Review: PASS for the bounded UX-14 delta. Independent Review is
+required before UX-14 is archived or UX-15 is activated.
+
+## UX-14 ComfyUI Workflow Builder + Presentation — archived; UX-15 activated (2026-09-15)
+
+UX-14 received independent Review **PASS** after the seam-to-presentation
+behavior repair and is archived in `docs/tasks/done/`. `AGENT_NEXT_TASK.md` and
+`TASK_INDEX.md` now agree that UX-15 Browser Acceptance + Classic Responsibility
+Gate is the sole ACTIVE card; its UX-14 dependency is satisfied. UX-15 is
+activated only and implementation has not started in this run.
+
+## UX-15 Browser Acceptance + Classic Responsibility Gate — implementation complete; independent Review pending (2026-09-15)
+
+The final UX wave acceptance now covers the real Unified Canvas result fixture:
+Grid, Preview, Compare, Selection, Collection and Materialization states all
+render through the existing shared Result Workspace and canonical child
+runtimes. A small UX-15 repair mounts Collection and Materialization with their
+existing runtime options when a result workspace exists, so an empty persisted
+state is shown honestly instead of as an unavailable view.
+
+The acceptance also verifies the Task card's Prompt/Skill/Model presentation,
+disabled unavailable-route state, NodeShell, ports, navigation, and retained
+compatibility controls. No execution, credential, deletion or external
+handoff was triggered.
+
+No second Canvas runtime, WholeHouse Core logic, permanent provider NodeKind,
+new repository/service/API, or new Classic business responsibility was added.
+The retired Smart page/runtime and old Classic monolith remain absent; retained
+`classic-*` modules are bounded compatibility seams and were not blanket-deleted.
+
+Reference evidence: actual `docs/video-replica/VIDEO_ACCEPTANCE_CHECKLIST.md`,
+`ARCHITECTURE_GUARDRAILS.md`, `REFERENCE_INDEX.md`, plus the referenced canvas,
+task, generation, result-workspace and Comfy mapping images.
+
+Focused tests: `./.venv/bin/python -m unittest
+tests.test_ux15_browser_acceptance_gate tests.test_ux12_result_workspace_replica
+tests.test_result_collection tests.test_result_materialization
+tests.test_frontend_workbench_modules` — **248 passed**.
+
+Regression: `./scripts/agent-verify.sh` — **PASS: 1395 tests**, 316 Python AST
+files, 160 JavaScript files, 4 architecture guards, and clean `git diff
+--check`. UX-15 remains active pending independent Review; R11-01 was not
+started.
+
+## UX-15 close-out — archived; R11-01 activated (2026-09-15)
+
+UX-15 received independent Review **PASS** against its Definition of Done,
+architecture constraints, ownership evidence, focused tests and regression
+gate. The card is archived in `docs/tasks/done/`. `AGENT_NEXT_TASK.md` and
+`TASK_INDEX.md` now agree that `R11-01` WorkflowDefinition is the sole ACTIVE
+card, activated but not started. No R11-01 implementation was performed in
+this close-out run.

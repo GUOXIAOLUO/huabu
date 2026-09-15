@@ -54,7 +54,7 @@ class UX01DesignTokenTests(unittest.TestCase):
         self.assertIn("event => syncSelectedEditTextStyleFromBrush(event)", records)
         self.assertIn("typeof window.canvasInspectorPanel.render !== 'function'", media_editor)
         self.assertIn("canvas-app-records.js?v=2026.09.14.5", page)
-        self.assertIn("canvas-app-media-editor.js?v=2026.09.14.9", page)
+        self.assertIn("canvas-app-media-editor.js?v=2026.09.15.1", page)
 
 
 if __name__ == "__main__":

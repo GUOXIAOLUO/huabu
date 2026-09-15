@@ -79,10 +79,13 @@
         var uploadCanvasVideosToCloud = host.uploadCanvasVideosToCloud;
         var setCanvasManualVideoUrl = host.setCanvasManualVideoUrl;
         var refreshIcons = host.refreshIcons;
+        var generationPresentation = host.generationPresentation;
+        var parameterPresentation = host.parameterPresentation;
 
         function renderVideoBody(node) {
             var wrap = document.createElement('div');
             wrap.className = 'generator-body';
+            if (generationPresentation) generationPresentation.create({document: document, container: wrap, node: node});
             var inputSources = generatorSources(node);
             var ordered = orderedSources(node, inputSources);
             var mediaInputs = ordered.filter(function (src) {
@@ -241,6 +244,15 @@
                 runCanvasGenerate(node.id);
             };
             bindCascadeButtons(wrap, node.id);
+            if (parameterPresentation) parameterPresentation.create({
+                document: document, container: wrap, node: node,
+                advancedSelector: '.gen-settings',
+                fields: [
+                    {id:'aspectRatio', label:'比例', value: item => item.aspectRatio || '16:9', values:[['16:9','16:9'],['9:16','9:16'],['1:1','1:1'],['4:3','4:3'],['3:4','3:4'],['21:9','21:9'],['9:21','9:21'],['adaptive','自适应']]},
+                    {id:'resolution', label:'分辨率', value: item => item.resolution || 'auto', values:[['auto','自动'],['480p','480p'],['720p','720p'],['1080p','1080p']]},
+                ],
+                onChange: (field, value) => { node[field] = value; scheduleSave(); },
+            });
             if (refreshIcons) refreshIcons();
             return wrap;
         }

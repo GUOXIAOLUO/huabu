@@ -45,6 +45,7 @@
         'renderPromptPreview', 'renderComfyImages',
         'renderComfyCustomField', 'toggleComfyRandom',
         'bindCascadeButtons', 'cascadeBtnHtml', 'retryBarHtml',
+        // Optional versioned workflow projection (legacy controls remain usable without it).
     ];
 
     function create(host) {
@@ -87,6 +88,29 @@
         var bindCascadeButtons = host.bindCascadeButtons;
         var cascadeBtnHtml = host.cascadeBtnHtml;
         var retryBarHtml = host.retryBarHtml;
+        var workflowPresentation = host.workflowPresentation;
+
+        function versionedWorkflowDefinition(node) {
+            var stored = node.comfyWorkflowDefinition || currentComfyWorkflow(node) || {};
+            var reference = stored.workflow_ref || node.comfyWorkflowRef;
+            var id = node.comfyWorkflowId || stored.id || stored.workflow_id;
+            var version = node.comfyWorkflowVersion || stored.version;
+            if ((!id || !version) && typeof reference === 'string') {
+                var marker = reference.lastIndexOf('@');
+                if (marker > 0) {
+                    id = id || reference.slice(0, marker);
+                    version = version || reference.slice(marker + 1);
+                }
+            }
+            if (!id || !Number.isInteger(Number(version)) || Number(version) < 1) return null;
+            return Object.assign({}, stored, {
+                id: id,
+                version: Number(version),
+                title: node.comfyWorkflowTitle || stored.title || node.comfyWorkflow,
+                input_bindings: node.comfyInputBindings || stored.input_bindings || [],
+                output_mappings: node.comfyOutputMappings || stored.output_mappings || [],
+            });
+        }
 
         function addComfyNode(point) {
             var p = point || defaultPoint(160, 0);
@@ -115,6 +139,12 @@
                 customWidth: '',
                 customHeight: '',
                 comfyWorkflow: '',
+                comfyWorkflowDefinition: null,
+                comfyWorkflowRef: '',
+                comfyWorkflowId: '',
+                comfyWorkflowVersion: null,
+                comfyInputBindings: [],
+                comfyOutputMappings: [],
                 comfyParams: {},
                 count: 1,
                 inputs: []
@@ -193,6 +223,13 @@
                 renderComfyImages(wrap.querySelector('.input-list'), node, mode === 'custom' ? mediaInputs : imageInputs);
             }
             renderComfySettings(wrap.querySelector('.comfy-settings'), node);
+            var definition = workflowPresentation && versionedWorkflowDefinition(node);
+            if (definition) workflowPresentation.create({
+                document: document,
+                container: wrap.querySelector('.comfy-content'),
+                definition: definition,
+                onRun: function (event) { event.stopPropagation(); runCanvasGenerate(node.id); },
+            });
             wrap.querySelector('.comfy-run').onclick = function (e) { e.stopPropagation(); runCanvasGenerate(node.id); };
             bindCascadeButtons(wrap, node.id);
             return wrap;

@@ -5,12 +5,12 @@
 
 ## Active Task
 
-- Active Task: `UX-12`
-- Task Card: `docs/tasks/backlog/UX-12-result-workspace-replica.md`
-- Status: `ACTIVE — implementation complete; independent Review pending`
-- Depends on: `UX-11` (DONE, independent Review PASS)
+- Active Task: `R11-01`
+- Task Card: `docs/tasks/backlog/R11-01-workflowdefinition.md`
+- Status: `ACTIVE — activated, not started`
+- Depends on: `UX-15` (DONE, independent Review PASS)
 
-R6-01 through R6-24, R7-01 through R7-13, R8-01 through R8-22, R9-01 through R9-15, R10-01 through R10-08, UX-01 through UX-11 are archived after independent Review PASS. Continue in dependency order.
+R6-01 through R6-24, R7-01 through R7-13, R8-01 through R8-22, R9-01 through R9-15, R10-01 through R10-08, UX-01 through UX-15 are archived after independent Review PASS. Continue in dependency order.
 
 ## Task Lifecycle
 

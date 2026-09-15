@@ -2,8 +2,8 @@
 
 - Round: R11
 - Priority: P0
-- Status: BACKLOG
-- Depends on: R10-08
+- Status: ACTIVE — activated, not started
+- Depends on: UX-15
 
 ## Goal
 

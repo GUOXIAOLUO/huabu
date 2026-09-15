@@ -152,11 +152,11 @@
 | `UX-09` | UX | P0 | DONE | UX-08 | Task / LLM Node Replica |
 | `UX-10` | UX | P1 | DONE | UX-09 | Asset / Media Node Replica |
 | `UX-11` | UX | P0 | DONE | UX-10 | Collection / Table Replica |
-| `UX-12` | UX | P0 | ACTIVE | UX-11 | Result Workspace Replica |
-| `UX-13` | UX | P0 | BACKLOG | UX-12 | Generic Generation + Provider / Model Presentation |
-| `UX-14` | UX | P0 | BACKLOG | UX-13 | ComfyUI Workflow Builder + Presentation |
-| `UX-15` | UX | P0 | BACKLOG | UX-14 | Browser Acceptance + Classic Responsibility Gate |
-| `R11-01` | R11 | P0 | BACKLOG | UX-15 | WorkflowDefinition |
+| `UX-12` | UX | P0 | DONE | UX-11 | Result Workspace Replica |
+| `UX-13` | UX | P0 | DONE | UX-12 | Generic Generation + Provider / Model Presentation |
+| `UX-14` | UX | P0 | DONE | UX-13 | ComfyUI Workflow Builder + Presentation |
+| `UX-15` | UX | P0 | DONE | UX-14 | Browser Acceptance + Classic Responsibility Gate |
+| `R11-01` | R11 | P0 | ACTIVE | UX-15 | WorkflowDefinition |
 | `R11-02` | R11 | P0 | BACKLOG | R11-01 | WorkflowVersion |
 | `R11-03` | R11 | P0 | BACKLOG | R11-02 | WorkflowStep Contract |
 | `R11-04` | R11 | P0 | BACKLOG | R11-03 | WorkflowRun |

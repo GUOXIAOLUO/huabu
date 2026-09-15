@@ -119,6 +119,8 @@
         var scheduleSave = host.scheduleSave;
         var render = host.render;
         var runCanvasGenerate = host.runCanvasGenerate;
+        var generationPresentation = host.generationPresentation;
+        var parameterPresentation = host.parameterPresentation;
 
         function renderLLMBody(node) {
             const providerControls = ensureProviderControls();
@@ -199,6 +201,7 @@
         function renderGeneratorBody(node) {
             const wrap = document.createElement('div');
             wrap.className = 'generator-body';
+            if (generationPresentation) generationPresentation.create({document, container: wrap, node});
             const inputSources = generatorSources(node);
             const ordered = orderedSources(node, inputSources);
             const mediaInputs = ordered.filter(src => src.refs?.some(ref => ['image', 'video', 'audio'].includes(mediaKindForRef(ref))));
@@ -614,6 +617,7 @@
         function renderMsGenBody(node) {
             const wrap = document.createElement('div');
             wrap.className = 'generator-body';
+            if (generationPresentation) generationPresentation.create({document, container: wrap, node});
             const modelKey = node.msgenModel || 'zimage';
             const msModel = MS_GEN_MODELS[modelKey] || MS_GEN_MODELS.zimage;
             const inputSources = generatorSources(node);
@@ -947,6 +951,20 @@
             renderPromptPreview(wrap.querySelector('.prompt-list'), promptInputs);
             wrap.querySelector('.gen-btn').onclick = e => { e.stopPropagation(); runCanvasGenerate(node.id); };
             bindCascadeButtons(wrap, node.id);
+            if (parameterPresentation) parameterPresentation.create({
+                document, container: wrap, node,
+                advancedSelector: '.gen-settings',
+                fields: [
+                    {id:'msRatio', label:'比例', value: item => item.msRatio || 'square', values:[['square','1:1'],['portrait','2:3'],['landscape','3:2'],['wide','16:9'],['custom','自定义']]},
+                    {id:'msResolution', label:'分辨率', value: item => item.msResolution || '1k', values:[['1k','1K'],['2k','2K'],['4k','4K'],['custom','自定义']]},
+                    {id:'count', label:'数量', value: item => Math.max(1, Math.min(8, Number(item.count || 1))), values: Array.from({length:8}, (_, index) => [String(index + 1), `×${index + 1}`])},
+                ],
+                onChange: (field, value) => {
+                    if (field === 'count') node.count = Math.max(1, Math.min(8, Number(value) || 1));
+                    else node[field] = value;
+                    scheduleSave();
+                },
+            });
             return wrap;
         }
 

@@ -96,6 +96,7 @@ function ensureClassicCardBodyRenderer(){
             render,
             runCanvasGenerate,
             parameterPresentation: window.WorkbenchParameterPresentation,
+            generationPresentation: window.WorkbenchGenerationPresentation,
         });
     }
     return classicCardBodyRenderer;
@@ -141,6 +142,7 @@ function ensureClassicComfyControls(){
             bindCascadeButtons,
             cascadeBtnHtml,
             retryBarHtml,
+            workflowPresentation: window.WorkbenchComfyWorkflowPresentation,
         });
     }
     return classicComfyControls;
@@ -442,6 +444,8 @@ function ensureClassicVideoCardBody(){
             renderVideoImageInputs: function(arg){ return vpp.renderVideoImageInputs(arg); },
             setCanvasManualVideoUrl,
             refreshIcons,
+            generationPresentation: window.WorkbenchGenerationPresentation,
+            parameterPresentation: window.WorkbenchParameterPresentation,
         });
     }
     return classicVideoCardBody;

@@ -114,6 +114,24 @@ class ComfyUIInputBinding(_SeamModel):
     required: bool = True
 
 
+class ComfyUIOutputMapping(_SeamModel):
+    """Expose one selected ComfyUI output node as a Workbench output role."""
+
+    role: OpaqueId
+    node_id: OpaqueId
+    output_name: OpaqueId = "output"
+    kind: ComfyUIOutputKind = "image"
+
+
+class ComfyUIInputCandidate(_SeamModel):
+    """A safe candidate slot discovered from a stored ComfyUI graph."""
+
+    role: OpaqueId
+    node_id: OpaqueId
+    input_name: OpaqueId
+    required: bool = True
+
+
 class ComfyUIWorkflow(_SeamModel):
     """One immutable ComfyUI workflow version with its role binding table.
 
@@ -126,6 +144,7 @@ class ComfyUIWorkflow(_SeamModel):
     title: str = ""
     graph: dict[str, Any] = Field(default_factory=dict)
     input_bindings: tuple[ComfyUIInputBinding, ...] = ()
+    output_mappings: tuple[ComfyUIOutputMapping, ...] = ()
 
     @model_validator(mode="after")
     def validate_workflow(self):
@@ -133,6 +152,9 @@ class ComfyUIWorkflow(_SeamModel):
         roles = [binding.role for binding in self.input_bindings]
         if len(roles) != len(set(roles)):
             raise ValueError("ComfyUI workflow input bindings must have unique roles")
+        output_roles = [mapping.role for mapping in self.output_mappings]
+        if len(output_roles) != len(set(output_roles)):
+            raise ValueError("ComfyUI workflow output mappings must have unique roles")
         return self
 
     @property

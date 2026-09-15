@@ -16,6 +16,8 @@ from .executor import (
     ComfyUIExecutor,
     ComfyUIExecutorError,
     ComfyUIInputBinding,
+    ComfyUIInputCandidate,
+    ComfyUIOutputMapping,
     ComfyUIOutputItem,
     ComfyUIRawEvent,
     ComfyUISubmission,
@@ -25,6 +27,7 @@ from .executor import (
     ComfyUIWorkflowRef,
     WorkflowResolver,
 )
+from .workflow_definition_builder import ComfyUIWorkflowDefinitionBuilder
 
 __all__ = [
     "COMFYUI_EXECUTOR_REF",
@@ -35,6 +38,8 @@ __all__ = [
     "ComfyUIExecutor",
     "ComfyUIExecutorError",
     "ComfyUIInputBinding",
+    "ComfyUIInputCandidate",
+    "ComfyUIOutputMapping",
     "ComfyUIOutputItem",
     "ComfyUIRawEvent",
     "ComfyUISubmission",
@@ -43,4 +48,5 @@ __all__ = [
     "ComfyUIWorkflow",
     "ComfyUIWorkflowRef",
     "WorkflowResolver",
+    "ComfyUIWorkflowDefinitionBuilder",
 ]

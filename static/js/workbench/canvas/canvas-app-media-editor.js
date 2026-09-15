@@ -2138,11 +2138,14 @@ function canvasTaskRendererOptions(node){
         options.resultWorkspaceOptions = {
             title: node.result_workspace?.title || 'Results',
             items: resultItems,
-            tray: node.result_workspace?.tray || (resultItems.length ? {sessionId: node.id} : null),
+            tray: node.result_workspace?.tray || (resultItems.length ? {sessionId: node.id, initialItems: resultItems} : null),
             compare: node.result_workspace?.compare || (resultCandidates.length ? {candidates: resultCandidates} : null),
             selection: node.result_workspace?.selection || (records.length ? {records} : null),
-            collection: node.result_workspace?.collection || null,
-            materialization: node.result_workspace?.materialization || null,
+            // Keep the canonical child runtimes mounted for an existing result
+            // workspace even when no persisted collection/materialization has
+            // been created yet; they render their own honest empty state.
+            collection: node.result_workspace?.collection || {},
+            materialization: node.result_workspace?.materialization || {},
             onPreview: node.result_workspace?.onPreview,
             onChange: node.result_workspace?.onChange,
         };
